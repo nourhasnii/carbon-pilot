@@ -1,0 +1,261 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Carbon overview{% endblock %}
+{% block eyebrow %}Carbon management{% endblock %}
+{% block heading %}Carbon overview{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'carbon:activity_wizard' %}"><i data-lucide="plus"></i> New activity</a>
+{% endblock %}
+
+{% block content %}
+  <div class="cp-tabs" role="tablist" aria-label="Reporting year">
+    {% for y in years %}
+      <a class="cp-tab {% if y == year %}is-active{% endif %}" href="?year={{ y }}">{{ y }}</a>
+    {% endfor %}
+  </div>
+
+  {# ---------- KPI row ---------- #}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total emissions · {{ year }}</div>
+      <div class="cp-kpi-value">{{ total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">
+        {% if comparison.delta_percent is not None %}
+          <span class="{% if comparison.direction == 'up' %}is-up{% elif comparison.direction == 'down' %}is-down{% endif %}">
+            {% if comparison.direction == 'up' %}▲{% elif comparison.direction == 'down' %}▼{% else %}—{% endif %}
+            {{ comparison.delta_percent }}%
+          </span> vs {{ comparison.previous_year }}
+        {% else %}No previous-year data{% endif %}
+      </div>
+    </article>
+    {% for item in scopes %}
+      <article class="cp-kpi cp-kpi-scope{{ forloop.counter }}">
+        <div class="cp-kpi-label">{{ item.label }}</div>
+        <div class="cp-kpi-value">{{ item.tonnes|floatformat:2 }} <small>tCO2e</small></div>
+        <div class="cp-kpi-sub">{{ item.percent }}% of total</div>
+      </article>
+    {% endfor %}
+  </div>
+
+  {# ---------- Trend + comparison ---------- #}
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Emissions over time</h2>
+          <p class="cp-card-sub cp-mt-0">Monthly tCO2e for {{ year }}</p>
+        </div>
+      </div>
+      {% if total_tonnes %}
+        <div class="cp-chart" role="img" aria-label="Monthly emissions for {{ year }}">
+          {% for entry in monthly %}
+            <div class="cp-chart-col" title="{{ entry.label }}: {{ entry.tonnes|floatformat:2 }} tCO2e">
+              <span class="cp-chart-value">{{ entry.tonnes|floatformat:1 }}</span>
+              <span class="cp-chart-bar cp-bar-anim" style="height: {{ entry.height }}%"></span>
+              <span class="cp-chart-label">{{ entry.label }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="bar-chart-3"></i><p>No approved emissions for {{ year }} yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Data quality</h2>
+      <p class="cp-card-sub">Average across {{ quality.scored }} approved activit{{ quality.scored|pluralize:"y,ies" }}</p>
+      <div class="cp-quality-head">
+        <div class="cp-quality-score">{{ quality.average }}%</div>
+        <div class="cp-quality-track"><i style="width: {{ quality.average }}%"></i></div>
+      </div>
+      <ul class="cp-quality-list">
+        <li class="{% if quality.average >= 80 %}ok{% else %}warn{% endif %}">
+          <i data-lucide="{% if quality.average >= 80 %}check-circle-2{% else %}alert-triangle{% endif %}"></i>
+          <span>{% if quality.average >= 80 %}High confidence{% elif quality.average >= 50 %}Medium confidence{% else %}Low confidence{% endif %}</span>
+        </li>
+      </ul>
+      {% if can_review %}
+        <div class="cp-callout" style="margin-top:16px">
+          <i data-lucide="clipboard-check"></i>
+          <span><strong>{{ open_review }}</strong> activit{{ open_review|pluralize:"y,ies" }} awaiting review.</span>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ---------- Breakdowns ---------- #}
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by department</h2>
+      <p class="cp-card-sub">Click a department to see its activities</p>
+      {% if departments %}
+        <div class="cp-hbars">
+          {% for row in departments %}
+            <a class="cp-hbar-link" href="{% url 'carbon:activity_list' %}?year={{ year }}&department={{ row.key|urlencode }}">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="building-2"></i><p>No department data yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by category</h2>
+      <p class="cp-card-sub">Click a category to see its activities</p>
+      {% if categories %}
+        <div class="cp-hbars">
+          {% for row in categories %}
+            <a class="cp-hbar-link" href="{% url 'carbon:activity_list' %}?year={{ year }}&category={{ row.key|urlencode }}">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="layers"></i><p>No category data yet.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ---------- Reduction objectives ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Reduction objectives</h2>
+        <p class="cp-card-sub cp-mt-0">Live progress against targets for {{ year }}</p>
+      </div>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'objectives:objective_list' %}">View all <i data-lucide="arrow-right"></i></a>
+    </div>
+    {% if objectives %}
+      <div class="cp-hbars">
+        {% for objective in objectives %}
+          <a class="cp-hbar-link" href="{% url 'objectives:objective_detail' objective.pk %}">
+            <div class="cp-hbar-head">
+              <strong>{{ objective.name }}</strong>
+              <span>{{ objective.current_tco2e|floatformat:2 }} / {{ objective.target_tco2e|floatformat:2 }} tCO2e · {{ objective.progress_percent }}%</span>
+            </div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill {% if objective.status == 'ACHIEVED' %}is-achieved{% elif objective.status == 'MISSED' %}is-missed{% endif %}" style="width: {{ objective.progress_percent }}%"></span></div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="target"></i><p>No reduction objectives for {{ year }} yet.</p></div>
+    {% endif %}
+  </section>
+
+  {# ---------- Anomaly detection ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Anomaly detection</h2>
+        <p class="cp-card-sub cp-mt-0">Machine-learning flags from approved activities (IsolationForest)</p>
+      </div>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:anomaly_list' %}">View anomalies <i data-lucide="arrow-right"></i></a>
+    </div>
+    <div class="cp-kpi-grid">
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Total anomalies</div>
+        <div class="cp-kpi-value">{{ anomalies.total }}</div>
+        <div class="cp-kpi-sub">{{ anomalies.new }} new</div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">High severity</div>
+        <div class="cp-kpi-value">{{ anomalies.high }}</div>
+        <div class="cp-kpi-sub">Review first</div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Medium severity</div>
+        <div class="cp-kpi-value">{{ anomalies.medium }}</div>
+        <div class="cp-kpi-sub">Worth a look</div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Low severity</div>
+        <div class="cp-kpi-value">{{ anomalies.low }}</div>
+        <div class="cp-kpi-sub">Minor deviation</div>
+      </article>
+    </div>
+  </section>
+
+  {# ---------- AI recommendations ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI recommendations</h2>
+        <p class="cp-card-sub cp-mt-0">Decision support drawn from your anomalies and objectives (local Qwen model)</p>
+      </div>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'recommendations:recommendation_list' %}">View all <i data-lucide="arrow-right"></i></a>
+    </div>
+    <div class="cp-kpi-grid">
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Open</div>
+        <div class="cp-kpi-value">{{ recommendations.total }}</div>
+        <div class="cp-kpi-sub">New or in progress</div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">High priority</div>
+        <div class="cp-kpi-value">{{ recommendations.high }}</div>
+        <div class="cp-kpi-sub">Act first</div>
+      </article>
+    </div>
+    {% if recommendations.recent %}
+      <ul style="margin-top:16px;display:grid;gap:10px;list-style:none;padding:0">
+        {% for rec in recommendations.recent %}
+          <li style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            {% include "recommendations/_priority.html" with priority=rec.priority label=rec.get_priority_display %}
+            {% include "recommendations/_method.html" with generation_method=rec.generation_method %}
+            <a class="cp-cell-link" href="{% url 'recommendations:recommendation_list' %}">{{ rec.title }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="cp-callout" style="margin-top:16px">
+        <i data-lucide="sparkles"></i>
+        <span>No open recommendations yet. Generate them from the recommendations workspace.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- Recent activities ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Recent carbon activities</h2>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_list' %}">View all <i data-lucide="arrow-right"></i></a>
+    </div>
+    {% if recent %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead>
+            <tr><th>Activity</th><th>Department</th><th>Scope</th><th class="cp-num">Quantity</th><th class="cp-num">CO2e</th><th>Status</th><th>Period</th></tr>
+          </thead>
+          <tbody>
+            {% for activity in recent %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a></td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td>{% include "carbon/_scope.html" with scope=activity.scope scope_label=activity.get_scope_display %}</td>
+                <td class="cp-num">{{ activity.quantity|floatformat:"-4" }} {{ activity.unit }}</td>
+                <td class="cp-num">{{ activity.co2e_kg|floatformat:2 }} kg</td>
+                <td>{% include "carbon/_status.html" with activity=activity %}</td>
+                <td>{{ activity.period_label }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="leaf"></i>
+        <p>No carbon activity recorded yet.</p>
+        <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'carbon:activity_wizard' %}"><i data-lucide="plus"></i> Record your first activity</a>
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Official figures include <strong>approved</strong> activities only. Draft, submitted and rejected activities are excluded.
+  </p>
+{% endblock %}

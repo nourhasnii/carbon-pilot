@@ -1,0 +1,153 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Anomalies{% endblock %}
+{% block eyebrow %}Carbon analytics · Machine learning{% endblock %}
+{% block heading %}Anomaly detection{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_run %}
+    <form method="post" action="{% url 'carbon:anomaly_run' %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout" style="margin-bottom:20px">
+    <i data-lucide="cpu"></i>
+    <span>
+      CarbonPilot uses scikit-learn <strong>IsolationForest</strong> to identify unusual carbon
+      emission patterns from historical <strong>approved</strong> activities. Findings are
+      statistical flags only — a reviewer must confirm each one.
+    </span>
+  </div>
+
+  {# ---------- KPI row ---------- #}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total anomalies</div>
+      <div class="cp-kpi-value">{{ counts.total }}</div>
+      <div class="cp-kpi-sub">{{ counts.new }} new · awaiting review</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">High severity</div>
+      <div class="cp-kpi-value">{{ counts.high }}</div>
+      <div class="cp-kpi-sub">Review first</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Medium severity</div>
+      <div class="cp-kpi-value">{{ counts.medium }}</div>
+      <div class="cp-kpi-sub">Worth a look</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Low severity</div>
+      <div class="cp-kpi-value">{{ counts.low }}</div>
+      <div class="cp-kpi-sub">Minor deviation</div>
+    </article>
+  </div>
+
+  {# ---------- Filters ---------- #}
+  <form class="cp-toolbar" method="get" role="search" style="margin-top:20px">
+    <div class="cp-field">
+      <label for="{{ filter_form.severity.id_for_label }}">Severity</label>
+      {{ filter_form.severity }}
+    </div>
+    <div class="cp-field">
+      <label for="{{ filter_form.status.id_for_label }}">Status</label>
+      {{ filter_form.status }}
+    </div>
+    <div class="cp-field">
+      <label for="{{ filter_form.department.id_for_label }}">Department</label>
+      {{ filter_form.department }}
+    </div>
+    <div class="cp-field">
+      <label for="{{ filter_form.category.id_for_label }}">Category</label>
+      {{ filter_form.category }}
+    </div>
+    <div class="cp-field">
+      <label for="{{ filter_form.year.id_for_label }}">Period</label>
+      {{ filter_form.year }}
+    </div>
+    <div class="cp-row">
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="filter"></i> Apply</button>
+      <a class="cp-btn cp-btn-ghost" href="{% url 'carbon:anomaly_list' %}">Reset</a>
+    </div>
+  </form>
+
+  {# ---------- Anomaly table ---------- #}
+  <section class="cp-card">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} anomal{{ pagination.total|pluralize:"y,ies" }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead>
+            <tr>
+              <th>Severity</th><th>Type</th><th>Activity / category</th><th>Department</th>
+              <th class="cp-num">CO2e</th><th>Period</th><th>Detected</th><th>Status</th>
+              <th class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for anomaly in pagination.items %}
+              <tr>
+                <td>{% include "carbon/_anomaly_severity.html" with anomaly=anomaly %}</td>
+                <td>{{ anomaly.get_anomaly_type_display }}</td>
+                <td>
+                  {% if anomaly.activity %}
+                    <a class="cp-cell-link" href="{% url 'carbon:anomaly_detail' anomaly.pk %}">{{ anomaly.activity.display_name }}</a>
+                    <div class="cp-muted" style="font-size:0.78rem">{{ anomaly.activity.get_category_display }}</div>
+                  {% else %}
+                    <span class="cp-muted">{{ anomaly.activity.get_category_display|default:"—" }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ anomaly.department.name|default:"—" }}</td>
+                <td class="cp-num">{% if anomaly.activity %}{{ anomaly.activity.co2e_kg|floatformat:2 }} kg{% else %}—{% endif %}</td>
+                <td>{{ anomaly.period_start|date:"M Y"|default:"—" }}</td>
+                <td>{{ anomaly.detected_at|date:"Y-m-d" }}</td>
+                <td>{% include "carbon/_anomaly_status.html" with anomaly=anomaly %}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:anomaly_detail' anomaly.pk %}" title="View details"><i data-lucide="eye"></i> Details</a>
+                    {% if anomaly.activity %}
+                      <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_detail' anomaly.activity.pk %}" title="View the linked activity"><i data-lucide="arrow-up-right"></i> Activity</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if pagination.pages > 1 %}
+        <nav class="cp-pagination" aria-label="Pagination">
+          <span class="cp-muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+          <div class="cp-row">
+            {% if pagination.has_previous %}
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.previous_page }}"><i data-lucide="arrow-left"></i> Previous</a>
+            {% endif %}
+            {% if pagination.has_next %}
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.next_page }}">Next <i data-lucide="arrow-right"></i></a>
+            {% endif %}
+          </div>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="shield-check"></i>
+        <p>No anomalies detected yet. Run detection to analyse your approved activities.</p>
+        {% if can_run %}
+          <form method="post" action="{% url 'carbon:anomaly_run' %}">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

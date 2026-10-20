@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ dashboard_title }} | CarbonPilot</title>
+    <style>
+      :root { color-scheme: light; --ink: #17332e; --muted: #60716c; --line: #dce6e2; --paper: #f3f7f4; --green: #147d62; --blue: #315b78; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: linear-gradient(135deg, #eaf3ed, #f7f8f4 58%, #e6eff0); color: var(--ink); font: 16px/1.5 "Segoe UI", sans-serif; }
+      header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px clamp(20px, 5vw, 72px); background: #fff; border-bottom: 1px solid var(--line); }
+      .brand { color: var(--ink); font-weight: 750; font-size: 20px; text-decoration: none; }
+      .account { display: flex; align-items: center; gap: 16px; color: var(--muted); }
+      button, .action { border: 0; border-radius: 4px; background: var(--green); color: white; padding: 10px 15px; font: inherit; font-weight: 650; text-decoration: none; cursor: pointer; }
+      main { width: min(100% - 40px, 1080px); margin: 64px auto; }
+      .eyebrow { color: var(--green); text-transform: uppercase; font-size: 12px; font-weight: 750; letter-spacing: .08em; }
+      h1 { margin: 8px 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.12; }
+      .intro { color: var(--muted); margin: 0 0 34px; }
+      .workspace { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 24px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; }
+      .workspace strong { display: block; }
+      .workspace span { color: var(--muted); font-size: 14px; }
+      .messages { margin-bottom: 20px; color: var(--green); }
+      @media (max-width: 600px) { header { align-items: flex-start; flex-direction: column; } .account { width: 100%; justify-content: space-between; } main { margin-top: 42px; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">CarbonPilot</a>
+      <div class="account"><span>{{ user.get_full_name|default:user.email }} · {{ user.get_role_display }}</span><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form></div>
+    </header>
+    <main>
+      {% if messages %}<div class="messages">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+      <span class="eyebrow">CarbonPilot workspace</span>
+      <h1>{{ dashboard_title }}</h1>
+      <p class="intro">Welcome, {{ user.get_full_name|default:user.email }}. Your role is {{ user.get_role_display }}.</p>
+      <section class="workspace" aria-label="Workspace">
+        <div><strong>{{ dashboard_title }}</strong><span>Workspace modules will appear here as they are connected.</span></div>
+        {% for module in module_links %}<a class="action" href="{% url module.url_name %}">{{ module.label }}</a>{% endfor %}
+      </section>
+    </main>
+  </body>
+</html>

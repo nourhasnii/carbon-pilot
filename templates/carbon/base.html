@@ -1,0 +1,81 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Carbon management{% endblock %} | CarbonPilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{% static 'css/carbon.css' %}" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  </head>
+  <body class="cp-carbon">
+    <div class="cp-shell">
+      <aside class="cp-sidebar" aria-label="Carbon management navigation">
+        <a class="cp-brand" href="{% url 'accounts:dashboard' %}">
+          <span class="cp-brand-mark"><i data-lucide="leaf"></i></span>
+          <span>
+            <strong>CarbonPilot</strong>
+            <small>Carbon management</small>
+          </span>
+        </a>
+        <nav class="cp-nav">
+          {% for item in sidebar_nav %}
+            {% if item.url_name %}
+              <a class="cp-nav-item {% if item.active %}is-active{% endif %}" href="{% url item.url_name %}">
+                <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>
+              </a>
+            {% elif item.unavailable %}
+              <span class="cp-nav-item is-disabled" aria-disabled="true" title="Coming in a later phase">
+                <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>
+                <em>Soon</em>
+              </span>
+            {% else %}
+              <a class="cp-nav-item {% if item.active %}is-active{% endif %}" href="{{ item.href }}">
+                <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>
+              </a>
+            {% endif %}
+          {% endfor %}
+        </nav>
+        <div class="cp-sidebar-footer">
+          <span class="cp-tenant">{{ company.name }}</span>
+          <span class="cp-tenant-meta">{{ user.get_full_name|default:user.email }} · {{ user.get_role_display }}</span>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit"><i data-lucide="log-out"></i> Sign out</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="cp-main">
+        <header class="cp-topbar">
+          <div>
+            <p class="cp-eyebrow">{% block eyebrow %}Carbon management{% endblock %}</p>
+            <h1 class="cp-title">{% block heading %}Carbon{% endblock %}</h1>
+          </div>
+          <div class="cp-topbar-actions">
+            {% include "partials/notifications_bell.html" %}
+            {% block topbar_actions %}{% endblock %}
+          </div>
+        </header>
+
+        {% if messages %}
+          <div class="cp-messages">
+            {% for message in messages %}
+              <div class="cp-alert cp-alert-{{ message.tags|default:'info' }}" role="status">
+                <i data-lucide="{% if 'error' in message.tags %}alert-triangle{% elif 'warning' in message.tags %}alert-circle{% elif 'success' in message.tags %}check-circle-2{% else %}info{% endif %}"></i>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+    <script>window.lucide && window.lucide.createIcons();</script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

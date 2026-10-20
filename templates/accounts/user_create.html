@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Create user | CarbonPilot</title>
+    <style>
+      body { margin: 0; background: #f3f7f4; color: #17332e; font: 16px/1.5 "Segoe UI", sans-serif; }
+      main { width: min(100% - 36px, 720px); margin: 48px auto; }
+      a { color: #147d62; }
+      form { padding: 24px; background: white; border: 1px solid #dce6e2; }
+      p { display: grid; gap: 6px; margin: 0 0 17px; }
+      input, select { max-width: 100%; padding: 10px; border: 1px solid #bdcbc5; border-radius: 3px; font: inherit; }
+      button { border: 0; border-radius: 4px; background: #147d62; color: white; padding: 11px 16px; font: inherit; font-weight: 650; cursor: pointer; }
+      .errorlist { color: #a83c36; }
+    </style>
+  </head>
+  <body><main>
+    <p><a href="{% url 'accounts:user_management' %}">Back to user management</a></p>
+    <h1>Create user</h1><p>The new account will remain pending until you approve it.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Create pending account</button></form>
+  </main></body>
+</html>

@@ -1,0 +1,46 @@
+<form method="post">
+  {% csrf_token %}
+  {% if company_form.non_field_errors %}<div class="alert alert-danger">{{ company_form.non_field_errors }}</div>{% endif %}
+
+  <section class="card shadow-sm mb-4" aria-labelledby="identity-heading">
+    <div class="card-body p-4 p-lg-5">
+      <div class="mb-4"><p class="eyebrow mb-1">01 · Organization</p><h2 class="h5 section-title mb-0" id="identity-heading">Company Identity</h2></div>
+      <div class="row g-3">
+        {% include "enterprise/_company_field.html" with field=company_form.name %}
+        {% include "enterprise/_company_field.html" with field=company_form.legal_name %}
+        {% include "enterprise/_company_field.html" with field=company_form.siret %}
+        {% include "enterprise/_company_field.html" with field=company_form.sector %}
+        {% include "enterprise/_company_field.html" with field=company_form.size %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card shadow-sm mb-4" aria-labelledby="contact-heading">
+    <div class="card-body p-4 p-lg-5">
+      <div class="mb-4"><p class="eyebrow mb-1">02 · Reach your team</p><h2 class="h5 section-title mb-0" id="contact-heading">Contact &amp; Location</h2></div>
+      <div class="row g-3">
+        {% include "enterprise/_company_field.html" with field=company_form.country %}
+        {% include "enterprise/_company_field.html" with field=company_form.city %}
+        {% include "enterprise/_company_field.html" with field=company_form.address %}
+        {% include "enterprise/_company_field.html" with field=company_form.website %}
+        {% include "enterprise/_company_field.html" with field=company_form.contact_email %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card shadow-sm mb-4" aria-labelledby="sustainability-heading">
+    <div class="card-body p-4 p-lg-5">
+      <div class="mb-4"><p class="eyebrow mb-1">03 · Impact</p><h2 class="h5 section-title mb-0" id="sustainability-heading">Sustainability Profile</h2></div>
+      <div class="row g-3">
+        {% include "enterprise/_company_field.html" with field=company_form.reports_esg %}
+        {% include "enterprise/_company_field.html" with field=company_form.sustainability_goal %}
+        {% include "enterprise/_company_field.html" with field=company_form.target_year %}
+      </div>
+    </div>
+  </section>
+
+  <div class="d-flex justify-content-end gap-2 pb-4">
+    {% if company %}<a class="btn btn-outline-secondary" href="{% url 'enterprise:company_dashboard' %}">Cancel</a>{% endif %}
+    <button class="btn btn-primary px-4" type="submit">{% if company %}Save changes{% else %}Create company{% endif %}</button>
+  </div>
+</form>

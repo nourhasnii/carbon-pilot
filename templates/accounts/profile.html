@@ -1,0 +1,27 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Profile{% endblock %}
+{% block eyebrow %}My account{% endblock %}
+{% block heading %}Profile{% endblock %}
+
+{% block content %}
+  <section class="cp-card">
+    <h2 class="cp-card-title cp-mt-0">Identity</h2>
+    <p class="cp-card-sub">How you appear across CarbonPilot.</p>
+    <dl class="cp-dl">
+      <div><dt>Full name</dt><dd>{{ user.get_full_name|default:"—" }}</dd></div>
+      <div><dt>Email</dt><dd>{{ user.email }}</dd></div>
+      <div><dt>Role</dt><dd>{{ user.get_role_display }}</dd></div>
+      <div><dt>Account status</dt><dd>{{ user.get_status_display }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Workspace</h2>
+    <p class="cp-card-sub">The tenant and department your access is scoped to.</p>
+    <dl class="cp-dl">
+      <div><dt>Company</dt><dd>{% if company %}{{ company.name }}{% elif user.company %}{{ user.company }}{% else %}—{% endif %}</dd></div>
+      <div><dt>Department</dt><dd>{{ user.department|default:"—" }}</dd></div>
+    </dl>
+  </section>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% comment %}Generation-method badge. Expects `generation_method` (value).{% endcomment %}
+{% if generation_method == 'QWEN' %}
+  <span class="cp-badge cp-badge-approved" title="Decided by the local Qwen model">AI-QWEN</span>
+{% else %}
+  <span class="cp-badge cp-badge-unverified" title="Produced by CarbonPilot's deterministic rules, not by the AI model">RULE-BASED</span>
+{% endif %}

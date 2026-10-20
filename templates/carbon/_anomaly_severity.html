@@ -1,0 +1,2 @@
+{% comment %}Severity badge. Expects an `anomaly` in context.{% endcomment %}
+<span class="cp-badge {% if anomaly.severity == 'HIGH' %}cp-badge-sev-high{% elif anomaly.severity == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ anomaly.get_severity_display }}</span>

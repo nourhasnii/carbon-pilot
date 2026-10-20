@@ -1,0 +1,105 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Footprint analysis{% endblock %}
+{% block eyebrow %}Carbon management{% endblock %}
+{% block heading %}Carbon footprint analysis{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_list' %}{% if query_string %}?{{ query_string }}{% endif %}"><i data-lucide="list"></i> View activities</a>
+{% endblock %}
+
+{% block content %}
+  {% include "carbon/_filters.html" with reset_url=request.path %}
+
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total · {{ count }} activit{{ count|pluralize:"y,ies" }}</div>
+      <div class="cp-kpi-value">{{ total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">{% if selected_year %}{{ selected_year }}{% else %}All reporting years{% endif %} · approved only</div>
+    </article>
+    {% for item in scopes %}
+      <article class="cp-kpi cp-kpi-scope{{ forloop.counter }}">
+        <div class="cp-kpi-label">{{ item.label }}</div>
+        <div class="cp-kpi-value">{{ item.tonnes|floatformat:2 }} <small>tCO2e</small></div>
+        <div class="cp-kpi-sub">{{ item.percent }}% of total</div>
+      </article>
+    {% endfor %}
+  </div>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions over time</h2>
+      <p class="cp-card-sub">Monthly tCO2e{% if selected_year %} for {{ selected_year }}{% endif %}</p>
+      {% if total_tonnes %}
+        <div class="cp-chart" role="img" aria-label="Monthly emissions trend">
+          {% for entry in monthly %}
+            <div class="cp-chart-col" title="{{ entry.label }}: {{ entry.tonnes|floatformat:2 }} tCO2e">
+              <span class="cp-chart-value">{{ entry.tonnes|floatformat:1 }}</span>
+              <span class="cp-chart-bar cp-bar-anim" style="height: {{ entry.height }}%"></span>
+              <span class="cp-chart-label">{{ entry.label }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="bar-chart-3"></i><p>No approved emissions match these filters.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Distribution by scope</h2>
+      <p class="cp-card-sub">Share of the footprint (GHG Protocol)</p>
+      <div class="cp-hbars">
+        {% for item in scopes %}
+          <a class="cp-hbar-link" href="{% url 'carbon:activity_list' %}?scope={{ item.key }}{% if selected_year %}&year={{ selected_year }}{% endif %}">
+            <div class="cp-hbar-head"><strong>{{ item.label }}</strong><span>{{ item.tonnes|floatformat:2 }} tCO2e · {{ item.percent }}%</span></div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill scope{{ forloop.counter }}" style="width: {{ item.percent }}%"></span></div>
+          </a>
+        {% endfor %}
+      </div>
+      <div class="cp-callout" style="margin-top:18px">
+        <i data-lucide="shield-check"></i>
+        <span>Average data quality: <strong>{{ quality.average }}%</strong> across {{ quality.scored }} approved activit{{ quality.scored|pluralize:"y,ies" }}.</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by category</h2>
+      <p class="cp-card-sub">Click a category to drill into its activities</p>
+      {% if categories %}
+        <div class="cp-hbars">
+          {% for row in categories %}
+            <a class="cp-hbar-link" href="{% url 'carbon:activity_list' %}?category={{ row.key|urlencode }}{% if selected_year %}&year={{ selected_year }}{% endif %}">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="layers"></i><p>No category data for this selection.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by department</h2>
+      <p class="cp-card-sub">Contribution of each department</p>
+      {% if departments %}
+        <div class="cp-hbars">
+          {% for row in departments %}
+            <a class="cp-hbar-link" href="{% url 'carbon:activity_list' %}?department={{ row.key|urlencode }}{% if selected_year %}&year={{ selected_year }}{% endif %}">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="building-2"></i><p>No department data for this selection.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Footprint figures include <strong>approved</strong> activities only. Use the filters above to change the period, scope, category or department.
+  </p>
+{% endblock %}
