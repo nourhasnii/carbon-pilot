@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block crumbs %}{% if parent_label %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{{ parent_url }}">{{ parent_label }}</a></li><li aria-current="page">{{ title }}</li></ol></nav>{% endif %}{% endblock %}
+{% block h1 %}{{ title }}{% endblock %}
+{% block content %}
+<form method="post" novalidate class="panel form-panel">
+  {% csrf_token %}
+  {% include "partials/form_fields.html" %}
+  <div class="d-flex flex-wrap gap-2 mt-4">
+    <button type="submit" class="btn btn-cp">Enregistrer</button>
+    <button type="button" class="btn btn-quiet" onclick="history.back()">Annuler</button>
+  </div>
+</form>
+{% endblock %}

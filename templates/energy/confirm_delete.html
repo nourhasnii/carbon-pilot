@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Confirmer la suppression{% endblock %}
+{% block h1 %}Supprimer « {{ object }} » ?{% endblock %}
+{% block content %}
+<div class="panel form-panel">
+  <p>Cette action est définitive. Les données liées seront supprimées avec cet élément.</p>
+  <form method="post" class="d-flex flex-wrap gap-2">{% csrf_token %}
+    <button class="btn btn-danger" type="submit">Supprimer</button>
+    <button type="button" class="btn btn-quiet" onclick="history.back()">Annuler</button>
+  </form>
+</div>
+{% endblock %}

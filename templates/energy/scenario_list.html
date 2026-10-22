@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Scénarios d'optimisation{% endblock %}
+{% block h1 %}Scénarios d'optimisation{% endblock %}
+{% block lead %}<p class="lead-text">Simulez une action (réduire le HVAC de 10 %, par exemple) et mesurez l'énergie, l'argent et le CO₂ évités.</p>{% endblock %}
+{% block actions %}{% if perms.energy.add_optimizationscenario %}<a class="btn btn-cp" href="{% url 'energy:scenario_create' %}">Nouveau scénario</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="panel panel-flush"><div class="table-responsive"><table class="table align-middle">
+<caption class="visually-hidden">Scénarios d'optimisation, du plus récent au plus ancien</caption>
+<thead><tr><th scope="col">Scénario</th><th scope="col">Asset</th><th scope="col">Action</th><th scope="col" class="text-end">Réduction</th><th scope="col" class="text-end">Énergie évitée</th><th scope="col" class="text-end">CO₂ évité</th><th scope="col"><span class="visually-hidden">Détail</span></th></tr></thead>
+<tbody>
+{% for s in object_list %}
+<tr><th scope="row">{{ s.name }}{% if s.is_demo %}<span class="demo-badge">DEMO</span>{% endif %}</th><td>{{ s.asset.name }}</td><td>{{ s.get_action_display }}</td>
+<td class="text-end">{{ s.reduction_percent|floatformat:"-1" }} % sur {{ s.affected_share_percent|floatformat:"-1" }} %</td>
+<td class="text-end">{% if s.has_result %}{{ s.saved_kwh|floatformat:0 }} kWh{% else %}<span class="status status-failed">Calcul impossible</span>{% endif %}</td>
+<td class="text-end">{% if s.has_result %}{{ s.co2_saved_kg|floatformat:0 }} kg{% else %}—{% endif %}</td>
+<td class="table-actions"><a class="btn btn-sm btn-quiet" href="{% url 'energy:scenario_detail' s.pk %}">Ouvrir<span class="visually-hidden"> le scénario {{ s.name }}</span></a></td></tr>
+{% empty %}<tr><td colspan="7"><div class="empty"><p>Aucun scénario pour l'instant.</p>{% if perms.energy.add_optimizationscenario %}<a class="btn btn-cp" href="{% url 'energy:scenario_create' %}">Créer un scénario</a>{% endif %}</div></td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="mt-3">{% include "partials/pagination.html" %}</div>
+{% endblock %}

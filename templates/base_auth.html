@@ -1,0 +1,37 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <script>(function(){try{var t=localStorage.getItem("cp-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;r.setAttribute("data-theme",t);r.setAttribute("data-bs-theme",t);}catch(e){}})();</script>
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Connexion{% endblock %} — CarbonPilot</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au formulaire de connexion</a>
+  {% include "partials/icons.html" %}
+  <div class="auth">
+    <aside class="auth-side" aria-label="Présentation">
+      <span class="brand">CarbonPilot <small>Énergie</small></span>
+      <div>
+        <p class="display" style="font-family:var(--font-display);font-size:clamp(1.8rem,1.2rem + 2.2vw,2.8rem);font-weight:700;line-height:1.1;color:#fff;max-width:16ch;margin-bottom:1rem">Savoir ce que vous consommerez demain.</p>
+        <p>Suivez vos consommations, prévoyez les prochains jours et testez ce qui les réduit.</p>
+      </div>
+      <svg class="auth-curve" viewBox="0 0 480 120" role="presentation" aria-hidden="true" focusable="false">
+        <path d="M0 88 C30 70 50 96 80 78 S130 40 160 58 S210 90 240 66 S290 30 320 46" fill="none" stroke="#E3EEED" stroke-width="3" stroke-linecap="round"/>
+        <path d="M320 46 C350 32 380 52 410 34 S455 20 480 26" fill="none" stroke="#FFBF47" stroke-width="3" stroke-linecap="round" stroke-dasharray="3 8"/>
+        <line x1="320" y1="10" x2="320" y2="112" stroke="#A9C2C0" stroke-width="1" stroke-dasharray="2 4"/>
+      </svg>
+    </aside>
+    <main class="auth-main" id="contenu" tabindex="-1">
+      <div class="auth-theme"><button class="btn btn-side btn-sm" type="button" role="switch" aria-checked="false" data-theme-toggle><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-contrast"/></svg>Mode sombre</button></div>
+      <div class="auth-form">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/ui.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Prévision {{ object.asset.name }}{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:forecast_list' %}">Prévisions</a></li><li aria-current="page">{{ object.asset.name }}, {{ object.horizon_days }} jours</li></ol></nav>{% endblock %}
+{% block h1 %}Prévision : {{ object.asset.name }}{% endblock %}
+{% block lead %}<p class="lead-text">Horizon de {{ object.horizon_days }} jours, demandée le {{ object.created_at|date:"d/m/Y à H:i" }}{% if object.requested_by %} par {{ object.requested_by }}{% endif %}.</p>{% endblock %}
+{% block actions %}{% if object.status == 'success' %}<a class="btn btn-quiet" href="{% url 'energy:forecast_export' object.pk %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endif %}<a class="btn btn-quiet" href="{% url 'energy:forecast_list' %}">Toutes les prévisions</a>{% endblock %}
+{% block content %}
+{% if object.is_demo %}<div class="alert alert-warning" role="note">Cette prévision repose sur des <strong>données DEMO</strong> (fictives) : ne la présentez pas comme une estimation réelle.</div>{% endif %}
+
+{% if object.status == 'pending' or object.status == 'running' %}
+<div class="alert alert-info" role="status" aria-live="polite" id="progress">
+  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Calcul en cours… la page se mettra à jour toute seule.
+</div>
+<script>
+(function(){
+  var url = "{% url 'energy:forecast_status' object.pk %}";
+  function poll(){ fetch(url, {credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){
+    if(d.done){ window.location.reload(); } else { setTimeout(poll, 2000); } })
+    .catch(function(){ document.getElementById("progress").textContent = "Impossible de suivre le calcul. Rechargez la page."; }); }
+  setTimeout(poll, 1500);
+})();
+</script>
+
+{% elif object.status == 'insufficient_data' %}
+<div class="alert alert-warning" role="alert"><h2 class="h5">Données insuffisantes</h2><p class="mb-2">{{ object.message }}</p>
+<a href="{% url 'energy:history' %}?asset={{ object.asset.pk }}">Voir l'historique de cet asset</a></div>
+
+{% elif object.status == 'failed' %}
+<div class="alert alert-danger" role="alert">{{ object.message }}</div>
+
+{% else %}
+{% if object.message %}<div class="alert alert-warning" role="alert">{{ object.message }}</div>{% endif %}
+<dl class="ledger ledger-wide-first">
+  <div><dt>Modèle retenu</dt><dd style="font-size:1.3rem">{{ object.model_label }}</dd></div>
+  <div><dt>Erreur moyenne (MAE)</dt><dd>{{ object.mae|floatformat:1 }}<span class="unit">kWh/jour</span></dd></div>
+  <div><dt>Erreur quadratique (RMSE)</dt><dd>{{ object.rmse|floatformat:1 }}<span class="unit">kWh/jour</span></dd></div>
+  <div><dt>Durée du calcul</dt><dd>{{ object.duration_seconds|floatformat:1 }}<span class="unit">s</span></dd></div>
+</dl>
+
+<section class="panel chart-hero" aria-labelledby="chart-title">
+  <div class="chart-head"><div>
+    <h2 id="chart-title">Les 60 derniers jours et la prévision</h2>
+    <p class="sub">En kWh par jour. La partie en pointillés ambre est prévue.</p></div>
+    <button type="button" class="btn btn-quiet btn-sm chart-tools" data-chart-download="fc" data-filename="prevision-{{ object.asset.code|slugify }}">Télécharger le graphique (PNG)</button></div>
+  <div class="chart-wrap"><canvas id="fc" role="img" aria-labelledby="chart-title" aria-describedby="points-table"></canvas></div>
+  <ul class="legend">
+    <li><span class="swatch" aria-hidden="true"></span>Mesuré</li>
+    <li><span class="swatch forecast" aria-hidden="true"></span>Prévu</li>
+    <li><span class="swatch actual" aria-hidden="true"></span>Mesuré sur les jours prévus</li>
+    {% if interval %}<li><span class="swatch band" aria-hidden="true"></span>Fourchette à {{ interval.level }} %</li>{% endif %}
+  </ul>
+  {% if interval %}<p class="sub mb-0 mt-2">Fourchette : d'après les écarts constatés pendant le test ({{ interval.n }} jours), la consommation réelle devrait se situer dans la bande dans environ {{ interval.level }} % des cas. Ce n'est pas une garantie.</p>{% endif %}
+  {{ chart_data|json_script:"fc-data" }}
+</section>
+
+<h2 class="section-title">Prévu et réel</h2>
+<details class="panel panel-flush" id="points-table" {% if points|length <= 8 %}open{% endif %}>
+<summary class="px-3 py-3">Afficher les {{ points|length }} valeurs jour par jour</summary>
+<div class="table-responsive"><table class="table table-sm">
+<caption class="visually-hidden">Prévision jour par jour</caption>
+<thead><tr><th scope="col">Date</th><th scope="col" class="text-end">Prévu (kWh)</th><th scope="col" class="text-end">Fourchette 80 % (kWh)</th><th scope="col" class="text-end">Réel (kWh)</th><th scope="col" class="text-end">Écart (kWh)</th></tr></thead>
+<tbody>{% for p in points %}<tr><th scope="row">{{ p.date|date:"l d/m/Y" }}</th><td class="text-end">{{ p.predicted_kwh|floatformat:1 }}</td>
+<td class="text-end">{% if p.lower_kwh is not None %}{{ p.lower_kwh|floatformat:0 }} à {{ p.upper_kwh|floatformat:0 }}{% else %}—{% endif %}</td>
+<td class="text-end">{% if p.actual_kwh is not None %}{{ p.actual_kwh|floatformat:1 }}{% else %}—{% endif %}</td>
+<td class="text-end">{% if p.error is not None %}{{ p.error|floatformat:1 }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+</details>
+{% if realized %}<p class="mt-3">Sur les {{ realized.n }} jour(s) déjà mesuré(s), l'erreur réelle est de {{ realized.mae|floatformat:1 }} kWh en moyenne (RMSE {{ realized.rmse|floatformat:1 }} kWh){% if realized.mape_pct is not None %}, soit {{ realized.mape_pct|floatformat:1 }} % de la consommation{% endif %}.</p>
+{% else %}<p class="mt-3 text-muted">Le réel apparaîtra ici dès que les mesures de ces jours seront importées.</p>{% endif %}
+
+{% if has_validation %}
+<h2 class="section-title">Fiabilité sur des données jamais vues</h2>
+<section class="panel chart-hero" aria-labelledby="val-title">
+  <div class="chart-head"><div>
+    <h3 id="val-title" class="h5">Prévu et réel pendant la période de test</h3>
+    <p class="sub">Les {{ validation_rows|length }} jours les plus récents, que le modèle n'avait pas vus à l'apprentissage. Plus la courbe prévue colle au réel, plus le modèle est fiable.</p></div>
+    <button type="button" class="btn btn-quiet btn-sm chart-tools" data-chart-download="val" data-filename="validation-{{ object.asset.code|slugify }}">Télécharger (PNG)</button></div>
+  <div class="chart-wrap"><canvas id="val" role="img" aria-labelledby="val-title" aria-describedby="val-table"></canvas></div>
+  <ul class="legend">
+    <li><span class="swatch" aria-hidden="true"></span>Réel</li>
+    <li><span class="swatch forecast" aria-hidden="true"></span>Prévu par le modèle retenu</li>
+    <li><span class="swatch blue" aria-hidden="true"></span>Baseline (J-7)</li>
+  </ul>
+</section>
+<details class="panel panel-flush mb-4" id="val-table"><summary class="px-3 py-3">Afficher les valeurs de la période de test</summary>
+<div class="table-responsive"><table class="table table-sm"><caption class="visually-hidden">Réel, prévu par le modèle retenu et prévu par la baseline pendant la période de test</caption>
+<thead><tr><th scope="col">Date</th><th scope="col" class="text-end">Réel (kWh)</th><th scope="col" class="text-end">Modèle retenu (kWh)</th><th scope="col" class="text-end">Baseline (kWh)</th></tr></thead>
+<tbody>{% for d, a, b, n in validation_rows %}<tr><th scope="row">{{ d }}</th><td class="text-end">{{ a|floatformat:1 }}</td><td class="text-end">{{ b|floatformat:1 }}</td><td class="text-end">{{ n|floatformat:1 }}</td></tr>{% endfor %}</tbody></table></div></details>
+{% endif %}
+
+<h2 class="section-title">Comparaison des modèles</h2>
+<section class="panel chart-hero" aria-labelledby="cmp-title">
+  <h3 id="cmp-title" class="h5">Erreur de chaque modèle sur la période de test</h3>
+  <div class="chart-wrap" style="min-height:220px"><canvas id="cmp" role="img" aria-labelledby="cmp-title" aria-describedby="cmp-table"></canvas></div>
+</section>
+<p class="text-muted">Test sur les 20 % de données les plus récentes, à l'horizon demandé. Apprentissage : {{ object.n_training_days }} jours valides, du {{ object.training_start|date:"d/m/Y" }} au {{ object.training_end|date:"d/m/Y" }}.</p>
+<div class="panel panel-flush" id="cmp-table"><div class="table-responsive"><table class="table table-sm">
+<caption class="visually-hidden">Métriques de chaque modèle candidat sur la période de test</caption>
+<thead><tr><th scope="col">Modèle</th><th scope="col" class="text-end">MAE (kWh)</th><th scope="col" class="text-end">RMSE (kWh)</th><th scope="col" class="text-end">Points testés</th></tr></thead>
+<tbody>{% for key, c in candidates.items %}<tr><th scope="row">{{ c.label }}{% if key == object.model_name %}<span class="status status-success ms-2">Retenu</span>{% endif %}</th><td class="text-end">{{ c.mae|floatformat:1 }}</td><td class="text-end">{{ c.rmse|floatformat:1 }}</td><td class="text-end">{{ c.n }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% if object.metrics.improvement_vs_naive_pct is not None %}<p class="mt-3">Gain du modèle retenu sur la baseline naïve (RMSE) : <strong>{{ object.metrics.improvement_vs_naive_pct }} %</strong>.{% if object.metrics.improvement_vs_naive_pct == 0 %} Ici la baseline fait aussi bien, c'est donc elle qui est retenue.{% endif %}</p>{% endif %}
+
+{% if importance %}
+<h2 class="section-title">Ce qui influence la consommation</h2>
+<section class="panel chart-hero" aria-labelledby="imp-title">
+  <h3 id="imp-title" class="h5">Poids de chaque information dans la prévision</h3>
+  <p class="sub">Méthode : on brouille une information à la fois et on mesure de combien l'erreur augmente. Plus la barre est longue, plus le modèle s'appuie sur cette information. Calculé avec {{ importance_model }}{% if not importance_is_best %} (le modèle retenu est la baseline, qui n'utilise que la valeur d'il y a 7 jours){% endif %}.</p>
+  <div class="chart-wrap" style="min-height:240px"><canvas id="imp" role="img" aria-labelledby="imp-title" aria-describedby="imp-table"></canvas></div>
+  <div class="table-responsive mt-3" id="imp-table"><table class="table table-sm"><caption class="visually-hidden">Influence de chaque information sur la prévision, en pourcentage</caption>
+  <thead><tr><th scope="col">Information</th><th scope="col" class="text-end">Influence</th></tr></thead>
+  <tbody>{% for r in importance %}<tr><th scope="row">{{ r.feature }}</th><td class="text-end">{{ r.share|floatformat:1 }} %</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endif %}
+{{ fx_data|json_script:"fx-data" }}
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if object.status == 'success' %}<script src="{% static 'vendor/chart.umd.js' %}"></script><script src="{% static 'js/chart-theme.js' %}"></script><script src="{% static 'js/forecast.js' %}"></script><script src="{% static 'js/forecast-extra.js' %}"></script>{% endif %}{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base_auth.html" %}
+{% block content %}
+<h1 class="display" style="font-size:1.6rem;font-weight:700;margin-bottom:1.25rem">Se connecter</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "partials/form_fields.html" %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button class="btn btn-cp w-100" type="submit">Se connecter</button>
+</form>
+{% endblock %}

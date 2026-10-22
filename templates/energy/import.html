@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Import de mesures{% endblock %}
+{% block h1 %}Importer des mesures{% endblock %}
+{% block lead %}<p class="lead-text">Chargez un fichier CSV ou Excel. Chaque ligne est vérifiée avant d'être enregistrée.</p>{% endblock %}
+{% block actions %}<a class="btn btn-quiet" href="{% url 'energy:import_list' %}">Historique des imports</a>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <form method="post" enctype="multipart/form-data" novalidate class="panel" aria-describedby="format-help">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn btn-cp" type="submit">Importer le fichier</button>
+    </form>
+  </div>
+  <div class="col-lg-6" id="format-help">
+    <h2 class="section-title mt-0">Format attendu</h2>
+    <pre class="sample"><code>asset_code,timestamp,value,unit
+HVAC-01,2026-01-01 10:00,120.5,kWh
+HVAC-01,2026-01-01 11:00,131.0,kWh</code></pre>
+    <ul>
+      <li>Le code asset doit exister dans votre entreprise.</li>
+      <li>Unités acceptées : kWh, MWh, m3, L. Sans unité, le fichier est lu en kWh.</li>
+      <li>Les lignes doivent être triées par date pour chaque asset.</li>
+      <li>Les doublons, valeurs négatives et dates futures ou invalides sont refusés, et listés avec leur numéro de ligne.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

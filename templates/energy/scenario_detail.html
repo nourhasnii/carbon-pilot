@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ object.name }}{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:scenario_list' %}">Scénarios</a></li><li aria-current="page">{{ object.name }}</li></ol></nav>{% endblock %}
+{% block h1 %}{{ object.name }}{% endblock %}
+{% block lead %}<p class="lead-text">{{ object.get_action_display }} sur {{ object.asset.name }} : −{{ object.reduction_percent|floatformat:"-1" }} % sur {{ object.affected_share_percent|floatformat:"-1" }} % de la consommation, simulé sur {{ object.horizon_days }} jours.</p>{% endblock %}
+{% block actions %}
+{% if object.has_result %}<a class="btn btn-quiet" href="{% url 'energy:scenario_export' object.pk %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endif %}
+{% if perms.energy.change_optimizationscenario %}<a class="btn btn-quiet" href="{% url 'energy:scenario_update' object.pk %}">Modifier</a>{% endif %}
+{% if perms.energy.delete_optimizationscenario %}<a class="btn btn-quiet" href="{% url 'energy:scenario_delete' object.pk %}">Supprimer</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if object.is_demo %}<div class="alert alert-warning" role="note">Ce scénario s'appuie sur des <strong>données DEMO</strong> (fictives).</div>{% endif %}
+{% if not object.has_result %}
+<div class="alert alert-warning" role="alert"><h2 class="h5">Calcul impossible</h2><p class="mb-2">{{ object.result_message|default:"Le calcul n'a pas encore été effectué." }}</p>
+<a href="{% url 'energy:history' %}?asset={{ object.asset.pk }}">Voir l'historique de cet asset</a></div>
+{% else %}
+<dl class="ledger">
+  <div class="gain"><dt>Énergie évitée</dt><dd>{{ object.saved_kwh|floatformat:0 }}<span class="unit">kWh</span></dd></div>
+  <div class="gain"><dt>Coût évité</dt><dd>{{ object.cost_saved|floatformat:0 }}<span class="unit">DT</span></dd></div>
+  <div class="gain"><dt>CO₂e évité</dt><dd>{{ object.co2_saved_kg|floatformat:0 }}<span class="unit">kg</span></dd></div>
+  <div><dt>Baisse totale</dt><dd>{{ reduction_total_percent|floatformat:1 }}<span class="unit">%</span></dd></div>
+</dl>
+
+<section class="panel chart-hero" aria-labelledby="chart-title">
+  <div class="chart-head"><div>
+    <h2 id="chart-title">Avant et après l'action</h2>
+    <p class="sub">En kWh par jour. La zone verte entre les deux courbes est l'énergie économisée.</p></div>
+    <button type="button" class="btn btn-quiet btn-sm chart-tools" data-chart-download="sc" data-filename="scenario-{{ object.pk }}">Télécharger le graphique (PNG)</button></div>
+  <div class="chart-wrap"><canvas id="sc" role="img" aria-labelledby="chart-title" aria-describedby="daily-table"></canvas></div>
+  <ul class="legend">
+    <li><span class="swatch" aria-hidden="true"></span>Sans action : {{ object.baseline_kwh|floatformat:0 }} kWh</li>
+    <li><span class="swatch saving" aria-hidden="true"></span>Avec action : {{ object.optimized_kwh|floatformat:0 }} kWh</li>
+  </ul>
+  {{ chart_data|json_script:"sc-data" }}
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <h2 class="section-title">Hypothèses utilisées</h2>
+    <div class="panel assumptions"><dl class="mb-0">
+      <dt>Consommation de référence</dt><dd>{% if object.baseline_source == 'forecast' %}Dernière prévision de l'asset sur {{ object.horizon_days }} jours.{% else %}Moyenne par jour de semaine sur les 8 dernières semaines (aucune prévision disponible pour cet horizon).{% endif %}</dd>
+      <dt>Prix du kWh</dt><dd>{{ object.price_per_kwh|floatformat:"-4" }} DT <span class="text-muted">(hypothèse à confirmer avec votre facture)</span></dd>
+      <dt>Facteur d'émission</dt><dd>{{ object.emission_factor|floatformat:"-4" }} kg CO₂e/kWh <span class="text-muted">(hypothèse à confirmer avec une source officielle)</span></dd>
+      {% if object.payback_months is not None %}<dt>Retour sur investissement</dt><dd>{{ object.payback_months|floatformat:1 }} mois pour {{ object.investment_cost|floatformat:0 }} DT <span class="text-muted">(projection linéaire de la période simulée sur un an)</span></dd>{% endif %}
+      {% if object.notes %}<dt>Notes</dt><dd>{{ object.notes|linebreaksbr }}</dd>{% endif %}
+    </dl></div>
+  </div>
+  <div class="col-lg-6">
+    <h2 class="section-title">Comment c'est calculé</h2>
+    <div class="panel"><p class="mb-2">Économie du jour = consommation de référence × {{ object.affected_share_percent|floatformat:"-1" }} % × {{ object.reduction_percent|floatformat:"-1" }} %.</p>
+    <p class="mb-0">C'est une simulation : elle suppose que l'action produit exactement la baisse annoncée. Les coûts et les émissions évités se déduisent de l'énergie économisée avec les deux hypothèses ci-contre.</p></div>
+  </div>
+</div>
+
+<h2 class="section-title">Jour par jour</h2>
+<details class="panel panel-flush" id="daily-table">
+<summary class="px-3 py-3">Afficher les {{ object.daily|length }} valeurs jour par jour</summary>
+<div class="table-responsive"><table class="table table-sm">
+<caption class="visually-hidden">Consommation avec et sans action, jour par jour</caption>
+<thead><tr><th scope="col">Date</th><th scope="col" class="text-end">Sans action (kWh)</th><th scope="col" class="text-end">Avec action (kWh)</th><th scope="col" class="text-end">Économie (kWh)</th></tr></thead>
+<tbody>{% for d, base, opt, gain in daily_rows %}<tr><th scope="row">{{ d }}</th><td class="text-end">{{ base|floatformat:1 }}</td><td class="text-end">{{ opt|floatformat:1 }}</td><td class="text-end">{{ gain|floatformat:1 }}</td></tr>{% endfor %}</tbody></table></div>
+</details>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if object.has_result %}<script src="{% static 'vendor/chart.umd.js' %}"></script><script src="{% static 'js/chart-theme.js' %}"></script><script src="{% static 'js/scenario.js' %}"></script>{% endif %}{% endblock %}
