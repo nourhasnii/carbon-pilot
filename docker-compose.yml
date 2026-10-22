@@ -1,0 +1,8 @@
+# Redis seul pour les tâches asynchrones (prévisions). Usage : docker compose up -d
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: carbonpilot-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
