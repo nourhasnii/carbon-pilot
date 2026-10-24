@@ -1,0 +1,11 @@
+.portfolio-pending { text-align: center; }
+.portfolio-spinner { width: 2rem; height: 2rem; margin: 0 auto 1rem; border: .25rem solid #d8e2e0; border-top-color: #287c70; border-radius: 50%; animation: portfolio-spin 1s linear infinite; }
+.portfolio-metrics { display: grid; grid-template-columns: minmax(12rem, 1fr) 1fr; gap: .5rem 1rem; }
+.portfolio-metrics dt { font-weight: 600; }
+.portfolio-metrics dd { margin: 0; }
+.portfolio-chart-wrap { overflow-x: auto; }
+.portfolio-sensitivity-chart { max-width: 100%; height: auto; }
+.portfolio-chart-bar { fill: #287c70; }
+.portfolio-chart-label { fill: #1b2b2a; font-size: 8px; }
+@keyframes portfolio-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .portfolio-spinner { animation: none; } }

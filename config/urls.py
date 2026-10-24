@@ -23,6 +23,7 @@ urlpatterns = [
     path('carbon/', include('apps.carbon.urls')),
     path('objectives/', include('apps.objectives.urls')),
     path('investments/', include('apps.investments.urls')),
+    path('portfolio-ai/', include('apps.portfolio_ai.urls')),
     path('recommendations/', include('apps.recommendations.urls')),
     path('admin/', admin.site.urls),
 ]

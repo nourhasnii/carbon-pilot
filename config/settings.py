@@ -11,6 +11,13 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env', override=False)
 
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', '1').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+CELERY_TASK_EAGER_PROPAGATES = False
+
 
 # Production deployments must provide DJANGO_SECRET_KEY and turn debug off.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'

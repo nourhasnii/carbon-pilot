@@ -1,0 +1,11 @@
+import os
+
+try:
+	from celery import Celery
+except ImportError:  # pragma: no cover - fallback for minimal installations
+	app = None
+else:
+	os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+	app = Celery("carbonpilot")
+	app.config_from_object("django.conf:settings", namespace="CELERY")
+	app.autodiscover_tasks()
