@@ -5,6 +5,8 @@ from . import views
 app_name = "investments"
 
 urlpatterns = [
+	path("compare/", views.project_compare, name="project_compare"),
+	path("ranking/", views.project_ranking, name="project_ranking"),
 	path("projects/", views.project_list, name="project_list"),
 	path("projects/new/", views.project_create, name="project_create"),
 	path("projects/<int:pk>/", views.project_detail, name="project_detail"),

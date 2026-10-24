@@ -1,0 +1,18 @@
+{% extends "carbon/base.html" %}
+{% load static %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/investments.css' %}" />{% endblock %}
+{% block title %}Confirmer la suppression{% endblock %}
+{% block eyebrow %}Investissements{% endblock %}
+{% block heading %}Confirmer la suppression{% endblock %}
+
+{% block content %}
+  <section class="cp-card investment-confirm-card">
+    <h2 class="cp-card-title cp-mt-0">Supprimer {{ delete_label }}</h2>
+    <p>Cette action est définitive. Voulez-vous vraiment supprimer <strong>{% if is_project_delete %}{{ project.name }}{% else %}{{ child }}{% endif %}</strong> ?</p>
+    <form method="post" action="{% if is_project_delete %}{% url delete_action project.pk %}{% else %}{% url delete_action project.pk child.pk %}{% endif %}">
+      {% csrf_token %}
+      <div class="cp-actions"><a class="cp-btn cp-btn-outline" href="{% url 'investments:project_detail' project.pk %}">Annuler</a><span class="cp-spacer"></span><button class="cp-btn cp-btn-primary investment-danger-button" type="submit"><i data-lucide="trash-2" aria-hidden="true"></i> Confirmer la suppression</button></div>
+    </form>
+  </section>
+{% endblock %}

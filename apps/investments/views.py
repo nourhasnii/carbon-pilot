@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -26,6 +28,7 @@ from .models import (
 	ProjectType,
 )
 from .services import VIEWER_ROLES, can_manage, company_for_user, visible_projects
+from .services.ranking import CRITERIA, compare_projects, filter_by_budget, rank_projects
 
 
 def _module_context(request, company, active="Investments"):
@@ -120,6 +123,7 @@ def project_detail(request, pk):
 	context = _module_context(request, company)
 	context.update({
 		"project": project,
+		"indicators": compare_projects([project])[0],
 		"investments": _child_queryset(Investment, company, project).order_by("-date", "-id"),
 		"impacts": _child_queryset(ImpactAssessment, company, project).order_by("-created_at", "-id"),
 		"scenarios": _child_queryset(ProjectScenario, company, project).select_related(
@@ -128,6 +132,67 @@ def project_detail(request, pk):
 		"can_manage": can_manage(request.user),
 	})
 	return render(request, "investments/project_detail.html", context)
+
+
+@login_required
+@role_required(*VIEWER_ROLES)
+def project_compare(request):
+	company = _require_company(request)
+	if company is None:
+		return _redirect_company_setup()
+	projects = list(visible_projects(request.user, company).order_by("name"))
+	selected_ids = set(request.GET.getlist("projects"))
+	selected = [project for project in projects if str(project.pk) in selected_ids]
+	error = None
+	if selected_ids and len(selected) < 2:
+		error = "Sélectionnez au moins deux projets à comparer."
+	elif len(selected) > 6:
+		error = "Sélectionnez au maximum six projets à comparer."
+	context = _module_context(request, company)
+	context.update({
+		"projects": projects,
+		"selected_ids": {str(project.pk) for project in selected},
+		"comparison": compare_projects(selected) if not error else [],
+		"comparison_error": error,
+	})
+	return render(request, "investments/compare.html", context)
+
+
+@login_required
+@role_required(*VIEWER_ROLES)
+def project_ranking(request):
+	company = _require_company(request)
+	if company is None:
+		return _redirect_company_setup()
+	criterion = request.GET.get("criterion", "reduction").strip()
+	error = None
+	if criterion not in CRITERIA:
+		error = "Le critère de classement sélectionné est invalide."
+		criterion = "reduction"
+	rows = compare_projects(visible_projects(request.user, company).order_by("name"))
+	budget_raw = request.GET.get("budget", "").strip()
+	budget = None
+	budget_rows = []
+	if budget_raw:
+		try:
+			budget = Decimal(budget_raw)
+			if budget < 0:
+				raise InvalidOperation
+		except (InvalidOperation, TypeError, ValueError):
+			error = "Le budget doit être un nombre supérieur ou égal à zéro."
+		else:
+			budget_rows = filter_by_budget(rows, budget)
+	ranked = rank_projects(rows, criterion)
+	context = _module_context(request, company)
+	context.update({
+		"rows": ranked,
+		"criteria": CRITERIA.items(),
+		"selected_criterion": criterion,
+		"budget": budget_raw,
+		"budget_rows": budget_rows,
+		"ranking_error": error,
+	})
+	return render(request, "investments/ranking.html", context)
 
 
 @login_required
@@ -154,8 +219,13 @@ def project_create(request):
 			messages.success(request, "Le projet a été créé.")
 			return redirect("investments:project_detail", pk=project.pk)
 	context = _module_context(request, company)
-	context.update({"form": form, "form_title": "Nouveau projet", "project": None})
-	return render(request, "investments/project_form.html", context)
+	context.update({
+		"form": form,
+		"form_title": "Nouveau projet",
+		"project": None,
+		"is_child_form": False,
+	})
+	return render(request, "investments/form.html", context)
 
 
 @login_required
@@ -180,8 +250,13 @@ def project_edit(request, pk):
 			messages.success(request, "Le projet a été modifié.")
 			return redirect("investments:project_detail", pk=project.pk)
 	context = _module_context(request, company)
-	context.update({"form": form, "form_title": "Modifier le projet", "project": project})
-	return render(request, "investments/project_form.html", context)
+	context.update({
+		"form": form,
+		"form_title": "Modifier le projet",
+		"project": project,
+		"is_child_form": False,
+	})
+	return render(request, "investments/form.html", context)
 
 
 @login_required
@@ -193,8 +268,13 @@ def project_delete_confirm(request, pk):
 	_require_manager(request)
 	project = _project_or_404(request.user, company, pk)
 	context = _module_context(request, company)
-	context.update({"project": project, "delete_action": "investments:project_delete"})
-	return render(request, "investments/project_confirm_delete.html", context)
+	context.update({
+		"project": project,
+		"delete_action": "investments:project_delete",
+		"delete_label": "le projet",
+		"is_project_delete": True,
+	})
+	return render(request, "investments/confirm_delete.html", context)
 
 
 @login_required
@@ -226,6 +306,7 @@ def _child_context(request, company, project, form, form_title, child=None):
 		"form": form,
 		"form_title": form_title,
 		"child": child,
+		"is_child_form": True,
 	})
 	return context
 
@@ -247,7 +328,7 @@ def investment_edit(request, pk, child_pk):
 @login_required
 @role_required(*VIEWER_ROLES)
 def investment_delete_confirm(request, pk, child_pk):
-	return _child_delete_confirm(request, pk, child_pk, Investment, "investissement_delete")
+	return _child_delete_confirm(request, pk, child_pk, Investment, "investment_delete")
 
 
 @login_required
@@ -335,7 +416,7 @@ def _child_create(request, pk, model, form_class, title):
 			return redirect("investments:project_detail", pk=project.pk)
 	return render(
 		request,
-		"investments/child_form.html",
+		"investments/form.html",
 		_child_context(request, company, project, form, title),
 	)
 
@@ -363,7 +444,7 @@ def _child_edit(request, pk, child_pk, model, form_class, title):
 			return redirect("investments:project_detail", pk=project.pk)
 	return render(
 		request,
-		"investments/child_form.html",
+		"investments/form.html",
 		_child_context(request, company, project, form, title, child),
 	)
 
@@ -380,8 +461,10 @@ def _child_delete_confirm(request, pk, child_pk, model, action_name):
 		"project": project,
 		"child": child,
 		"delete_action": f"investments:{action_name}",
+		"delete_label": "cet élément",
+		"is_project_delete": False,
 	})
-	return render(request, "investments/child_confirm_delete.html", context)
+	return render(request, "investments/confirm_delete.html", context)
 
 
 def _child_delete(request, pk, child_pk, model, label):

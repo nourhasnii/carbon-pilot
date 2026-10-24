@@ -1,0 +1,27 @@
+{% extends "carbon/base.html" %}
+{% load static %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/investments.css' %}" />{% endblock %}
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}Investissements{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if project %}{% url 'investments:project_detail' project.pk %}{% else %}{% url 'investments:project_list' %}{% endif %}"><i data-lucide="arrow-left" aria-hidden="true"></i> {% if project %}Retour au projet{% else %}Retour aux projets{% endif %}</a>
+{% endblock %}
+
+{% block content %}
+  {% if project.is_demo %}<div class="cp-callout investment-demo-banner" role="status"><i data-lucide="info" aria-hidden="true"></i><span><strong>Données de démonstration</strong> — ce projet est fourni à titre d'exemple.</span></div>{% endif %}
+  <section class="cp-card">
+    {% if form.non_field_errors %}<div class="cp-nonfield-error" role="alert">{{ form.non_field_errors|striptags }}</div>{% endif %}
+    <form method="post" novalidate data-investments-form>
+      {% csrf_token %}
+      <div class="cp-field-grid">
+        {% for field in form %}{% include "investments/_form_field.html" with field=field %}{% endfor %}
+      </div>
+      <div class="cp-actions"><a class="cp-btn cp-btn-outline" href="{% if project %}{% url 'investments:project_detail' project.pk %}{% else %}{% url 'investments:project_list' %}{% endif %}">Annuler</a><span class="cp-spacer"></span><button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save" aria-hidden="true"></i> Enregistrer</button></div>
+    </form>
+  </section>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/investments-form.js' %}"></script>{% endblock %}
