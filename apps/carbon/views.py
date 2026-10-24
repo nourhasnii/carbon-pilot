@@ -68,6 +68,12 @@ CARBON_CREATOR_ROLES = (
 # Members who may open the review queue.
 CARBON_REVIEW_ROLES = workflow.REVIEWER_ROLES
 FACTOR_MANAGER_ROLES = (User.Role.COMPANY_OWNER, User.Role.ESG_REPORTING_MANAGER)
+INVESTMENTS_VIEWER_ROLES = (
+	User.Role.COMPANY_OWNER,
+	User.Role.ESG_REPORTING_MANAGER,
+	User.Role.AUDITOR,
+	User.Role.DEPARTMENT_MANAGER,
+)
 
 # Members who may run anomaly detection / triage anomaly logs.
 ANOMALY_MANAGE_ROLES = (User.Role.COMPANY_OWNER, User.Role.ESG_REPORTING_MANAGER)
@@ -95,6 +101,10 @@ def _sidebar(active, user):
 		{"label": "Anomalies", "icon": "shield-alert", "url_name": "carbon:anomaly_list"},
 		{"label": "Objectives", "icon": "target", "url_name": "objectives:objective_list"},
 		{"label": "Recommendations", "icon": "sparkles", "url_name": "recommendations:recommendation_list"},
+	]
+	if user.role == User.Role.SUPER_ADMIN or user.role in INVESTMENTS_VIEWER_ROLES:
+		items.append({"label": "Investments", "icon": "landmark", "url_name": "investments:project_list"})
+	items += [
 		{"label": "Emission factors", "icon": "beaker", "url_name": "carbon:factor_library"},
 	]
 	for item in items:
