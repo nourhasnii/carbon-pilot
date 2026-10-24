@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'apps.carbon.apps.CarbonConfig',
     'apps.objectives.apps.ObjectivesConfig',
     'apps.investments.apps.InvestmentsConfig',
+    'apps.portfolio_ai.apps.PortfolioAiConfig',
     'apps.engagement.apps.EngagementConfig',
     'apps.analytics.apps.AnalyticsConfig',
     'apps.recommendations.apps.RecommendationsConfig',
