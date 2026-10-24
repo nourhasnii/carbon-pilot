@@ -71,7 +71,7 @@
           <tbody>
             {% for project in projects %}
               <tr>
-                <th scope="row"><a class="cp-cell-link" href="{% url 'investments:project_detail' project.pk %}">{{ project.name }}</a>{% if project.is_demo %} <span class="cp-badge cp-badge-demo">Données de démonstration</span>{% endif %}</th>
+                <th scope="row"><a class="cp-cell-link" href="{% url 'investments:project_detail' project.pk %}">{{ project.name }}</a>{% if project.is_demo %} <span class="cp-badge cp-badge-demo" role="note">Données de démonstration</span>{% endif %}</th>
                 <td>{{ project.get_project_type_display }}</td>
                 <td>{% if project.department %}{{ project.department.name }}{% else %}Tous les départements{% endif %}</td>
                 <td>{{ project.start_date|date:"d/m/Y" }} – {{ project.end_date|date:"d/m/Y" }}</td>
