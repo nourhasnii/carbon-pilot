@@ -1,19 +1,23 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.core.cache import cache
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
 
 from apps.accounts.permissions import role_required
 from apps.carbon.views import _sidebar as carbon_sidebar
-from apps.investments.services import VIEWER_ROLES, WRITE_ROLES, company_for_user
+from apps.investments.services import VIEWER_ROLES, WRITE_ROLES, can_manage, company_for_user
 from apps.investments.models import DecarbonizationProject
 
 from .forms import PortfolioRunForm
 from .models import PortfolioRun, PortfolioRunStatus
 from .tasks import run_portfolio_task
+from .services.llm import LLMError, generate_project_description, summarize_portfolio
 
 
 def _company(request):
@@ -73,9 +77,73 @@ def run_detail(request, pk):
 		request,
 		company,
 		run=run,
+		"can_manage": can_manage(request.user),
 		selected_projects=selected_projects,
 		budget_remaining=(run.budget - run.total_cost) if run.total_cost is not None else None,
 	))
+
+
+@login_required
+@role_required(*WRITE_ROLES)
+@require_http_methods(["POST"])
+def generate_description(request):
+	company = _company(request)
+	if company is None:
+		return JsonResponse({"ok": False, "text": "", "error": "Entreprise non configurée."}, status=400)
+	try:
+		payload = json.loads(request.body or "{}")
+	except (TypeError, ValueError):
+		return JsonResponse({"ok": False, "text": "", "error": "Le JSON envoyé est invalide."}, status=400)
+	title = str(payload.get("title", "")).strip()
+	if not 3 <= len(title) <= 120:
+		return JsonResponse({
+			"ok": False,
+			"text": "",
+			"error": "Le titre doit comporter entre 3 et 120 caractères.",
+		}, status=400)
+	rate_key = f"portfolio-ai:llm-description:{request.user.pk}"
+	count = cache.get(rate_key, 0)
+	if count >= 10:
+		return JsonResponse({
+			"ok": False,
+			"text": "",
+			"error": "La limite de 10 générations par minute est atteinte.",
+		}, status=429)
+	cache.set(rate_key, count + 1, 60)
+	try:
+		result = generate_project_description(title)
+	except LLMError as exc:
+		return JsonResponse({"ok": False, "text": "", "error": str(exc)}, status=502)
+	return JsonResponse({"ok": True, "text": result.text, "error": ""})
+
+
+@login_required
+@role_required(*WRITE_ROLES)
+@require_http_methods(["POST"])
+def run_summary(request, pk):
+	company = _company(request)
+	if company is None:
+		return JsonResponse({"ok": False, "text": "", "error": "Entreprise non configurée."}, status=400)
+	run = _run_or_404(company, pk)
+	if run.status != PortfolioRunStatus.SUCCESS:
+		return JsonResponse({
+			"ok": False,
+			"text": "",
+			"error": "Le résumé est disponible uniquement pour une simulation réussie.",
+		}, status=400)
+	result = summarize_portfolio(run)
+	metrics = dict(run.metrics or {})
+	metrics["llm_ms"] = result.response_ms
+	metrics["llm_fallback_used"] = result.fallback
+	metrics["llm_summary"] = result.text
+	run.metrics = metrics
+	run.save(update_fields=("metrics",))
+	return JsonResponse({
+		"ok": True,
+		"text": result.text,
+		"error": "",
+		"fallback": result.fallback,
+	})
 
 
 @login_required
