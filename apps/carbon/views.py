@@ -104,6 +104,7 @@ def _sidebar(active, user):
 	]
 	if user.role == User.Role.SUPER_ADMIN or user.role in INVESTMENTS_VIEWER_ROLES:
 		items.append({"label": "Investments", "icon": "landmark", "url_name": "investments:project_list"})
+		items.append({"label": "Portfolio AI", "icon": "brain-circuit", "url_name": "portfolio_ai:run_create"})
 	items += [
 		{"label": "Emission factors", "icon": "beaker", "url_name": "carbon:factor_library"},
 	]

@@ -17,6 +17,8 @@ CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', '1').lower
     '1', 'true', 'yes', 'on',
 )
 CELERY_TASK_EAGER_PROPAGATES = False
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', '')
 
 
 # Production deployments must provide DJANGO_SECRET_KEY and turn debug off.
