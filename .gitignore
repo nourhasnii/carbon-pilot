@@ -7,3 +7,6 @@ db.sqlite3
 media/
 htmlcov/
 .coverage
+staticfiles/
+htmlcov/
+.coverage
