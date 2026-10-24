@@ -20,6 +20,7 @@ class ProjectItem:
 	value: Decimal
 	tco2e: Decimal
 	savings: Decimal
+	lifetime_years: Decimal = Decimal("1")
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ def build_items(company, statuses, objective):
 			value=value,
 			tco2e=tco2e,
 			savings=savings,
+			lifetime_years=Decimal(str(lifetime)),
 		))
 	if len(items) < 2:
 		raise InsufficientData(
