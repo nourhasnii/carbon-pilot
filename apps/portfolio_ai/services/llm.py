@@ -59,7 +59,8 @@ def _generate(prompt):
     response_ms = int((time.perf_counter() - start) * 1000)
     if not text.strip():
         raise LLMError("Gemini n'a fourni aucun texte.")
-    return LLMResult(text=text.strip(), fallback=False, response_ms=response_ms)
+    text = text.replace("**", "").replace("##", "").strip()
+    return LLMResult(text=text, fallback=False, response_ms=response_ms)
 
 
 def generate_project_description(title):
@@ -84,6 +85,7 @@ def summarize_portfolio(run):
         f"Projets retenus : {selected_count}. "
         f"Coût total : {run.total_cost}. Budget : {run.budget}. "
         f"Budget restant : {budget_remaining}. tCO2e totales : {run.total_tco2e}. "
+        "N'utilise aucun formatage Markdown (pas d'astérisques, pas de titres). "
         "Ne mentionne aucune donnée absente."
     )
     start = time.perf_counter()
