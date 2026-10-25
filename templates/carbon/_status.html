@@ -1,0 +1,2 @@
+{% comment %}Status badge. Expects an `activity` in context.{% endcomment %}
+<span class="cp-badge {% if activity.status == 'APPROVED' %}cp-badge-approved{% elif activity.status == 'REJECTED' %}cp-badge-rejected{% elif activity.status == 'SUBMITTED' or activity.status == 'UNDER_REVIEW' %}cp-badge-submitted{% else %}cp-badge-draft{% endif %}">{{ activity.get_status_display }}</span>

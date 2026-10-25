@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CarbonPilot | Dashboard</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .container {
+        max-width: 960px;
+        margin: 80px auto;
+        padding: 32px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .badge {
+        display: inline-block;
+        background: #d1fae5;
+        color: #065f46;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+      a {
+        display: inline-block;
+        margin-top: 18px;
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="badge">Dashboard sécurisé</div>
+      <h1>Bienvenue dans votre tableau de bord CarbonPilot</h1>
+      <p>Cette page est protégée par Django avec <code>@login_required</code>.</p>
+      <p>Vous pouvez ici afficher les KPI, les objectifs, les émissions et les rapports ESG.</p>
+      <a href="/">Retour à la landing page</a>
+    </div>
+  </body>
+</html>

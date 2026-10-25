@@ -1,0 +1,11 @@
+<div class="row-actions">
+  {% if account.status == "PENDING" %}
+    <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Approve this account?');">{% csrf_token %}<input type="hidden" name="action" value="accept"><select class="role-select" name="role" aria-label="Assign role to {{ account.email }}" required>{% for role, label in role_choices %}<option value="{{ role }}"{% if role == account.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="text-action approve" type="submit">Approve</button></form>
+    <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Reject this account?');">{% csrf_token %}<input type="hidden" name="action" value="reject"><button class="text-action reject" type="submit">Reject</button></form>
+  {% elif account.status == "ACTIVE" %}
+    <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Deactivate this account?');">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><button class="text-action reject" type="submit">Deactivate</button></form>
+    {% if account.must_change_password %}<form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Generate a new temporary password and resend the approval email?');">{% csrf_token %}<input type="hidden" name="action" value="resend_approval"><button class="text-action approve" type="submit">Resend access email</button></form>{% endif %}
+  {% elif account.status == "INACTIVE" %}
+    <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Reactivate this account?');">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="text-action approve" type="submit">Reactivate</button></form>
+  {% else %}<span class="muted">No actions</span>{% endif %}
+</div>

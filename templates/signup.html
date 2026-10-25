@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Create your workspace | CarbonPilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}" />
+    <script src="{% static 'js/auth.js' %}" defer></script>
+  </head>
+  <body class="auth-page signup-page" data-auth-page="signup">
+    <main class="auth-layout">
+      <section class="brand-panel" aria-label="CarbonPilot product overview">
+        <div class="brand-panel-grid" aria-hidden="true"></div><div class="brand-glow brand-glow-green" aria-hidden="true"></div><div class="brand-glow brand-glow-blue" aria-hidden="true"></div>
+        <div class="brand-panel-content">
+          <a class="auth-brand" href="/" aria-label="CarbonPilot home"><span class="auth-brand-mark"><i data-lucide="chart-no-axes-combined"></i></span><span>CarbonPilot</span></a>
+          <div class="brand-message"><span class="brand-kicker"><i data-lucide="sparkles"></i> ESG intelligence platform</span><h1>Turn Carbon Data Into <span>Predictive ESG Intelligence.</span></h1><p>Measure. Predict. Act.</p></div>
+          <div class="signup-brand-visual"><div class="workspace-graphic"><div class="workspace-node node-main"><i data-lucide="building-2"></i><span>Organization</span></div><div class="workspace-node node-carbon"><i data-lucide="leaf"></i><span>Carbon data</span></div><div class="workspace-node node-ai"><i data-lucide="brain-circuit"></i><span>AI insights</span></div><div class="workspace-node node-report"><i data-lucide="file-chart-column-increasing"></i><span>ESG reports</span></div><div class="workspace-connect connect-one"></div><div class="workspace-connect connect-two"></div><div class="workspace-connect connect-three"></div><span class="workspace-point point-one"></span><span class="workspace-point point-two"></span><span class="workspace-point point-three"></span></div><div class="workspace-caption"><i data-lucide="layers-3"></i><span><strong>Your sustainability workspace</strong><small>Teams, data and decisions in one place</small></span></div></div>
+          <div class="brand-footnote"><i data-lucide="shield-check"></i> Designed for enterprise teams <span>·</span> Demo experience</div>
+        </div>
+        <div class="brand-orbit" aria-hidden="true"><span></span><span></span><i></i><i></i><i></i></div>
+      </section>
+
+      <section class="form-panel signup-form-panel">
+        <div class="mobile-brand"><a class="auth-brand" href="/" aria-label="CarbonPilot home"><span class="auth-brand-mark"><i data-lucide="chart-no-axes-combined"></i></span><span>CarbonPilot</span></a><span>ESG intelligence platform</span></div>
+        <div class="signup-panel-inner">
+          <a class="back-link" href="/"><i data-lucide="arrow-left"></i> Back to CarbonPilot</a>
+          <div class="form-heading signup-heading"><span class="form-overline">GET STARTED</span><h2>Create your CarbonPilot account</h2><p>Start managing your organization's sustainability intelligence.</p></div>
+
+          {% if messages %}<div class="form-messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+          <form class="auth-form signup-form" method="post">
+            {% csrf_token %}
+            {% for error in form.non_field_errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            <div class="signup-section-label"><span>01</span><strong>Your account</strong><i></i></div>
+            <div class="field-grid">
+              <div class="field-group"><label for="first-name">First name</label><div class="input-shell"><i data-lucide="user-round"></i>{{ form.first_name }}</div>{{ form.first_name.errors }}</div>
+              <div class="field-group"><label for="last-name">Last name</label><div class="input-shell"><i data-lucide="user-round"></i>{{ form.last_name }}</div>{{ form.last_name.errors }}</div>
+            </div>
+            <div class="field-group"><label for="signup-email">Work email</label><div class="input-shell"><i data-lucide="mail"></i>{{ form.email }}</div>{{ form.email.errors }}</div>
+            <div class="signup-section-label organization-label"><span>02</span><strong>Your organization</strong><i></i></div>
+            <div class="field-grid">
+              <div class="field-group"><label for="company-name">Company / organization</label><div class="input-shell"><i data-lucide="building-2"></i>{{ form.company }}</div>{{ form.company.errors }}</div>
+              <div class="field-group"><label for="department-name">Department</label><div class="input-shell"><i data-lucide="briefcase-business"></i>{{ form.department }}</div>{{ form.department.errors }}</div>
+            </div>
+            <p class="workspace-hint"><i data-lucide="info"></i> Your account remains pending until an administrator approves it.</p>
+            <fieldset class="role-fieldset"><legend>What best describes your role?</legend><div class="role-grid">
+              {% for value, label in form.role.field.choices %}<label class="role-card{% if form.role.value == value or not form.role.value and value == form.role.field.initial %} is-selected{% endif %}"><input type="radio" name="role" value="{{ value }}"{% if form.role.value == value or not form.role.value and value == form.role.field.initial %} checked{% endif %} required /><span class="role-icon role-icon-green"><i data-lucide="users-round"></i></span><span class="role-copy"><strong>{{ label }}</strong><small>CarbonPilot account access</small></span><span class="role-check"><i data-lucide="check"></i></span></label>{% endfor %}
+            </div>{{ form.role.errors }}</fieldset>
+            <label class="check-label terms-label">{{ form.terms }}<span class="custom-check"><i data-lucide="check"></i></span><span>I agree to the <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.</span></label>{{ form.terms.errors }}
+            <button class="submit-button" type="submit">Create my workspace <i data-lucide="arrow-right"></i></button>
+          </form>
+          <p class="switch-auth signup-switch">Already have an account? <a href="/login/">Sign in</a></p>
+          <div class="security-note"><i data-lucide="shield-check"></i><span><strong>Designed for organization-level workflows.</strong><small>Your account cannot sign in until approved.</small></span></div>
+        </div>
+        <footer class="auth-footer"><span>© 2026 CarbonPilot</span><a href="mailto:hello@carbonpilot.example">Need help?</a></footer>
+      </section>
+    </main>
+  </body>
+</html>

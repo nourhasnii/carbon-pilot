@@ -1,0 +1,14 @@
+{% extends "enterprise/company_owner_base.html" %}
+{% block title %}{% if company %}Edit company profile{% else %}Create company{% endif %}{% endblock %}
+{% block content %}
+  <div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="eyebrow mb-2">Company setup</p>
+      <h1 class="h2 mb-2">{% if company %}Edit company profile{% else %}Create your company{% endif %}</h1>
+      <p class="text-secondary mb-0">Complete the company profile for your CarbonPilot workspace.</p>
+    </div>
+    {% if company %}<a class="btn btn-outline-primary page-actions" href="{% url 'enterprise:company_dashboard' %}">Back to dashboard</a>{% endif %}
+  </div>
+
+  {% include "enterprise/_company_form_fields.html" %}
+{% endblock %}

@@ -1,0 +1,1 @@
+<span class="cp-badge cp-badge-{% if objective.status == 'ACHIEVED' %}achieved{% elif objective.status == 'MISSED' %}missed{% elif objective.status == 'ARCHIVED' %}neutral{% else %}active{% endif %}">{{ objective.get_status_display }}</span>

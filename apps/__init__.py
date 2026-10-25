@@ -1,0 +1,1 @@
+"""CarbonPilot Django applications."""

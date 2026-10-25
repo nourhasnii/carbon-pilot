@@ -1,0 +1,2 @@
+{% comment %}Status badge. Expects `status` (value) and `label`.{% endcomment %}
+<span class="cp-badge {% if status == 'DONE' %}cp-badge-approved{% elif status == 'DISMISSED' %}cp-badge-draft{% elif status == 'IN_PROGRESS' %}cp-badge-submitted{% else %}cp-badge-neutral{% endif %}">{{ label }}</span>

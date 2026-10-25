@@ -1,0 +1,199 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ objective.name }}{% endblock %}
+{% block eyebrow %}Reduction target{% endblock %}
+{% block heading %}{{ objective.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'objectives:objective_list' %}"><i data-lucide="arrow-left"></i> All objectives</a>
+  {% if can_manage %}
+    <form method="post" action="{% url 'objectives:objective_refresh_status' objective.pk %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit"><i data-lucide="refresh-cw"></i> Refresh status</button>
+    </form>
+    <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'objectives:objective_edit' objective.pk %}"><i data-lucide="pencil"></i> Edit</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Baseline</div>
+      <div class="cp-kpi-value">{{ objective.baseline_tco2e|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">Reference emissions</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Target</div>
+      <div class="cp-kpi-value">{{ objective.target_tco2e|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">Commitment for {{ objective.period_label }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Current emissions</div>
+      <div class="cp-kpi-value">{{ current_tco2e|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">Live · {{ activity_count }} approved activit{{ activity_count|pluralize:"y,ies" }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Gap to target</div>
+      <div class="cp-kpi-value">{{ gap_tco2e|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">{% if objective.is_achieved %}Target reached{% else %}Still to reduce{% endif %}</div>
+    </article>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI Prediction</h2>
+        <p class="cp-card-sub cp-mt-0">RandomForest model trained on your company's resolved objectives</p>
+      </div>
+      {% if can_manage %}
+        <form method="post" action="{% url 'objectives:objective_run_prediction' objective.pk %}">
+          {% csrf_token %}
+          <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Run AI Prediction</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if prediction %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Probability</div>
+          <div class="cp-kpi-value">{{ prediction.probability_achievement|floatformat:1 }}<small>%</small></div>
+          <div class="cp-kpi-sub">Likelihood this objective is achieved</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Result</div>
+          <div class="cp-kpi-value" style="font-size:1.15rem">{{ prediction.get_expected_outcome_display }}</div>
+          <div class="cp-kpi-sub">Model verdict</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk</div>
+          <div class="cp-kpi-value" style="font-size:1.15rem">
+            <span class="cp-badge {% if prediction.risk_level == 'HIGH' %}cp-badge-sev-high{% elif prediction.risk_level == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ prediction.get_risk_level_display }}</span>
+          </div>
+          <div class="cp-kpi-sub">Derived from the model probability</div>
+        </article>
+      </div>
+      <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+        {{ prediction.model_name }} v{{ prediction.model_version }} · progress at run {{ prediction.current_progress_percent|floatformat:1 }}% · {{ prediction.created_at|date:"d M Y H:i" }}.
+        Statistical estimate only — not a guarantee.
+      </p>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="sparkles"></i>
+        <span>
+          No AI prediction yet. A prediction is only produced once the model has enough
+          resolved historical objectives (both achieved and missed) to learn from; otherwise
+          the run reports insufficient data rather than guessing.
+        </span>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI recommendations</h2>
+        <p class="cp-card-sub cp-mt-0">Open actions the recommendation engine linked to this objective</p>
+      </div>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'recommendations:recommendation_list' %}">All recommendations <i data-lucide="arrow-right"></i></a>
+    </div>
+    {% if recommendations %}
+      <ul style="display:grid;gap:12px;list-style:none;padding:0;margin:0">
+        {% for rec in recommendations %}
+          <li style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            {% include "recommendations/_priority.html" with priority=rec.priority label=rec.get_priority_display %}
+            {% include "recommendations/_method.html" with generation_method=rec.generation_method %}
+            <strong>{{ rec.title }}</strong>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="sparkles"></i>
+        <span>No open recommendation linked to this objective yet. Generate recommendations from the recommendations workspace.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Progress toward target</h2>
+          <p class="cp-card-sub cp-mt-0">Share of the committed reduction already achieved</p>
+        </div>
+        {% include "objectives/_status.html" with objective=objective %}
+      </div>
+      <div class="cp-hbars">
+        <div class="cp-hbar-link">
+          <div class="cp-hbar-head">
+            <strong>{{ progress_percent }}% complete</strong>
+            <span>{{ reduction_required_tco2e|floatformat:2 }} tCO2e to cut</span>
+          </div>
+          <div class="cp-hbar-track"><span class="cp-hbar-fill {% if objective.status == 'ACHIEVED' %}is-achieved{% endif %}" style="width: {{ progress_percent }}%"></span></div>
+        </div>
+      </div>
+      <div class="cp-callout" style="margin-top:18px">
+        <i data-lucide="{% if objective.is_achieved %}check-circle-2{% else %}info{% endif %}"></i>
+        <span>
+          {% if objective.is_achieved %}
+            Emissions are at or below target. {{ objective.baseline_tco2e|floatformat:2 }} → {{ current_tco2e|floatformat:2 }} tCO2e so far.
+          {% else %}
+            Reduce a further <strong>{{ gap_tco2e|floatformat:2 }} tCO2e</strong> to reach the target of {{ objective.target_tco2e|floatformat:2 }} tCO2e.
+          {% endif %}
+        </span>
+      </div>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Objective details</h2>
+      <p class="cp-card-sub cp-mt-0">Scope and reporting period</p>
+      <dl class="cp-dl">
+        <div><dt>Scope</dt><dd>{% if objective.department %}{{ objective.department.name }}{% else %}Company-wide{% endif %}</dd></div>
+        <div><dt>Period</dt><dd>{{ objective.period_label }}</dd></div>
+        <div><dt>Period type</dt><dd>{{ objective.get_period_type_display }}</dd></div>
+        <div><dt>Reporting window</dt><dd>{{ period_start|date:"d M Y" }} – {{ period_end|date:"d M Y" }}</dd></div>
+        <div><dt>Created by</dt><dd>{{ objective.created_by.get_full_name|default:objective.created_by.email|default:"—" }}</dd></div>
+        <div><dt>Created</dt><dd>{{ objective.created_at|date:"d M Y" }}</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Contributing activities</h2>
+      <span class="cp-muted">Approved only · {{ activity_count }} total</span>
+    </div>
+    {% if activities %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead>
+            <tr><th>Activity</th><th>Department</th><th class="cp-num">CO2e</th><th>Period</th></tr>
+          </thead>
+          <tbody>
+            {% for activity in activities %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a></td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td class="cp-num">{{ activity.co2e_tonnes|floatformat:2 }} t</td>
+                <td>{{ activity.period_label }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if activity_count > activities|length %}
+        <p class="cp-muted" style="margin-top:12px;font-size:0.8rem">Showing the 10 most recent of {{ activity_count }} contributing activities.</p>
+      {% endif %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="inbox"></i>
+        <p>No approved activities in this scope and period yet.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Current emissions include <strong>approved</strong>, non-archived activities in this objective's scope and reporting period.
+  </p>
+{% endblock %}

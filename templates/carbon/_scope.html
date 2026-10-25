@@ -1,0 +1,2 @@
+{% comment %}Scope badge. Expects a `scope` value and optional `scope_label`.{% endcomment %}
+<span class="cp-badge {% if scope == 'SCOPE_1' %}cp-badge-scope1{% elif scope == 'SCOPE_2' %}cp-badge-scope2{% else %}cp-badge-scope3{% endif %}">{{ scope_label|default:scope }}</span>

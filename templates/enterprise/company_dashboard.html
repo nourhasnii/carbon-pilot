@@ -1,0 +1,113 @@
+{% extends "enterprise/company_owner_base.html" %}
+{% block title %}Company Owner dashboard{% endblock %}
+{% block content %}
+  {% if not company %}
+    <div class="mb-4">
+      <p class="eyebrow mb-2">Company setup</p>
+      <h1 class="h2 mb-2">Create your company</h1>
+      <p class="text-secondary mb-0">Complete your company profile to open your CarbonPilot workspace.</p>
+    </div>
+    {% include "enterprise/_company_form_fields.html" %}
+  {% else %}
+  <div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="eyebrow mb-2">Company workspace</p>
+      <h1 class="h2 mb-2">{{ company.name }}</h1>
+      <p class="text-secondary mb-0">Your company profile and sustainability details.</p>
+    </div>
+    <a class="btn btn-primary page-actions" href="{% url 'enterprise:company_profile' %}">Edit company profile</a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-6">
+      <section class="card h-100 shadow-sm" aria-labelledby="identity-heading">
+        <div class="card-body p-4">
+          <p class="eyebrow mb-1">01 · Organization</p><h2 class="h5 section-title mb-4" id="identity-heading">Company Identity</h2>
+          <dl class="row g-3 mb-0">
+            <div class="col-12"><dt class="detail-label">Company name</dt><dd class="detail-value mb-0">{{ company.name }}</dd></div>
+            <div class="col-12"><dt class="detail-label">Legal name</dt><dd class="detail-value mb-0">{{ company.legal_name }}</dd></div>
+            <div class="col-12 col-sm-6"><dt class="detail-label">SIRET</dt><dd class="detail-value mb-0">{{ company.siret }}</dd></div>
+            <div class="col-12 col-sm-6"><dt class="detail-label">Sector</dt><dd class="detail-value mb-0">{{ company.get_sector_display }}</dd></div>
+            <div class="col-12"><dt class="detail-label">Company size</dt><dd class="detail-value mb-0">{{ company.get_size_display }}</dd></div>
+          </dl>
+        </div>
+      </section>
+    </div>
+    <div class="col-12 col-lg-6">
+      <section class="card h-100 shadow-sm" aria-labelledby="contact-heading">
+        <div class="card-body p-4">
+          <p class="eyebrow mb-1">02 · Reach your team</p><h2 class="h5 section-title mb-4" id="contact-heading">Contact &amp; Location</h2>
+          <dl class="row g-3 mb-0">
+            <div class="col-12 col-sm-6"><dt class="detail-label">Country</dt><dd class="detail-value mb-0">{{ company.country }}</dd></div>
+            <div class="col-12 col-sm-6"><dt class="detail-label">City</dt><dd class="detail-value mb-0">{{ company.city }}</dd></div>
+            <div class="col-12"><dt class="detail-label">Address</dt><dd class="detail-value mb-0">{{ company.address }}</dd></div>
+            <div class="col-12"><dt class="detail-label">Website</dt><dd class="detail-value mb-0"><a href="{{ company.website }}" target="_blank" rel="noopener noreferrer">{{ company.website }}</a></dd></div>
+            <div class="col-12"><dt class="detail-label">Contact email</dt><dd class="detail-value mb-0"><a href="mailto:{{ company.contact_email }}">{{ company.contact_email }}</a></dd></div>
+          </dl>
+        </div>
+      </section>
+    </div>
+    <div class="col-12">
+      <section class="card shadow-sm" aria-labelledby="sustainability-heading">
+        <div class="card-body p-4">
+          <p class="eyebrow mb-1">03 · Impact</p><h2 class="h5 section-title mb-4" id="sustainability-heading">Sustainability Profile</h2>
+          <dl class="row g-3 mb-0">
+            <div class="col-12 col-md-4"><dt class="detail-label">Already reports ESG</dt><dd class="detail-value mb-0">{% if company.reports_esg %}Yes{% else %}No{% endif %}</dd></div>
+            <div class="col-12 col-md-5"><dt class="detail-label">Main sustainability goal</dt><dd class="detail-value mb-0">{{ company.sustainability_goal }}</dd></div>
+            <div class="col-12 col-md-3"><dt class="detail-label">Target year</dt><dd class="detail-value mb-0">{{ company.target_year }}</dd></div>
+          </dl>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="mt-5" aria-labelledby="overview-heading">
+    <div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-3 mb-3">
+      <div><p class="eyebrow mb-1">Workspace overview</p><h2 class="h4 section-title mb-0" id="overview-heading">Company at a glance</h2></div>
+      <nav class="d-flex flex-wrap gap-2" aria-label="Company quick actions">
+        <a class="btn btn-outline-primary btn-sm" href="#company-users">View users</a>
+        <a class="btn btn-outline-primary btn-sm" href="#company-departments">View departments</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'enterprise:company_profile' %}">Edit company profile</a>
+      </nav>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3"><article class="card h-100"><div class="card-body"><p class="detail-label mb-2">Active users</p><p class="h3 mb-0">{{ active_member_count }}</p></div></article></div>
+      <div class="col-6 col-lg-3"><article class="card h-100"><div class="card-body"><p class="detail-label mb-2">Departments</p><p class="h3 mb-0">{{ department_count }}</p></div></article></div>
+      <div class="col-6 col-lg-3"><article class="card h-100"><div class="card-body"><p class="detail-label mb-2">ESG reporting</p><p class="h5 mb-0">{% if company.reports_esg %}Active{% else %}Not active{% endif %}</p></div></article></div>
+      <div class="col-6 col-lg-3"><article class="card h-100"><div class="card-body"><p class="detail-label mb-2">Target year</p><p class="h3 mb-0">{{ company.target_year|default:"-" }}</p></div></article></div>
+    </div>
+  </section>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-7">
+      <section class="card h-100" aria-labelledby="company-users-heading" id="company-users">
+        <div class="card-body p-4">
+          <p class="eyebrow mb-1">People</p><h2 class="h5 section-title mb-3" id="company-users-heading">Company users</h2>
+          {% if company_users %}
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Department</th><th scope="col">Status</th></tr></thead>
+                <tbody>{% for member in company_users %}<tr><td>{{ member.get_full_name|default:member.email }}</td><td>{{ member.email }}</td><td>{{ member.department|default:"-" }}</td><td>{{ member.get_status_display }}</td></tr>{% endfor %}</tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-secondary mb-0">No other users are linked to this company yet.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+    <div class="col-12 col-lg-5">
+      <section class="card h-100" aria-labelledby="company-departments-heading" id="company-departments">
+        <div class="card-body p-4">
+          <p class="eyebrow mb-1">Organization</p><h2 class="h5 section-title mb-3" id="company-departments-heading">Departments</h2>
+          {% if departments %}
+            <ul class="list-group list-group-flush">{% for department in departments %}<li class="list-group-item d-flex justify-content-between gap-3 px-0"><span>{{ department.department }}</span><span class="text-secondary">{{ department.member_count }} user{{ department.member_count|pluralize }}</span></li>{% endfor %}</ul>
+          {% else %}
+            <p class="text-secondary mb-0">No departments have been added yet.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}

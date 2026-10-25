@@ -1,0 +1,107 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Activities{% endblock %}
+{% block eyebrow %}Carbon management{% endblock %}
+{% block heading %}Carbon activities{% endblock %}
+
+{% block topbar_actions %}
+  {% if show_archived %}
+    <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_list' %}"><i data-lucide="arrow-left"></i> Live activities</a>
+  {% else %}
+    <a class="cp-btn cp-btn-ghost cp-btn-sm" href="?archived=1"><i data-lucide="archive"></i> Archived</a>
+  {% endif %}
+  {% if can_create %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'carbon:activity_wizard' %}"><i data-lucide="plus"></i> New activity</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if show_archived %}
+    <div class="cp-callout is-warning" style="margin-bottom:20px">
+      <i data-lucide="archive"></i>
+      <span>Showing <strong>archived</strong> activities. They are excluded from the footprint and can be restored to the live inventory.</span>
+    </div>
+  {% endif %}
+
+  {% include "carbon/_filters.html" with reset_url=request.path %}
+
+  <section class="cp-card">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} {% if show_archived %}archived {% endif %}activit{{ pagination.total|pluralize:"y,ies" }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead>
+            <tr>
+              <th>Activity</th><th>Department</th><th>Scope</th><th>Category</th>
+              <th class="cp-num">Quantity</th><th class="cp-num">CO2e</th><th>Status</th><th>Period</th>
+              <th class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for activity in pagination.items %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a>
+                  {% if activity.is_archived %}<span class="cp-badge cp-badge-neutral">Archived</span>{% endif %}
+                </td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td>{% include "carbon/_scope.html" with scope=activity.scope scope_label=activity.get_scope_display %}</td>
+                <td>{{ activity.get_category_display }}</td>
+                <td class="cp-num">{{ activity.quantity|floatformat:"-4" }} {{ activity.unit }}</td>
+                <td class="cp-num">{{ activity.co2e_kg|floatformat:2 }} kg</td>
+                <td>{% include "carbon/_status.html" with activity=activity %}</td>
+                <td>{{ activity.period_label }}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_detail' activity.pk %}" title="View details"><i data-lucide="eye"></i> View</a>
+                    {% if activity.row_can_edit %}
+                      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_edit' activity.pk %}" title="Edit activity"><i data-lucide="pencil"></i> Edit</a>
+                    {% endif %}
+                    {% if activity.row_can_delete %}
+                      <form method="post" action="{% url 'carbon:activity_delete' activity.pk %}" onsubmit="return confirm('Delete this draft activity? This cannot be undone.');">
+                        {% csrf_token %}
+                        <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit" title="Delete draft"><i data-lucide="trash-2"></i> Delete</button>
+                      </form>
+                    {% elif activity.row_can_archive %}
+                      <form method="post" action="{% url 'carbon:activity_archive' activity.pk %}" onsubmit="return confirm('Archive this activity? It leaves the live list but stays in the audit trail.');">
+                        {% csrf_token %}
+                        <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit" title="Archive activity"><i data-lucide="archive"></i> Archive</button>
+                      </form>
+                    {% elif activity.row_can_restore %}
+                      <form method="post" action="{% url 'carbon:activity_restore' activity.pk %}" onsubmit="return confirm('Restore this activity to the live inventory?');">
+                        {% csrf_token %}
+                        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit" title="Restore activity"><i data-lucide="rotate-ccw"></i> Restore</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if pagination.pages > 1 %}
+        <nav class="cp-pagination" aria-label="Pagination">
+          <span class="cp-muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+          <div class="cp-row">
+            {% if pagination.has_previous %}
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.previous_page }}"><i data-lucide="arrow-left"></i> Previous</a>
+            {% endif %}
+            {% if pagination.has_next %}
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.next_page }}">Next <i data-lucide="arrow-right"></i></a>
+            {% endif %}
+          </div>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if show_archived %}archive{% else %}inbox{% endif %}"></i>
+        <p>{% if show_archived %}No archived activities.{% else %}No activities match these filters.{% endif %}</p>
+        {% if can_create %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'carbon:activity_wizard' %}"><i data-lucide="plus"></i> Record an activity</a>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Objectives{% endblock %}
+{% block eyebrow %}Reduction targets{% endblock %}
+{% block heading %}Objectives & reduction targets{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'objectives:objective_create' %}"><i data-lucide="plus"></i> New objective</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Live objectives</div>
+      <div class="cp-kpi-value">{{ live_count }}</div>
+      <div class="cp-kpi-sub">Tracked reduction targets</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Active</div>
+      <div class="cp-kpi-value">{{ active_count }}</div>
+      <div class="cp-kpi-sub">Still in progress</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Achieved</div>
+      <div class="cp-kpi-value">{{ achieved_count }}</div>
+      <div class="cp-kpi-sub">Within target</div>
+    </article>
+  </div>
+
+  <form method="get" class="cp-card" style="margin-top:20px">
+    <div class="cp-field-grid">
+      <div class="cp-field">
+        <label for="filter-year">Year</label>
+        <select class="field-input" id="filter-year" name="year">
+          <option value="">All years</option>
+          {% for y in years %}<option value="{{ y }}" {% if selected.year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label for="filter-status">Status</label>
+        <select class="field-input" id="filter-status" name="status">
+          <option value="">Live (not archived)</option>
+          {% for value, label in status_choices %}<option value="{{ value }}" {% if selected.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label for="filter-period">Period</label>
+        <select class="field-input" id="filter-period" name="period_type">
+          <option value="">All periods</option>
+          {% for value, label in period_choices %}<option value="{{ value }}" {% if selected.period_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label aria-hidden="true">&nbsp;</label>
+        <div class="cp-row">
+          <button class="cp-btn cp-btn-outline" type="submit"><i data-lucide="filter"></i> Apply</button>
+          <a class="cp-btn cp-btn-ghost" href="{% url 'objectives:objective_list' %}">Reset</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ objectives|length }} objectiv{{ objectives|length|pluralize:"e,es" }}</h2>
+    </div>
+
+    {% if objectives %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead>
+            <tr>
+              <th>Objective</th><th>Scope</th><th>Period</th>
+              <th class="cp-num">Baseline</th><th class="cp-num">Target</th><th class="cp-num">Current</th>
+              <th>Progress</th><th>Status</th><th class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for objective in objectives %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'objectives:objective_detail' objective.pk %}">{{ objective.name }}</a></td>
+                <td>{% if objective.department %}{{ objective.department.name }}{% else %}<span class="cp-badge cp-badge-neutral">Company-wide</span>{% endif %}</td>
+                <td>{{ objective.period_label }}</td>
+                <td class="cp-num">{{ objective.baseline_tco2e|floatformat:2 }}</td>
+                <td class="cp-num">{{ objective.target_tco2e|floatformat:2 }}</td>
+                <td class="cp-num">{{ objective.display_current|floatformat:2 }}</td>
+                <td style="min-width:160px">
+                  <div class="cp-hbar-head"><strong>{{ objective.progress_percent }}%</strong></div>
+                  <div class="cp-hbar-track"><span class="cp-hbar-fill {% if objective.status == 'ACHIEVED' %}is-achieved{% endif %}" style="width: {{ objective.progress_percent }}%"></span></div>
+                </td>
+                <td>{% include "objectives/_status.html" with objective=objective %}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'objectives:objective_detail' objective.pk %}"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'objectives:objective_edit' objective.pk %}" title="Edit objective"><i data-lucide="pencil"></i> Edit</a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="target"></i>
+        <p>No objectives match these filters.</p>
+        {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'objectives:objective_create' %}"><i data-lucide="plus"></i> Create an objective</a>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Live progress counts <strong>approved</strong> activities only. Emissions are summed in tCO2e for each objective's scope and period.
+  </p>
+{% endblock %}
