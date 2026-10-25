@@ -16,6 +16,14 @@ def _env(key="fake-key-123", model="fake-model"):
 def _client_returning(text):
 	client = mock.MagicMock()
 	client.interactions.create.return_value = SimpleNamespace(output_text=text)
+	client.models.generate_content.return_value = SimpleNamespace(text=text)
+	return client
+
+
+def _client_failing(exc):
+	client = mock.MagicMock()
+	client.interactions.create.side_effect = exc
+	client.models.generate_content.side_effect = exc
 	return client
 
 
@@ -50,23 +58,20 @@ class GenerateTests(SimpleTestCase):
 				llm.generate_project_description("Panneaux solaires")
 
 	def test_quota_429(self):
-		client = mock.MagicMock()
-		client.interactions.create.side_effect = FakeHttpError(429)
+		client = _client_failing(FakeHttpError(429))
 		with _env(), mock.patch("google.genai.Client", return_value=client):
 			with self.assertRaises(LLMError) as ctx:
 				llm.generate_project_description("Panneaux solaires")
 		self.assertIn("quota", str(ctx.exception).lower())
 
 	def test_timeout_and_network_error(self):
-		client = mock.MagicMock()
-		client.interactions.create.side_effect = TimeoutError("timeout")
+		client = _client_failing(TimeoutError("timeout"))
 		with _env(), mock.patch("google.genai.Client", return_value=client):
 			with self.assertRaises(LLMError):
 				llm.generate_project_description("Panneaux solaires")
 
 	def test_error_message_hides_technical_details_and_key(self):
-		client = mock.MagicMock()
-		client.interactions.create.side_effect = FakeHttpError(500)
+		client = _client_failing(FakeHttpError(500))
 		with _env(key="SUPER-SECRET-KEY"), mock.patch("google.genai.Client", return_value=client):
 			with self.assertRaises(LLMError) as ctx:
 				llm.generate_project_description("Panneaux solaires")
@@ -101,8 +106,7 @@ class SummaryTests(SimpleTestCase):
 		self.assertIn("n'invente aucun chiffre", prompt)
 
 	def test_summary_fallback_on_error(self):
-		client = mock.MagicMock()
-		client.interactions.create.side_effect = FakeHttpError(500)
+		client = _client_failing(FakeHttpError(500))
 		with _env(), mock.patch("google.genai.Client", return_value=client):
 			result = llm.summarize_portfolio(self._run())
 		self.assertTrue(result.fallback)
