@@ -31,3 +31,6 @@ a:focus-visible { outline: 3px solid #0c5943; outline-offset: 3px; }
   .investment-filter-actions { align-items: stretch; }
   .investment-pagination { flex-wrap: wrap; }
 }
+.cp-badge-demo {
+  color: #744200;
+}
