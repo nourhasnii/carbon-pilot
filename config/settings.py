@@ -198,8 +198,25 @@ RENDER_HOST = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
     CSRF_TRUSTED_ORIGINS = [f'https://{RENDER_HOST}']
+
+# Origines de confiance supplémentaires (variable CSRF_TRUSTED_ORIGINS, séparées par des virgules).
+_extra_origins = [
+    origin.strip()
+    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if _extra_origins:
+    CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
+        globals().get('CSRF_TRUSTED_ORIGINS', []) + _extra_origins
+    ))
+
+# Sécurité renforcée en production (DEBUG=False) : HTTPS forcé et HSTS.
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = False
 
 # Media files (pour les PDF des rapports ESG)
 MEDIA_URL = 'media/'
