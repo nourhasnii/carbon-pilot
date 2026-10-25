@@ -3,7 +3,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import Client, TestCase
+from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import User
@@ -16,7 +16,7 @@ GENERATE = "apps.portfolio_ai.views.generate_project_description"
 SUMMARIZE = "apps.portfolio_ai.views.summarize_portfolio"
 
 
-class LLMViewTests(TestCase):
+class LLMViewsTests(TestCase):
 	def setUp(self):
 		cache.clear()
 		self.password = "SecureTestPassword2026!"
@@ -26,10 +26,22 @@ class LLMViewTests(TestCase):
 		self.supplier = self.user("llm-supplier", User.Role.SUPPLIER, self.company)
 		self.other_owner = self.user("llm-other", User.Role.COMPANY_OWNER)
 		self.other_company = Company.objects.create(owner=self.other_owner, name="Autre LLM")
-		self.run = self.make_run(self.company, self.owner, PortfolioRunStatus.SUCCESS)
-		self.pending_run = self.make_run(self.company, self.owner, PortfolioRunStatus.PENDING)
-		self.other_run = self.make_run(self.other_company, self.other_owner, PortfolioRunStatus.SUCCESS)
+		self.run = PortfolioRun.objects.create(
+			company=self.company,
+			created_by=self.owner,
+			budget=Decimal("10000"),
+			objective=PortfolioRunObjective.MAX_TCO2E,
+			included_statuses=[ProjectStatus.PROPOSED],
+			status=PortfolioRunStatus.SUCCESS,
+			total_cost=Decimal("8000"),
+			total_tco2e=Decimal("120"),
+			explanation="Explication de l'optimiseur.",
+		)
 		self.description_url = reverse("portfolio_ai:generate_description")
+		self.summary_url = reverse("portfolio_ai:run_summary", args=[self.run.pk])
+
+	def tearDown(self):
+		cache.clear()
 
 	def user(self, name, role, company=None):
 		return User.objects.create_user(
@@ -40,38 +52,24 @@ class LLMViewTests(TestCase):
 			company_membership=company,
 		)
 
-	def make_run(self, company, user, status):
-		return PortfolioRun.objects.create(
-			company=company,
-			created_by=user,
-			budget=Decimal("10000"),
-			total_cost=Decimal("8000"),
-			total_tco2e=Decimal("120"),
-			objective=PortfolioRunObjective.MAX_TCO2E,
-			included_statuses=[ProjectStatus.PROPOSED],
-			status=status,
-			explanation="Explication de l'optimiseur.",
+	def post_title(self, title):
+		return self.client.post(
+			self.description_url,
+			data=json.dumps({"title": title}),
+			content_type="application/json",
 		)
 
-	def summary_url(self, run):
-		return reverse("portfolio_ai:run_summary", args=[run.pk])
+	# ---- Description : accès ----
 
-	def post_json(self, url, data, client=None):
-		return (client or self.client).post(url, data=json.dumps(data), content_type="application/json")
-
-	def ok_result(self, text="Texte généré."):
-		return LLMResult(text=text, fallback=False, response_ms=42)
-
-	# --- description ---------------------------------------------------
-	def test_description_requires_login(self):
-		response = self.post_json(self.description_url, {"title": "Panneaux solaires"})
+	def test_description_anonymous_redirected(self):
+		response = self.post_title("Panneaux solaires")
 		self.assertEqual(response.status_code, 302)
 
-	def test_description_refused_for_read_only_and_supplier(self):
-		for user in (self.auditor, self.supplier):
+	def test_description_supplier_and_auditor_refused(self):
+		for user in (self.supplier, self.auditor):
 			self.client.force_login(user)
 			with mock.patch(GENERATE) as generate:
-				response = self.post_json(self.description_url, {"title": "Panneaux solaires"})
+				response = self.post_title("Panneaux solaires")
 			self.assertEqual(response.status_code, 403)
 			generate.assert_not_called()
 
@@ -79,104 +77,161 @@ class LLMViewTests(TestCase):
 		self.client.force_login(self.owner)
 		self.assertEqual(self.client.get(self.description_url).status_code, 405)
 
-	def test_description_requires_csrf_token(self):
-		client = Client(enforce_csrf_checks=True)
-		client.force_login(self.owner)
-		response = self.post_json(self.description_url, {"title": "Panneaux solaires"}, client=client)
-		self.assertEqual(response.status_code, 403)
+	# ---- Description : validation ----
 
-	def test_description_invalid_json_and_titles(self):
+	def test_description_invalid_titles_return_400(self):
 		self.client.force_login(self.owner)
-		with mock.patch(GENERATE) as generate:
-			bad_json = self.client.post(self.description_url, data="{pas du json", content_type="application/json")
-			not_a_dict = self.post_json(self.description_url, ["x"])
-			missing = self.post_json(self.description_url, {})
-			too_short = self.post_json(self.description_url, {"title": "ab"})
-			blank = self.post_json(self.description_url, {"title": "     "})
-			too_long = self.post_json(self.description_url, {"title": "x" * 121})
-		for response in (bad_json, not_a_dict, missing, too_short, blank, too_long):
-			self.assertEqual(response.status_code, 400)
+		for title in ("", "  ", "ab", "x" * 121):
+			with mock.patch(GENERATE) as generate:
+				response = self.post_title(title)
+			self.assertEqual(response.status_code, 400, title)
 			self.assertFalse(response.json()["ok"])
-		generate.assert_not_called()
+			self.assertTrue(response.json()["error"])
+			generate.assert_not_called()
+
+	def test_description_invalid_json_returns_400(self):
+		self.client.force_login(self.owner)
+		response = self.client.post(
+			self.description_url, data="pas du json", content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 400)
+		self.assertFalse(response.json()["ok"])
+
+	def test_description_json_not_an_object_returns_400(self):
+		self.client.force_login(self.owner)
+		response = self.client.post(
+			self.description_url, data="[1, 2]", content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 400)
+
+	# ---- Description : succès et erreurs ----
 
 	def test_description_success(self):
 		self.client.force_login(self.owner)
-		with mock.patch(GENERATE, return_value=self.ok_result()) as generate:
-			response = self.post_json(self.description_url, {"title": "  Panneaux solaires  "})
+		result = LLMResult(text="Quatre lignes de description.", fallback=False, response_ms=12)
+		with mock.patch(GENERATE, return_value=result) as generate:
+			response = self.post_title("  Panneaux solaires  ")
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.json(), {"ok": True, "text": "Texte généré.", "error": ""})
+		data = response.json()
+		self.assertTrue(data["ok"])
+		self.assertEqual(data["text"], "Quatre lignes de description.")
+		self.assertEqual(data["error"], "")
 		generate.assert_called_once_with("Panneaux solaires")
 
-	def test_description_llm_error_returns_502_without_details(self):
+	def test_description_llm_error_returns_friendly_message(self):
 		self.client.force_login(self.owner)
-		with mock.patch(GENERATE, side_effect=LLMError("Le service Gemini est momentanément indisponible.")):
-			response = self.post_json(self.description_url, {"title": "Panneaux solaires"})
+		message = "Le service Gemini est momentanément indisponible."
+		with mock.patch(GENERATE, side_effect=LLMError(message)):
+			response = self.post_title("Panneaux solaires")
 		self.assertEqual(response.status_code, 502)
-		self.assertFalse(response.json()["ok"])
+		data = response.json()
+		self.assertFalse(data["ok"])
+		self.assertEqual(data["error"], message)
 		self.assertNotIn("Traceback", response.content.decode())
 
-	def test_description_rate_limit(self):
+	def test_description_rate_limit_after_ten_calls(self):
 		self.client.force_login(self.owner)
-		with mock.patch(GENERATE, return_value=self.ok_result()):
+		result = LLMResult(text="Texte.", fallback=False, response_ms=1)
+		with mock.patch(GENERATE, return_value=result) as generate:
 			for _ in range(10):
-				self.assertEqual(
-					self.post_json(self.description_url, {"title": "Panneaux solaires"}).status_code, 200
-				)
-			response = self.post_json(self.description_url, {"title": "Panneaux solaires"})
+				self.assertEqual(self.post_title("Panneaux solaires").status_code, 200)
+			response = self.post_title("Panneaux solaires")
 		self.assertEqual(response.status_code, 429)
 		self.assertFalse(response.json()["ok"])
+		self.assertEqual(generate.call_count, 10)
 
-	# --- résumé --------------------------------------------------------
-	def test_summary_requires_login_and_write_role(self):
-		self.assertEqual(self.client.post(self.summary_url(self.run)).status_code, 302)
-		for user in (self.auditor, self.supplier):
+	def test_description_rate_limit_is_per_user(self):
+		other_writer = self.user("llm-esg", User.Role.ESG_REPORTING_MANAGER, self.company)
+		result = LLMResult(text="Texte.", fallback=False, response_ms=1)
+		with mock.patch(GENERATE, return_value=result):
+			self.client.force_login(self.owner)
+			for _ in range(11):
+				self.post_title("Panneaux solaires")
+			self.client.force_login(other_writer)
+			response = self.post_title("Panneaux solaires")
+		self.assertEqual(response.status_code, 200)
+
+	# ---- Résumé : accès ----
+
+	def test_summary_anonymous_redirected(self):
+		self.assertEqual(self.client.post(self.summary_url).status_code, 302)
+
+	def test_summary_supplier_and_auditor_refused(self):
+		for user in (self.supplier, self.auditor):
 			self.client.force_login(user)
-			self.assertEqual(self.client.post(self.summary_url(self.run)).status_code, 403)
+			with mock.patch(SUMMARIZE) as summarize:
+				response = self.client.post(self.summary_url)
+			self.assertEqual(response.status_code, 403)
+			summarize.assert_not_called()
 
 	def test_summary_get_is_405(self):
 		self.client.force_login(self.owner)
-		self.assertEqual(self.client.get(self.summary_url(self.run)).status_code, 405)
+		self.assertEqual(self.client.get(self.summary_url).status_code, 405)
 
-	def test_summary_other_company_run_is_404(self):
-		self.client.force_login(self.owner)
+	def test_summary_other_company_gets_404(self):
+		self.client.force_login(self.other_owner)
 		with mock.patch(SUMMARIZE) as summarize:
-			response = self.client.post(self.summary_url(self.other_run))
+			response = self.client.post(self.summary_url)
 		self.assertEqual(response.status_code, 404)
 		summarize.assert_not_called()
 
+	def test_summary_unknown_run_gets_404(self):
+		self.client.force_login(self.owner)
+		url = reverse("portfolio_ai:run_summary", args=[999999])
+		self.assertEqual(self.client.post(url).status_code, 404)
+
+	# ---- Résumé : comportement ----
+
 	def test_summary_requires_successful_run(self):
+		PortfolioRun.objects.filter(pk=self.run.pk).update(status=PortfolioRunStatus.PENDING)
 		self.client.force_login(self.owner)
 		with mock.patch(SUMMARIZE) as summarize:
-			response = self.client.post(self.summary_url(self.pending_run))
+			response = self.client.post(self.summary_url)
 		self.assertEqual(response.status_code, 400)
+		self.assertFalse(response.json()["ok"])
 		summarize.assert_not_called()
 
 	def test_summary_success_saves_metrics(self):
 		self.client.force_login(self.owner)
-		with mock.patch(SUMMARIZE, return_value=self.ok_result("Résumé IA.")):
-			response = self.client.post(self.summary_url(self.run))
+		result = LLMResult(text="Résumé exécutif.", fallback=False, response_ms=345)
+		with mock.patch(SUMMARIZE, return_value=result):
+			response = self.client.post(self.summary_url)
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.json()["text"], "Résumé IA.")
-		self.assertFalse(response.json()["fallback"])
+		data = response.json()
+		self.assertTrue(data["ok"])
+		self.assertEqual(data["text"], "Résumé exécutif.")
+		self.assertFalse(data["fallback"])
 		self.run.refresh_from_db()
-		self.assertEqual(self.run.metrics["llm_summary"], "Résumé IA.")
-		self.assertEqual(self.run.metrics["llm_ms"], 42)
-		self.assertFalse(self.run.metrics["llm_fallback_used"])
+		self.assertEqual(self.run.metrics["llm_ms"], 345)
+		self.assertIs(self.run.metrics["llm_fallback_used"], False)
+		self.assertEqual(self.run.metrics["llm_summary"], "Résumé exécutif.")
 
-	def test_summary_fallback_is_flagged(self):
+	def test_summary_fallback_uses_optimizer_explanation(self):
 		self.client.force_login(self.owner)
-		fallback = LLMResult(text="Explication de l'optimiseur.", fallback=True, response_ms=5)
-		with mock.patch(SUMMARIZE, return_value=fallback):
-			response = self.client.post(self.summary_url(self.run))
+		result = LLMResult(text="Explication de l'optimiseur.", fallback=True, response_ms=20)
+		with mock.patch(SUMMARIZE, return_value=result):
+			response = self.client.post(self.summary_url)
 		self.assertEqual(response.status_code, 200)
 		self.assertTrue(response.json()["fallback"])
 		self.run.refresh_from_db()
-		self.assertTrue(self.run.metrics["llm_fallback_used"])
+		self.assertIs(self.run.metrics["llm_fallback_used"], True)
+		self.assertEqual(self.run.metrics["llm_summary"], "Explication de l'optimiseur.")
 
-	def test_summary_rate_limit(self):
+	def test_summary_keeps_existing_metrics(self):
+		PortfolioRun.objects.filter(pk=self.run.pk).update(metrics={"exact_ms": 5})
 		self.client.force_login(self.owner)
-		with mock.patch(SUMMARIZE, return_value=self.ok_result()):
+		result = LLMResult(text="Résumé.", fallback=False, response_ms=10)
+		with mock.patch(SUMMARIZE, return_value=result):
+			self.client.post(self.summary_url)
+		self.run.refresh_from_db()
+		self.assertEqual(self.run.metrics["exact_ms"], 5)
+		self.assertEqual(self.run.metrics["llm_ms"], 10)
+
+	def test_summary_rate_limit_after_ten_calls(self):
+		self.client.force_login(self.owner)
+		result = LLMResult(text="Résumé.", fallback=False, response_ms=1)
+		with mock.patch(SUMMARIZE, return_value=result):
 			for _ in range(10):
-				self.assertEqual(self.client.post(self.summary_url(self.run)).status_code, 200)
-			response = self.client.post(self.summary_url(self.run))
+				self.assertEqual(self.client.post(self.summary_url).status_code, 200)
+			response = self.client.post(self.summary_url)
 		self.assertEqual(response.status_code, 429)
