@@ -5,8 +5,8 @@ from django.core.exceptions import PermissionDenied
 
 def get_company(user):
     """La company vient TOUJOURS du profil serveur, jamais d'un paramètre du navigateur."""
-    profile = getattr(user, "profile", None)
-    return profile.company if profile else None
+    from apps.carbon.services.tenancy import company_for_user
+    return company_for_user(user)
 
 
 class CompanyRequiredMixin(LoginRequiredMixin, PermissionRequiredMixin):
