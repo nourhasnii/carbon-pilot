@@ -42,5 +42,7 @@ urlpatterns = [
     path('governance/', include('apps.governance.urls')),
     path('audits/', include('apps.audits.urls')),
     path('esg/', include('apps.esg.urls')),
+    path('energy/', include('apps.energy.urls')),
+    path('api/', include('apps.energy.api.urls')),
     path('admin/', admin.site.urls),
 ]

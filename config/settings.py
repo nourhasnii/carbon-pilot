@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.governance.apps.GovernanceConfig',
     'apps.audits.apps.AuditsConfig',
     'apps.esg.apps.EsgConfig',
+    'apps.energy.apps.EnergyConfig',
 ]
 
 MIDDLEWARE = [
