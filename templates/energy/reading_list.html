@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Mesures{% endblock %}
-{% block h1 %}Mesures de consommation{% endblock %}
+{% block heading %}Mesures de consommation{% endblock %}
 {% block lead %}<p class="lead-text">Du relevé le plus récent au plus ancien.</p>{% endblock %}
-{% block actions %}
+{% block topbar_actions %}
   <a class="btn btn-quiet" href="{% url 'energy:reading_export' %}{% if selected_asset %}?asset={{ selected_asset }}{% endif %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>
   {% if perms.energy.add_importbatch %}<a class="btn btn-quiet" href="{% url 'energy:import' %}">Importer un fichier</a>{% endif %}
   {% if perms.energy.add_energyreading %}<a class="btn btn-cp" href="{% url 'energy:reading_create' %}">Ajouter une mesure</a>{% endif %}

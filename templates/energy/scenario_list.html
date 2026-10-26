@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Scénarios d'optimisation{% endblock %}
-{% block h1 %}Scénarios d'optimisation{% endblock %}
+{% block heading %}Scénarios d'optimisation{% endblock %}
 {% block lead %}<p class="lead-text">Simulez une action (réduire le HVAC de 10 %, par exemple) et mesurez l'énergie, l'argent et le CO₂ évités.</p>{% endblock %}
-{% block actions %}{% if perms.energy.add_optimizationscenario %}<a class="btn btn-cp" href="{% url 'energy:scenario_create' %}">Nouveau scénario</a>{% endif %}{% endblock %}
+{% block topbar_actions %}{% if perms.energy.add_optimizationscenario %}<a class="btn btn-cp" href="{% url 'energy:scenario_create' %}">Nouveau scénario</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="panel panel-flush"><div class="table-responsive"><table class="table align-middle">
 <caption class="visually-hidden">Scénarios d'optimisation, du plus récent au plus ancien</caption>

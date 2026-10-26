@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Rapport d'import{% endblock %}
 {% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:import_list' %}">Imports</a></li><li aria-current="page">{{ object.filename }}</li></ol></nav>{% endblock %}
-{% block h1 %}Rapport d'import{% endblock %}
+{% block heading %}Rapport d'import{% endblock %}
 {% block lead %}<p class="lead-text">{{ object.filename }}, importé le {{ object.created_at|date:"d/m/Y à H:i" }}.</p>{% endblock %}
-{% block actions %}<a class="btn btn-quiet" href="{% url 'energy:import_list' %}">Tous les imports</a>{% endblock %}
+{% block topbar_actions %}<a class="btn btn-quiet" href="{% url 'energy:import_list' %}">Tous les imports</a>{% endblock %}
 {% block content %}
 <dl class="ledger" style="grid-template-columns:repeat(3,minmax(0,1fr))">
   <div><dt>Importées</dt><dd>{{ object.imported_rows }}</dd></div>

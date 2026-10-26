@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Prévisions{% endblock %}
-{% block h1 %}Prévisions de consommation{% endblock %}
+{% block heading %}Prévisions de consommation{% endblock %}
 {% block lead %}<p class="lead-text">Chaque prévision garde son modèle, sa période de référence et son erreur mesurée.</p>{% endblock %}
-{% block actions %}{% if perms.energy.add_energyforecast %}<a class="btn btn-cp" href="{% url 'energy:forecast_create' %}">Nouvelle prévision</a>{% endif %}{% endblock %}
+{% block topbar_actions %}{% if perms.energy.add_energyforecast %}<a class="btn btn-cp" href="{% url 'energy:forecast_create' %}">Nouvelle prévision</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="panel panel-flush"><div class="table-responsive"><table class="table align-middle">
 <caption class="visually-hidden">Prévisions réalisées, de la plus récente à la plus ancienne</caption>

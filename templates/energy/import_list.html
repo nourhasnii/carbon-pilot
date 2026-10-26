@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Historique des imports{% endblock %}
-{% block h1 %}Historique des imports{% endblock %}
-{% block actions %}{% if perms.energy.add_importbatch %}<a class="btn btn-cp" href="{% url 'energy:import' %}">Nouvel import</a>{% endif %}{% endblock %}
+{% block heading %}Historique des imports{% endblock %}
+{% block topbar_actions %}{% if perms.energy.add_importbatch %}<a class="btn btn-cp" href="{% url 'energy:import' %}">Nouvel import</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="panel panel-flush"><div class="table-responsive"><table class="table align-middle">
 <caption class="visually-hidden">Imports effectués</caption>

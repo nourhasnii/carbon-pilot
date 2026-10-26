@@ -98,6 +98,7 @@ def _sidebar(active, user):
 		items.append({"label": "Review queue", "icon": "clipboard-check", "url_name": "carbon:review_queue"})
 	items += [
 		{"label": "Footprint analysis", "icon": "bar-chart-3", "url_name": "carbon:footprint"},
+		{"label": "Energy", "icon": "zap", "url_name": "apps.energy:dashboard"},
 		{"label": "Anomalies", "icon": "shield-alert", "url_name": "carbon:anomaly_list"},
 		{"label": "Risk assessment", "icon": "shield-check", "url_name": "risk:risk_assessment"},
 		{"label": "ESG reports", "icon": "file-text", "url_name": "reports:report_list"},

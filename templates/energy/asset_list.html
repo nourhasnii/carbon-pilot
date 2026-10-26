@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Assets{% endblock %}
-{% block h1 %}Assets énergétiques{% endblock %}
+{% block heading %}Assets énergétiques{% endblock %}
 {% block lead %}<p class="lead-text">Les bâtiments, compteurs et équipements dont vous suivez la consommation.</p>{% endblock %}
-{% block actions %}{% if perms.energy.add_energyasset %}<a class="btn btn-cp" href="{% url 'energy:asset_create' %}">Ajouter un asset</a>{% endif %}{% endblock %}
+{% block topbar_actions %}{% if perms.energy.add_energyasset %}<a class="btn btn-cp" href="{% url 'energy:asset_create' %}">Ajouter un asset</a>{% endif %}{% endblock %}
 {% block content %}
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Rechercher un asset</label><input id="q" class="form-control" type="search" name="q" value="{{ request.GET.q }}" placeholder="Nom de l'asset"></div>

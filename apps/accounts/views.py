@@ -48,6 +48,7 @@ ROLE_SIDEBAR = {
         {"label": "Users", "icon": "users", "key": "users", "href": "/dashboard/?section=users", "requires_company": True},
         {"label": "Departments", "icon": "network", "key": "departments", "href": "/dashboard/?section=departments", "requires_company": True},
         {"label": "Carbon Management", "icon": "leaf", "url_name": "carbon:dashboard", "requires_company": True},
+                {"label": "Energy", "icon": "zap", "url_name": "apps.energy:dashboard", "requires_company": True},
         {"label": "Policies", "icon": "scroll-text", "url_name": "governance:policy_list", "requires_company": True},
         {"label": "Company intelligence", "icon": "brain-circuit", "key": "intelligence", "url_name": "enterprise:company_intelligence", "requires_company": True},
         {"label": "Ask CarbonPilot", "icon": "message-square-text", "url_name": "assistant:assistant_page", "requires_company": True},

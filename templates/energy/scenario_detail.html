@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% load static %}
 {% block title %}{{ object.name }}{% endblock %}
 {% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:scenario_list' %}">Scénarios</a></li><li aria-current="page">{{ object.name }}</li></ol></nav>{% endblock %}
-{% block h1 %}{{ object.name }}{% endblock %}
+{% block heading %}{{ object.name }}{% endblock %}
 {% block lead %}<p class="lead-text">{{ object.get_action_display }} sur {{ object.asset.name }} : −{{ object.reduction_percent|floatformat:"-1" }} % sur {{ object.affected_share_percent|floatformat:"-1" }} % de la consommation, simulé sur {{ object.horizon_days }} jours.</p>{% endblock %}
-{% block actions %}
+{% block topbar_actions %}
 {% if object.has_result %}<a class="btn btn-quiet" href="{% url 'energy:scenario_export' object.pk %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endif %}
 {% if perms.energy.change_optimizationscenario %}<a class="btn btn-quiet" href="{% url 'energy:scenario_update' object.pk %}">Modifier</a>{% endif %}
 {% if perms.energy.delete_optimizationscenario %}<a class="btn btn-quiet" href="{% url 'energy:scenario_delete' object.pk %}">Supprimer</a>{% endif %}

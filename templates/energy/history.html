@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% load static %}
 {% block title %}Historique énergétique{% endblock %}
-{% block h1 %}Historique et tendances{% endblock %}
+{% block heading %}Historique et tendances{% endblock %}
 {% block lead %}<p class="lead-text">Comment votre consommation a évolué, par asset et par période.</p>{% endblock %}
 {% block content %}{% include "energy/_history_body.html" %}{% endblock %}
 {% block scripts %}{% if series %}<script src="{% static 'vendor/chart.umd.js' %}"></script><script src="{% static 'js/chart-theme.js' %}"></script><script src="{% static 'js/trend.js' %}"></script>{% endif %}{% endblock %}

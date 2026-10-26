@@ -1,22 +1,30 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% load static %}
-{% block title %}Tableau de bord{% endblock %}
-{% block h1 %}Consommation{% endblock %}
-{% block lead %}<p class="lead-text">Où en est votre consommation et ce qui est prévu pour les prochains jours.</p>{% endblock %}
-{% block actions %}{% if perms.energy.add_energyforecast %}<a class="btn btn-cp" href="{% url 'energy:forecast_create' %}">Nouvelle prévision</a>{% endif %}{% endblock %}
+{% block title %}Consommation{% endblock %}
+{% block heading %}Consommation{% endblock %}
+{% block lead %}<p class="cp-card-sub" style="margin:6px 0 0">Où en est votre consommation et ce qui est prévu pour les prochains jours.</p>{% endblock %}
+{% block topbar_actions %}{% if perms.energy.add_energyforecast %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'energy:forecast_create' %}"><i data-lucide="plus"></i> Nouvelle prévision</a>{% endif %}{% endblock %}
+
 {% block content %}
 {% if latest_forecast %}
-<section class="next-up" aria-label="Dernière prévision">
-  <p>Sur les {{ latest_forecast.horizon_days }} prochains jours, <strong>{{ latest_forecast.asset.name }}</strong> devrait consommer</p>
-  <p class="big">{{ latest_total|floatformat:"0g" }} kWh</p>
-  <p class="small text-muted mb-0">Erreur moyenne du modèle : {{ latest_forecast.mae|floatformat:1 }} kWh par jour.{% if latest_forecast.is_demo %} Données DEMO.{% endif %} <a href="{% url 'energy:forecast_detail' latest_forecast.pk %}">Voir le détail de la prévision</a></p>
+<section class="cp-card" aria-label="Dernière prévision" style="margin-bottom:20px">
+  <p class="cp-card-sub cp-mt-0">Sur les {{ latest_forecast.horizon_days }} prochains jours, <strong>{{ latest_forecast.asset.name }}</strong> devrait consommer</p>
+  <div class="cp-kpi-value">{{ latest_total|floatformat:"0g" }} <small>kWh</small></div>
+  <p class="cp-muted" style="margin:8px 0 0;font-size:.8rem">
+    Erreur moyenne du modèle : {{ latest_forecast.mae|floatformat:1 }} kWh par jour.{% if latest_forecast.is_demo %} Données DEMO.{% endif %}
+    <a class="cp-cell-link" href="{% url 'energy:forecast_detail' latest_forecast.pk %}">Voir le détail de la prévision</a>
+  </p>
 </section>
 {% endif %}
+
 {% if new_anomalies %}
-<section class="next-up" style="border-left-color:var(--danger)" aria-label="Anomalies à examiner">
-  <p><strong>{{ new_anomalies }}</strong> anomalie{{ new_anomalies|pluralize }} de consommation à examiner{% if high_anomalies %}, dont <strong>{{ high_anomalies }}</strong> de gravité élevée{% endif %}. <a href="{% url 'energy:anomaly_list' %}?status=new">Voir les anomalies</a></p>
-</section>
+<div class="cp-callout" style="margin-bottom:20px" role="note">
+  <i data-lucide="triangle-alert"></i>
+  <span><strong>{{ new_anomalies }}</strong> anomalie{{ new_anomalies|pluralize }} de consommation à examiner{% if high_anomalies %}, dont <strong>{{ high_anomalies }}</strong> de gravité élevée{% endif %}. <a class="cp-cell-link" href="{% url 'energy:anomaly_list' %}?status=new">Voir les anomalies</a></span>
+</div>
 {% endif %}
+
 {% include "energy/_history_body.html" %}
 {% endblock %}
+
 {% block scripts %}{% if series %}<script src="{% static 'vendor/chart.umd.js' %}"></script><script src="{% static 'js/chart-theme.js' %}"></script><script src="{% static 'js/trend.js' %}"></script>{% endif %}{% endblock %}

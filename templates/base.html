@@ -46,10 +46,10 @@
         {% endwith %}
         <div class="side-foot">
           <p class="who">{{ user.get_username }}</p>
-          <p class="where">{% if user.profile %}{{ user.profile.company.nom }}{% else %}Aucune entreprise{% endif %}{% with g=user.groups.first %}{% if g %} · {{ g.name }}{% endif %}{% endwith %}</p>
+          <p class="where">{% firstof user.company_membership.name user.company "Aucune entreprise" %}{% with g=user.groups.first %}{% if g %} · {{ g.name }}{% endif %}{% endwith %}</p>
           <div class="side-actions">
             <button class="btn btn-side btn-sm" type="button" role="switch" aria-checked="false" data-theme-toggle><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-contrast"/></svg>Mode sombre</button>
-            <form method="post" action="{% url 'logout' %}" data-no-loading>{% csrf_token %}<button class="btn btn-side btn-sm" type="submit">Se déconnecter</button></form>
+            <form method="post" action="{% url 'accounts:logout' %}" data-no-loading>{% csrf_token %}<button class="btn btn-side btn-sm" type="submit">Se déconnecter</button></form>
           </div>
         </div>
         {% endif %}

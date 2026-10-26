@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}{{ title }}{% endblock %}
 {% block crumbs %}{% if parent_label %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{{ parent_url }}">{{ parent_label }}</a></li><li aria-current="page">{{ title }}</li></ol></nav>{% endif %}{% endblock %}
-{% block h1 %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
 {% block content %}
 <form method="post" novalidate class="panel form-panel">
   {% csrf_token %}

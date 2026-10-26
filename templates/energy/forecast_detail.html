@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% load static %}
 {% block title %}Prévision {{ object.asset.name }}{% endblock %}
 {% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:forecast_list' %}">Prévisions</a></li><li aria-current="page">{{ object.asset.name }}, {{ object.horizon_days }} jours</li></ol></nav>{% endblock %}
-{% block h1 %}Prévision : {{ object.asset.name }}{% endblock %}
+{% block heading %}Prévision : {{ object.asset.name }}{% endblock %}
 {% block lead %}<p class="lead-text">Horizon de {{ object.horizon_days }} jours, demandée le {{ object.created_at|date:"d/m/Y à H:i" }}{% if object.requested_by %} par {{ object.requested_by }}{% endif %}.</p>{% endblock %}
-{% block actions %}{% if object.status == 'success' %}<a class="btn btn-quiet" href="{% url 'energy:forecast_export' object.pk %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endif %}<a class="btn btn-quiet" href="{% url 'energy:forecast_list' %}">Toutes les prévisions</a>{% endblock %}
+{% block topbar_actions %}{% if object.status == 'success' %}<a class="btn btn-quiet" href="{% url 'energy:forecast_export' object.pk %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endif %}<a class="btn btn-quiet" href="{% url 'energy:forecast_list' %}">Toutes les prévisions</a>{% endblock %}
 {% block content %}
 {% if object.is_demo %}<div class="alert alert-warning" role="note">Cette prévision repose sur des <strong>données DEMO</strong> (fictives) : ne la présentez pas comme une estimation réelle.</div>{% endif %}
 

@@ -42,7 +42,7 @@ urlpatterns = [
     path('governance/', include('apps.governance.urls')),
     path('audits/', include('apps.audits.urls')),
     path('esg/', include('apps.esg.urls')),
-    path('energy/', include('apps.energy.urls')),
-    path('api/', include('apps.energy.api.urls')),
+    path('energy/', include(('apps.energy.urls', 'energy'), namespace='energy')),
+    path('api/', include(('apps.energy.api.urls', 'api'), namespace='api')),
     path('admin/', admin.site.urls),
 ]

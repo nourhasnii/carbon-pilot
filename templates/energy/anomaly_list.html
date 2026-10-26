@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "carbon/base.html" %}{% block eyebrow %}Energy{% endblock %}
 {% block title %}Anomalies{% endblock %}
-{% block h1 %}Anomalies de consommation{% endblock %}
+{% block heading %}Anomalies de consommation{% endblock %}
 {% block lead %}<p class="lead-text">Les jours où la consommation s'écarte nettement de la normale, détectés par deux méthodes complémentaires. <strong>{{ n_new }}</strong> à examiner{% if n_high %}, dont <strong>{{ n_high }}</strong> de gravité élevée{% endif %}.</p>{% endblock %}
-{% block actions %}<a class="btn btn-quiet" href="{% url 'energy:anomaly_export' %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endblock %}
+{% block topbar_actions %}<a class="btn btn-quiet" href="{% url 'energy:anomaly_export' %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>{% endblock %}
 {% block content %}
 {% if perms.energy.add_energyanomaly %}
 <form method="post" action="{% url 'energy:anomaly_detect' %}" class="filters panel" aria-label="Lancer une analyse">
