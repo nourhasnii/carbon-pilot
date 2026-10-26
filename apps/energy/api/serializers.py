@@ -4,11 +4,11 @@ from django.forms.models import model_to_dict
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from energy import forms
-from energy.models import (
+from apps.energy import forms
+from apps.energy.models import (
     EnergyAnomaly, EnergyAsset, EnergyForecast, EnergyReading, ForecastPoint, OptimizationScenario,
 )
-from energy.services.optimization import ScenarioError, compute_scenario
+from apps.energy.services.optimization import ScenarioError, compute_scenario
 
 
 def _flatten(errors):
@@ -56,7 +56,7 @@ class FormBackedSerializer(serializers.ModelSerializer):
             if "asset" in fields and hasattr(fields["asset"], "queryset"):
                 fields["asset"].queryset = EnergyAsset.objects.filter(company=company)
             if "department" in fields:
-                from core.models import Department
+                from apps.enterprise.models import Department
                 fields["department"].queryset = Department.objects.filter(company=company)
         return fields
 

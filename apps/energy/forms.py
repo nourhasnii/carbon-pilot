@@ -4,7 +4,7 @@ from decimal import Decimal
 from django import forms
 from django.utils import timezone
 
-from core.models import Department
+from apps.enterprise.models import Department
 from .models import EnergyAnomaly, EnergyAsset, EnergyForecast, EnergyReading, OptimizationScenario
 from .validation import (
     CODE_PATTERN, MAX_READING_VALUE, MIN_TIMESTAMP, unit_error, validate_not_future, validate_not_too_old,

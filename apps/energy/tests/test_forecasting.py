@@ -4,10 +4,10 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from core.models import Company
-from energy.models import EnergyAsset, EnergyForecast, ForecastPoint
-from energy.services import forecasting as fc
-from energy.tests.helpers import make_daily_readings
+from apps.enterprise.models import Company
+from apps.energy.models import EnergyAsset, EnergyForecast, ForecastPoint
+from apps.energy.services import forecasting as fc
+from apps.energy.tests.helpers import make_daily_readings
 
 
 class ForecastBase(TestCase):
@@ -104,7 +104,7 @@ class DataQualityTests(ForecastBase):
         self.assertLess(max(series.index), timezone.localdate())
 
     def test_incomplete_days_are_dropped_for_subdaily_data(self):
-        from energy.models import EnergyReading
+        from apps.energy.models import EnergyReading
         make_daily_readings(self.asset, 70, per_day=4)
         # supprime 3 mesures sur 4 pour un jour -> jour incomplet
         day = timezone.localdate() - timedelta(days=10)
@@ -148,7 +148,7 @@ class ActualsComparisonTests(ForecastBase):
         # La réalité arrive pour les 3 premiers jours prévus (décalage de fenêtre : on simule en créant ces jours)
         from datetime import datetime, time
         from decimal import Decimal
-        from energy.models import EnergyReading
+        from apps.energy.models import EnergyReading
         # on déplace les points dans le passé pour que ces jours soient « complets »
         base = timezone.localdate() - timedelta(days=5)
         for i, p in enumerate(f.points.all()):

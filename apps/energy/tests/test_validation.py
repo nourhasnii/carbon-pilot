@@ -9,13 +9,13 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_SUSTAINABILITY_MANAGER
-from energy.forms import AssetForm, ForecastForm, ReadingForm, ScenarioForm
-from energy.models import EnergyAsset, EnergyForecast, EnergyReading
-from energy.services.importer import import_readings
-from energy.validation import clean_search, parse_int_param
-from energy.tests.helpers import make_daily_readings
+from apps.energy.forms import AssetForm, ForecastForm, ReadingForm, ScenarioForm
+from apps.energy.models import EnergyAsset, EnergyForecast, EnergyReading
+from apps.energy.services.importer import import_readings
+from apps.energy.validation import clean_search, parse_int_param
+from apps.energy.tests.helpers import make_daily_readings
 
 
 class HelperTests(TestCase):
@@ -69,7 +69,7 @@ class AssetFormTests(BaseCase):
             self.assertIn("name", self.form(name=bad).errors, repr(bad))
 
     def test_department_of_other_company_refused(self):
-        from core.models import Department
+        from apps.enterprise.models import Department
         d = Department.objects.create(company=self.other, nom="X", code="X") if hasattr(Department, "nom") else None
         if d is None:
             self.skipTest("modèle Department différent")
@@ -203,7 +203,7 @@ class ForecastAndScenarioFormTests(BaseCase):
         self.assertTrue(self.scenario(notes="ligne 1\nligne 2").is_valid())
 
     def test_scenario_duplicate_name_per_asset(self):
-        from energy.models import OptimizationScenario
+        from apps.energy.models import OptimizationScenario
         OptimizationScenario.objects.create(asset=self.asset, name="Doublon", reduction_percent=10)
         self.assertIn("name", self.scenario(name="doublon").errors)
 
@@ -263,9 +263,9 @@ class StalePendingForecastTests(TestCase):
     def test_old_pending_forecast_does_not_block(self):
         from datetime import timedelta
         from django.utils import timezone
-        from core.models import Company
-        from energy.forms import ForecastForm
-        from energy.models import EnergyAsset, EnergyForecast
+        from apps.enterprise.models import Company
+        from apps.energy.forms import ForecastForm
+        from apps.energy.models import EnergyAsset, EnergyForecast
         company = Company.objects.create(nom="Stale")
         asset = EnergyAsset.objects.create(company=company, name="Compteur", code="S1")
         old = EnergyForecast.objects.create(asset=asset, horizon_days=7, status="pending")

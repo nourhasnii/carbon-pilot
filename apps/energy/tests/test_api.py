@@ -9,10 +9,10 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_AUDITOR, ROLE_DEPT_MANAGER, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
-from energy.models import EnergyAnomaly, EnergyAsset, EnergyForecast, EnergyReading, OptimizationScenario
-from energy.tests.helpers import make_daily_readings
+from apps.energy.models import EnergyAnomaly, EnergyAsset, EnergyForecast, EnergyReading, OptimizationScenario
+from apps.energy.tests.helpers import make_daily_readings
 
 
 def make_user(name, company, role):

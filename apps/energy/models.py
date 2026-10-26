@@ -15,7 +15,7 @@ from django.core.validators import MaxValueValidator, MinLengthValidator, MinVal
 from django.db import models
 from django.db.models import Q
 
-from core.models import Company, Department
+from apps.enterprise.models import Company, Department
 
 from .validation import (
     MAX_READING_VALUE, validate_code, validate_has_alnum, validate_multiline, validate_not_future,

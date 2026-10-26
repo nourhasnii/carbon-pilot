@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from energy.services.evaluation import evaluate
+from apps.energy.services.evaluation import evaluate
 
 
 class Command(BaseCommand):

@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.test import Client, TestCase
 from django.urls import path, reverse
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
 
 
@@ -41,7 +41,7 @@ class ErrorPagesTests(TestCase):
     def test_500_page_hides_technical_details(self):
         client = Client(raise_request_exception=False)
         client.force_login(self.admin)
-        with mock.patch("energy.views.DashboardView.get_context_data", side_effect=RuntimeError("secret-interne-xyz")), \
+        with mock.patch("apps.energy.views.DashboardView.get_context_data", side_effect=RuntimeError("secret-interne-xyz")), \
                 self.assertLogs("django.request", level="ERROR"):  # la panne est voulue : on capture son journal
             r = client.get(reverse("energy:dashboard"))
         self.assertEqual(r.status_code, 500)
@@ -55,8 +55,8 @@ class ErrorPagesTests(TestCase):
         r = client.get("/api/assets/999999/", HTTP_AUTHORIZATION=f"Token {tok}")
         self.assertEqual(r.status_code, 404)
         self.assertEqual(r.json(), {"detail": "Ressource introuvable."})
-        with mock.patch("energy.api.views.AssetViewSet.list", side_effect=RuntimeError("secret-interne-xyz")), \
-                self.assertLogs("energy.api.exceptions", level="ERROR"):
+        with mock.patch("apps.energy.api.views.AssetViewSet.list", side_effect=RuntimeError("secret-interne-xyz")), \
+                self.assertLogs("apps.energy.api.exceptions", level="ERROR"):
             r = client.get("/api/assets/", HTTP_AUTHORIZATION=f"Token {tok}")
         self.assertEqual(r.status_code, 500)
         self.assertEqual(r.json(), {"detail": "Erreur interne du serveur."})

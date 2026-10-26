@@ -19,8 +19,8 @@ import pandas as pd
 from django.db import transaction
 from django.utils import timezone
 
-from energy.models import EnergyAsset, EnergyReading, ImportBatch
-from energy.validation import MIN_TIMESTAMP, unit_error
+from apps.energy.models import EnergyAsset, EnergyReading, ImportBatch
+from apps.energy.validation import MIN_TIMESTAMP, unit_error
 
 REQUIRED_COLUMNS = {"asset_code", "timestamp", "value"}
 VALID_UNITS = {u.value for u in EnergyReading.Unit}

@@ -5,11 +5,11 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_AUDITOR, ROLE_DEPT_MANAGER, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
-from energy.models import EnergyAsset, EnergyForecast, ForecastPoint, OptimizationScenario
-from energy.services.optimization import ScenarioError, compute_scenario
-from energy.tests.helpers import make_daily_readings
+from apps.energy.models import EnergyAsset, EnergyForecast, ForecastPoint, OptimizationScenario
+from apps.energy.services.optimization import ScenarioError, compute_scenario
+from apps.energy.tests.helpers import make_daily_readings
 
 
 def user(name, company, role):

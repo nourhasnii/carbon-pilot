@@ -17,7 +17,7 @@ import numpy as np
 from django.db import transaction
 from sklearn.ensemble import IsolationForest
 
-from energy.models import EnergyAnomaly, EnergyAsset
+from apps.energy.models import EnergyAnomaly, EnergyAsset
 from .forecasting import InsufficientData, build_daily_series
 
 LOOKBACK_WEEKS = 8

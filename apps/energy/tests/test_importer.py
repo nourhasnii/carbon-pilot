@@ -3,9 +3,9 @@ import io
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from core.models import Company
-from energy.models import EnergyAsset, EnergyReading
-from energy.services.importer import ImportFileError, import_readings
+from apps.enterprise.models import Company
+from apps.energy.models import EnergyAsset, EnergyReading
+from apps.energy.services.importer import ImportFileError, import_readings
 
 
 def csv_file(text, name="data.csv"):

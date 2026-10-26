@@ -22,7 +22,7 @@ from django.utils import timezone
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 
-from energy.models import EnergyForecast, EnergyReading, ForecastPoint
+from apps.energy.models import EnergyForecast, EnergyReading, ForecastPoint
 
 MIN_DAYS = {7: 60, 30: 120}  # jours valides minimum selon l'horizon
 TEST_FRACTION = 0.2

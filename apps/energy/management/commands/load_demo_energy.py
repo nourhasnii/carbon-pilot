@@ -13,9 +13,9 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core.models import Company, Department, UserProfile
+from apps.enterprise.models import Company, Department, UserProfile
 from core.roles import (ROLE_AUDITOR, ROLE_DEPT_MANAGER, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER)
-from energy.models import EnergyAsset, EnergyReading
+from apps.energy.models import EnergyAsset, EnergyReading
 
 DEMO_USERS = [
     ("demo_rse", ROLE_SUSTAINABILITY_MANAGER),
@@ -82,8 +82,8 @@ class Command(BaseCommand):
 
     def _demo_scenario(self, asset):
         """Scénario DEMO : « réduire le HVAC de 10 % » (hypothèses par défaut, à confirmer)."""
-        from energy.models import OptimizationScenario
-        from energy.services.optimization import ScenarioError, compute_scenario
+        from apps.energy.models import OptimizationScenario
+        from apps.energy.services.optimization import ScenarioError, compute_scenario
         OptimizationScenario.objects.filter(asset=asset, is_demo=True).delete()
         sc = OptimizationScenario.objects.create(
             asset=asset, name="Réduire le HVAC de 10 %", action="hvac", horizon_days=30,

@@ -1,7 +1,7 @@
 """Droits de l'API : mêmes groupes et permissions Django que l'interface web (une seule source de vérité)."""
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from energy.mixins import get_company
+from apps.energy.mixins import get_company
 
 METHOD_TO_ACTION = {"GET": "view", "HEAD": "view", "OPTIONS": "view", "POST": "add", "PUT": "change",
                     "PATCH": "change", "DELETE": "delete"}

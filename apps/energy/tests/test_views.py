@@ -6,9 +6,9 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Company, Department, UserProfile
+from apps.enterprise.models import Company, Department, UserProfile
 from core.roles import ROLE_AUDITOR, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
-from energy.models import EnergyAsset, EnergyReading
+from apps.energy.models import EnergyAsset, EnergyReading
 
 
 def make_user(name, company, role=None, with_profile=True):
@@ -186,9 +186,9 @@ class ChartPayloadTests(BaseViewTest):
         self.assertEqual(data["values"], [7.0])
 
     def test_forecast_chart_data_is_an_object(self):
-        from energy.models import EnergyForecast
-        from energy.tasks import run_forecast_task
-        from energy.tests.helpers import make_daily_readings
+        from apps.energy.models import EnergyForecast
+        from apps.energy.tasks import run_forecast_task
+        from apps.energy.tests.helpers import make_daily_readings
         make_daily_readings(self.asset_a, 100)
         f = EnergyForecast.objects.create(asset=self.asset_a, horizon_days=7)
         run_forecast_task(f.pk)
@@ -240,9 +240,9 @@ class ExportTests(BaseViewTest):
         self.assertEqual(self.client.get(reverse("energy:reading_export")).status_code, 403)
 
     def test_forecast_export_and_isolation(self):
-        from energy.models import EnergyForecast
-        from energy.tasks import run_forecast_task
-        from energy.tests.helpers import make_daily_readings
+        from apps.energy.models import EnergyForecast
+        from apps.energy.tasks import run_forecast_task
+        from apps.energy.tests.helpers import make_daily_readings
         make_daily_readings(self.asset_a, 100)
         f = EnergyForecast.objects.create(asset=self.asset_a, horizon_days=7)
         run_forecast_task(f.pk)

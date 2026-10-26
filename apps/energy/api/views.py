@@ -5,13 +5,13 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from energy.mixins import get_company
-from energy.models import (
+from apps.energy.mixins import get_company
+from apps.energy.models import (
     EnergyAnomaly, EnergyAsset, EnergyForecast, EnergyReading, OptimizationScenario,
 )
-from energy.services.anomalies import AnomalyError, detect_for_asset
-from energy.tasks import run_forecast_task
-from energy.validation import parse_int_param
+from apps.energy.services.anomalies import AnomalyError, detect_for_asset
+from apps.energy.tasks import run_forecast_task
+from apps.energy.validation import parse_int_param
 
 from . import serializers as s
 from .permissions import CompanyModelPermission

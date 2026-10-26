@@ -5,8 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-from core.models import Company, Department
-from energy.models import EnergyAsset, EnergyReading
+from apps.enterprise.models import Company, Department
+from apps.energy.models import EnergyAsset, EnergyReading
 
 
 def ts(day, hour=0):

@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from energy.models import EnergyReading
+from apps.energy.models import EnergyReading
 
 
 def make_daily_readings(asset, days, skip=(), seed=1, unit="kWh", end_offset=1, per_day=1):

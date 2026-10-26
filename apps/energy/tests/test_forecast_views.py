@@ -3,11 +3,11 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_AUDITOR, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
-from energy.models import EnergyAsset, EnergyForecast
-from energy.tasks import run_forecast_task
-from energy.tests.helpers import make_daily_readings
+from apps.energy.models import EnergyAsset, EnergyForecast
+from apps.energy.tasks import run_forecast_task
+from apps.energy.tests.helpers import make_daily_readings
 
 
 def user(name, company, role):
@@ -99,7 +99,7 @@ class ForecastViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("energy:forecast_list")).status_code, 302)
 
     def test_demo_banner_when_demo_data(self):
-        from energy.models import EnergyReading
+        from apps.energy.models import EnergyReading
         EnergyReading.objects.filter(asset=self.asset_a).update(is_demo=True)
         f = EnergyForecast.objects.create(asset=self.asset_a, horizon_days=7)
         run_forecast_task(f.pk)

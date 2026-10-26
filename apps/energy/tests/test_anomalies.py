@@ -6,11 +6,11 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Company, UserProfile
+from apps.enterprise.models import Company, UserProfile
 from core.roles import ROLE_AUDITOR, ROLE_DEPT_MANAGER, ROLE_EMPLOYEE, ROLE_SUSTAINABILITY_MANAGER
-from energy.models import EnergyAnomaly, EnergyAsset, EnergyReading
-from energy.services.anomalies import AnomalyError, analyse_series, detect_for_asset
-from energy.tests.helpers import make_daily_readings
+from apps.energy.models import EnergyAnomaly, EnergyAsset, EnergyReading
+from apps.energy.services.anomalies import AnomalyError, analyse_series, detect_for_asset
+from apps.energy.tests.helpers import make_daily_readings
 
 
 def weekly_series(n=120, spikes=None, seed=0):
