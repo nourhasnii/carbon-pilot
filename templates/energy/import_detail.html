@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Rapport d'import{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:import_list' %}">Imports</a></li><li aria-current="page">{{ object.filename }}</li></ol></nav>{% endblock %}
+{% block h1 %}Rapport d'import{% endblock %}
+{% block lead %}<p class="lead-text">{{ object.filename }}, importé le {{ object.created_at|date:"d/m/Y à H:i" }}.</p>{% endblock %}
+{% block actions %}<a class="btn btn-quiet" href="{% url 'energy:import_list' %}">Tous les imports</a>{% endblock %}
+{% block content %}
+<dl class="ledger" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+  <div><dt>Importées</dt><dd>{{ object.imported_rows }}</dd></div>
+  <div><dt>Rejetées</dt><dd>{{ object.rejected_rows }}</dd></div>
+  <div><dt>Lignes dans le fichier</dt><dd>{{ object.total_rows }}</dd></div>
+</dl>
+{% if object.errors %}
+<h2 class="section-title mt-0">Lignes rejetées</h2>
+<div class="panel panel-flush"><div class="table-responsive"><table class="table table-sm">
+<caption class="visually-hidden">Lignes rejetées et motif</caption>
+<thead><tr><th scope="col">Ligne</th><th scope="col">Motif</th></tr></thead>
+<tbody>{% for e in object.errors %}<tr><td>{{ e.line }}</td><td>{{ e.message }}</td></tr>{% endfor %}</tbody></table></div></div>
+<p class="mt-3 text-muted">Corrigez ces lignes dans votre fichier, puis réimportez-le : les lignes déjà importées seront ignorées comme doublons.</p>
+{% else %}<div class="alert alert-success" role="status">Toutes les lignes ont été importées.</div>{% endif %}
+{% endblock %}

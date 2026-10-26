@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Mesures{% endblock %}
+{% block h1 %}Mesures de consommation{% endblock %}
+{% block lead %}<p class="lead-text">Du relevé le plus récent au plus ancien.</p>{% endblock %}
+{% block actions %}
+  <a class="btn btn-quiet" href="{% url 'energy:reading_export' %}{% if selected_asset %}?asset={{ selected_asset }}{% endif %}"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Exporter en CSV</a>
+  {% if perms.energy.add_importbatch %}<a class="btn btn-quiet" href="{% url 'energy:import' %}">Importer un fichier</a>{% endif %}
+  {% if perms.energy.add_energyreading %}<a class="btn btn-cp" href="{% url 'energy:reading_create' %}">Ajouter une mesure</a>{% endif %}
+{% endblock %}
+{% block content %}
+<form method="get" class="filters">
+  <div class="field"><label for="asset">Asset</label>
+    <select id="asset" name="asset" class="form-select"><option value="">Tous les assets</option>
+    {% for a in assets %}<option value="{{ a.pk }}" {% if selected_asset == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-quiet" type="submit">Filtrer</button>
+</form>
+<div class="panel panel-flush"><div class="table-responsive">
+<table class="table align-middle">
+  <caption class="visually-hidden">Mesures de consommation, de la plus récente à la plus ancienne</caption>
+  <thead><tr><th scope="col">Asset</th><th scope="col">Date et heure</th><th scope="col" class="text-end">Valeur</th><th scope="col">Unité</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <tbody>
+  {% for r in object_list %}
+  <tr><th scope="row">{{ r.asset.name }}{% if r.is_demo %}<span class="demo-badge">DEMO</span>{% endif %}</th>
+    <td>{{ r.timestamp|date:"d/m/Y H:i" }}</td><td class="text-end">{{ r.value }}</td><td>{{ r.unit }}</td>
+    <td class="table-actions">
+      {% if perms.energy.change_energyreading %}<a class="btn btn-sm btn-quiet" href="{% url 'energy:reading_update' r.pk %}">Modifier<span class="visually-hidden"> la mesure du {{ r.timestamp|date:"d/m/Y H:i" }}</span></a>{% endif %}
+      {% if perms.energy.delete_energyreading %}<a class="btn btn-sm btn-danger-quiet" href="{% url 'energy:reading_delete' r.pk %}">Supprimer<span class="visually-hidden"> la mesure du {{ r.timestamp|date:"d/m/Y H:i" }}</span></a>{% endif %}
+    </td></tr>
+  {% empty %}<tr><td colspan="5"><div class="empty"><p>Aucune mesure. Ajoutez-en une ou importez un fichier.</p>{% if perms.energy.add_importbatch %}<a class="btn btn-cp" href="{% url 'energy:import' %}">Importer un fichier</a>{% endif %}</div></td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+<div class="mt-3">{% include "partials/pagination.html" %}</div>
+{% endblock %}

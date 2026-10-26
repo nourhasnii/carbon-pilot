@@ -1,0 +1,47 @@
+<form method="get" class="filters">
+  <div class="field"><label for="asset">Asset</label>
+    <select id="asset" name="asset" class="form-select"><option value="">Tous les assets</option>
+    {% for a in assets %}<option value="{{ a.pk }}" {% if selected_asset == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="period">Regroupement</label>
+    <select id="period" name="period" class="form-select"><option value="day" {% if period == 'day' %}selected{% endif %}>Par jour</option><option value="week" {% if period == 'week' %}selected{% endif %}>Par semaine</option></select></div>
+  <div class="field" style="min-width:8rem"><label for="days">Derniers jours</label>
+    <input id="days" name="days" type="number" min="1" max="3650" class="form-control" value="{{ days }}"></div>
+  <button class="btn btn-cp" type="submit">Appliquer</button>
+</form>
+<nav class="range-links" aria-label="Périodes rapides"><span>Période :</span>
+  {% for d, label in quick_ranges %}<a href="?days={{ d }}&amp;period={{ period }}{% if selected_asset %}&amp;asset={{ selected_asset }}{% endif %}" {% if days == d %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+{% if is_demo %}<div class="alert alert-warning" role="note">Ces résultats incluent des <strong>données DEMO</strong> (fictives).</div>{% endif %}
+{% if excluded %}<p class="small text-muted">{{ excluded }} mesure(s) en m³ ou en litres exclue(s) des totaux en kWh.</p>{% endif %}
+
+<dl class="ledger">
+  <div><dt>Consommation totale</dt><dd>{{ stats.total|default:0|floatformat:"0g" }}<span class="unit">kWh</span></dd></div>
+  <div><dt>Moyenne par mesure</dt><dd>{{ stats.avg|default:0|floatformat:"1g" }}<span class="unit">kWh</span></dd></div>
+  <div><dt>Pic</dt><dd>{{ stats.peak|default:0|floatformat:"1g" }}<span class="unit">kWh</span></dd></div>
+  <div><dt>{% if period == 'week' %}Semaines{% else %}Jours{% endif %} couverts</dt><dd>{{ series|length }}</dd></div>
+</dl>
+
+{% if series %}
+<section class="panel chart-hero" aria-labelledby="chart-title">
+  <div class="chart-head"><div>
+    <h2 id="chart-title">Consommation {% if period == 'week' %}hebdomadaire{% else %}quotidienne{% endif %}</h2>
+    <p class="sub">En kWh, sur les {{ days }} derniers jours.</p></div>
+    <button type="button" class="btn btn-quiet btn-sm chart-tools" data-chart-download="trend" data-filename="consommation">Télécharger le graphique (PNG)</button></div>
+  <div class="chart-wrap"><canvas id="trend" role="img" aria-labelledby="chart-title" aria-describedby="chart-table"></canvas></div>
+  <ul class="legend"><li><span class="swatch" aria-hidden="true"></span>Consommation mesurée</li></ul>
+  {{ chart_data|json_script:"chart-data" }}
+  <details class="mt-2" id="chart-table"><summary>Afficher les valeurs du graphique</summary>
+  <div class="table-responsive"><table class="table table-sm">
+  <caption class="visually-hidden">Consommation agrégée</caption>
+  <thead><tr><th scope="col">Période</th><th scope="col" class="text-end">kWh</th><th scope="col" class="text-end">Mesures</th></tr></thead>
+  <tbody>{% for s in series %}<tr><th scope="row">{{ s.bucket|date:"d/m/Y" }}</th><td class="text-end">{{ s.total|floatformat:"1g" }}</td><td class="text-end">{{ s.n }}</td></tr>{% endfor %}</tbody></table></div></details>
+</section>
+
+<h2 class="section-title">Répartition par asset</h2>
+<div class="panel panel-flush"><div class="table-responsive"><table class="table">
+<caption class="visually-hidden">Consommation totale par asset</caption>
+<thead><tr><th scope="col">Asset</th><th scope="col" class="text-end">Total (kWh)</th><th scope="col" class="text-end">Mesures</th></tr></thead>
+<tbody>{% for r in by_asset %}<tr><th scope="row">{{ r.asset__name }}</th><td class="text-end">{{ r.total|default:0|floatformat:"1g" }}</td><td class="text-end">{{ r.n }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% else %}
+<div class="panel empty"><p>Aucune mesure sur cette période. Importez des données ou élargissez la période.</p><a class="btn btn-cp" href="{% url 'energy:import' %}">Importer un fichier</a></div>
+{% endif %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Anomalie du {{ object.date|date:"d/m/Y" }}{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="{% url 'energy:anomaly_list' %}">Anomalies</a></li><li aria-current="page">{{ object.asset.name }}, {{ object.date|date:"d/m/Y" }}</li></ol></nav>{% endblock %}
+{% block h1 %}{{ object.get_kind_display }} : {{ object.asset.name }}{% endblock %}
+{% block lead %}<p class="lead-text">{{ object.date|date:"l d F Y" }}. {{ object.explanation }}</p>{% endblock %}
+{% block content %}
+{% if object.is_demo %}<div class="alert alert-warning" role="note">Anomalie détectée sur des <strong>données DEMO</strong> (fictives).</div>{% endif %}
+<dl class="ledger">
+  <div><dt>Consommation mesurée</dt><dd>{{ object.actual_kwh|floatformat:0 }}<span class="unit">kWh</span></dd></div>
+  <div><dt>Consommation attendue</dt><dd>{{ object.expected_kwh|floatformat:0 }}<span class="unit">kWh</span></dd></div>
+  <div><dt>Écart</dt><dd>{{ object.deviation_pct|floatformat:"-0" }}<span class="unit">%</span></dd></div>
+  <div><dt>Gravité</dt><dd style="font-size:1.4rem">{{ object.get_severity_display }}</dd></div>
+</dl>
+
+<section class="panel chart-hero" aria-labelledby="an-title">
+  <div class="chart-head"><div>
+    <h2 id="an-title">Les 30 jours autour de l'anomalie</h2>
+    <p class="sub">En kWh par jour. Le losange rouge est l'anomalie, le losange ambre ce qui était attendu ce jour-là.</p></div>
+    <button type="button" class="btn btn-quiet btn-sm chart-tools" data-chart-download="an" data-filename="anomalie-{{ object.pk }}">Télécharger (PNG)</button></div>
+  <div class="chart-wrap"><canvas id="an" role="img" aria-labelledby="an-title"></canvas></div>
+  {{ chart_data|json_script:"an-data" }}
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <h2 class="section-title">Pourquoi cette alerte ?</h2>
+    <div class="panel"><ul class="mb-0">
+      <li>Écart robuste de <strong>{{ object.z_score|floatformat:1 }}</strong> (seuil d'alerte : 3,5) par rapport aux {{ object.date|date:"l"|lower }}s précédents.</li>
+      <li>{% if object.iforest_agrees %}Un second algorithme (Isolation Forest) isole aussi ce jour : <strong>les deux méthodes concordent</strong>.{% else %}Le second algorithme (Isolation Forest) ne l'isole pas : à vérifier avec plus de prudence.{% endif %}</li>
+      <li>La valeur attendue est la médiane des mêmes jours de semaine sur les 8 semaines précédentes.</li>
+    </ul></div>
+  </div>
+  <div class="col-lg-6">
+    <h2 class="section-title">Suivi</h2>
+    <div class="panel">
+      <p><span class="status status-an-{{ object.status }}">{{ object.get_status_display }}</span>{% if object.reviewed_by %} par {{ object.reviewed_by }} le {{ object.reviewed_at|date:"d/m/Y H:i" }}{% endif %}</p>
+      {% if object.note %}<p>{{ object.note }}</p>{% endif %}
+      {% if can_review %}
+      <form method="post" novalidate>{% csrf_token %}
+        {% include "partials/form_fields.html" %}
+        <button class="btn btn-cp" type="submit">Enregistrer la décision</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'vendor/chart.umd.js' %}"></script><script src="{% static 'js/chart-theme.js' %}"></script><script src="{% static 'js/anomaly.js' %}"></script>{% endblock %}
