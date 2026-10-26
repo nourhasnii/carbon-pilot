@@ -1,0 +1,83 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <script>(function(){try{var t=localStorage.getItem("cp-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;r.setAttribute("data-theme",t);r.setAttribute("data-bs-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Énergie{% endblock %} — CarbonPilot</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu principal</a>
+  {% include "partials/icons.html" %}
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="{% url 'energy:dashboard' %}">CarbonPilot <small>Énergie</small></a>
+      <button class="btn btn-side" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">Menu</button>
+    </header>
+
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebar-title">
+      <div class="offcanvas-header">
+        <span class="offcanvas-title brand" id="sidebar-title">CarbonPilot</span>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Fermer le menu"></button>
+      </div>
+      <div class="offcanvas-body">
+        <a class="brand d-none d-lg-inline-flex" href="{% url 'energy:dashboard' %}">CarbonPilot <small>Énergie</small></a>
+        {% if user.is_authenticated %}
+        {% with current=request.resolver_match.url_name %}
+        <nav aria-label="Navigation principale">
+          <p class="nav-group-title" id="nav-analyse">Analyse</p>
+          <ul class="side-nav" aria-labelledby="nav-analyse">
+            <li><a href="{% url 'energy:dashboard' %}" {% if current == 'dashboard' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gauge"/></svg>Tableau de bord</a></li>
+            <li><a href="{% url 'energy:history' %}" {% if current == 'history' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-history"/></svg>Historique</a></li>
+            <li><a href="{% url 'energy:forecast_list' %}" {% if 'forecast' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-forecast"/></svg>Prévisions</a></li>
+            <li><a href="{% url 'energy:anomaly_list' %}" {% if 'anomaly' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>Anomalies</a></li>
+            <li><a href="{% url 'energy:scenario_list' %}" {% if 'scenario' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-scenario"/></svg>Scénarios</a></li>
+          </ul>
+          <p class="nav-group-title mt-4" id="nav-donnees">Données</p>
+          <ul class="side-nav" aria-labelledby="nav-donnees">
+            <li><a href="{% url 'energy:asset_list' %}" {% if 'asset' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-asset"/></svg>Assets</a></li>
+            <li><a href="{% url 'energy:reading_list' %}" {% if 'reading' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list"/></svg>Mesures</a></li>
+            <li><a href="{% url 'energy:import' %}" {% if 'import' in current %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-import"/></svg>Import</a></li>
+          </ul>
+        </nav>
+        {% endwith %}
+        <div class="side-foot">
+          <p class="who">{{ user.get_username }}</p>
+          <p class="where">{% if user.profile %}{{ user.profile.company.nom }}{% else %}Aucune entreprise{% endif %}{% with g=user.groups.first %}{% if g %} · {{ g.name }}{% endif %}{% endwith %}</p>
+          <div class="side-actions">
+            <button class="btn btn-side btn-sm" type="button" role="switch" aria-checked="false" data-theme-toggle><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-contrast"/></svg>Mode sombre</button>
+            <form method="post" action="{% url 'logout' %}" data-no-loading>{% csrf_token %}<button class="btn btn-side btn-sm" type="submit">Se déconnecter</button></form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="content">
+      <main id="contenu" class="main" tabindex="-1">
+        {% if messages %}
+        <div aria-live="polite">
+          {% for m in messages %}<div class="alert alert-dismissible alert-{% if m.level_tag == 'error' %}danger{% else %}{{ m.level_tag }}{% endif %}" role="{% if m.level_tag == 'error' %}alert{% else %}status{% endif %}">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer le message"></button></div>{% endfor %}
+        </div>
+        {% endif %}
+        {% block crumbs %}{% endblock %}
+        <div class="page-head">
+          <div>
+            <h1>{% block h1 %}{% endblock %}</h1>
+            {% block lead %}{% endblock %}
+          </div>
+          <div class="page-actions">{% block actions %}{% endblock %}</div>
+        </div>
+        {% block content %}{% endblock %}
+      </main>
+      <footer class="foot"><p class="mb-0">Les données marquées « DEMO » sont fictives et ne représentent aucune entreprise réelle.</p></footer>
+    </div>
+  </div>
+  <script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'js/ui.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
