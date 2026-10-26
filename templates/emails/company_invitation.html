@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CarbonPilot invitation</title></head>
+  <body style="margin:0;padding:32px 12px;background:#f2f6f3;color:#18352f;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dce8e0;border-radius:8px;">
+      <tr><td style="padding:28px 32px 20px;border-bottom:1px solid #e7eee9;">
+        <span style="display:inline-block;padding:8px 10px;border-radius:6px;background:#147d62;color:#ffffff;font-size:13px;font-weight:bold;">CP</span>
+        <span style="margin-left:8px;color:#17332e;font-size:18px;font-weight:bold;vertical-align:middle;">CARBONPILOT</span>
+      </td></tr>
+      <tr><td style="padding:30px 32px 34px;">
+        <p style="margin:0 0 10px;color:#147d62;font-size:11px;font-weight:bold;letter-spacing:1px;">COMPANY INVITATION</p>
+        <h1 style="margin:0 0 20px;color:#17332e;font-size:26px;line-height:1.25;">Join {{ company }} on CarbonPilot</h1>
+        <p style="margin:0 0 15px;font-size:15px;line-height:1.6;">Hello {{ first_name }},</p>
+        <p style="margin:0 0 18px;color:#52665d;font-size:15px;line-height:1.6;">You have been invited to your company's CarbonPilot workspace. Set a password to activate your account.</p>
+        <p style="margin:0 0 24px;color:#52665d;font-size:14px;line-height:1.6;"><strong style="color:#17332e;">Role:</strong> {{ role }}{% if department %}<br><strong style="color:#17332e;">Department:</strong> {{ department }}{% endif %}</p>
+        <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="border-radius:5px;background:#147d62;">
+          <a href="{{ activation_url }}" style="display:inline-block;padding:13px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;">Activate my account</a>
+        </td></tr></table>
+        <p style="margin:22px 0 0;color:#718078;font-size:12px;line-height:1.6;">If the button does not work, open this address in your browser:<br><a href="{{ activation_url }}" style="color:#147d62;word-break:break-all;">{{ activation_url }}</a></p>
+        <p style="margin:24px 0 0;color:#52665d;font-size:14px;line-height:1.6;">Regards,<br>CarbonPilot Team</p>
+      </td></tr>
+      <tr><td style="padding:16px 32px;background:#f8faf8;color:#819088;font-size:11px;">CarbonPilot · ESG intelligence platform</td></tr>
+    </table>
+  </body>
+</html>

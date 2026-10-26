@@ -1,0 +1,154 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Risk assessment{% endblock %}
+{% block eyebrow %}ESG management{% endblock %}
+{% block heading %}Risk assessment{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_run %}
+    <form method="post" action="{% url 'risk:risk_assessment_run' %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">
+        <i data-lucide="shield-check"></i> Run Risk Assessment
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if assessment %}
+    {# ---------- Current score ---------- #}
+    <div class="cp-kpi-grid">
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Risk score</div>
+        <div class="cp-kpi-value">{{ assessment.score|floatformat:2 }} <small>/ 100</small></div>
+        <div class="cp-kpi-sub">Assessed {{ assessment.created_at|date:"Y-m-d H:i" }}</div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Risk level</div>
+        <div class="cp-kpi-value">
+          {% include "risk/_level.html" with level=assessment.level label=assessment.get_level_display %}
+        </div>
+        <div class="cp-kpi-sub">
+          {% if assessment.level == 'HIGH' %}Act now — multiple material drivers{% elif assessment.level == 'MEDIUM' %}Monitor the key drivers{% else %}No material risk detected{% endif %}
+        </div>
+      </article>
+      <article class="cp-kpi">
+        <div class="cp-kpi-label">Method</div>
+        <div class="cp-kpi-value" style="font-size:1.05rem">{{ assessment.get_method_display }}</div>
+        <div class="cp-kpi-sub">{{ assessment.period_label }}</div>
+      </article>
+    </div>
+
+    {# ---------- Summary ---------- #}
+    <section class="cp-card" style="margin-top:20px">
+      <h2 class="cp-card-title cp-mt-0">Summary</h2>
+      <p class="cp-card-sub">{{ assessment.summary }}</p>
+    </section>
+
+    {# ---------- Scoring breakdown ---------- #}
+    <div class="cp-grid cp-grid-2" style="margin-top:20px">
+      <section class="cp-card">
+        <h2 class="cp-card-title cp-mt-0">Scoring breakdown</h2>
+        <p class="cp-card-sub">Each component is capped; the five weights total 100 points.</p>
+        <div class="cp-hbars">
+          {% for item in assessment.breakdown %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head">
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.points|floatformat:2 }} / {{ item.max_points }} pts</span>
+              </div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {% widthratio item.points item.max_points 100 %}%"></span></div>
+              <p class="cp-muted" style="margin:6px 0 0;font-size:0.78rem">{{ item.description }}</p>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# ---------- Ranked risk drivers ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title cp-mt-0">Ranked risk drivers</h2>
+        <p class="cp-card-sub">Why the company scored what it scored — most impactful first.</p>
+        {% if assessment.drivers %}
+          <ol style="margin:0;padding-left:18px;display:grid;gap:14px">
+            {% for driver in assessment.drivers %}
+              <li>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <strong>{{ driver.label }}</strong>
+                  <span class="cp-badge cp-badge-neutral">+{{ driver.points|floatformat:2 }} / {{ driver.max_points }} pts</span>
+                </div>
+                <p class="cp-muted" style="margin:6px 0 0;font-size:0.82rem">{{ driver.detail }}</p>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <div class="cp-callout">
+            <i data-lucide="check-circle-2"></i>
+            <span>No open risk drivers were detected in the current data.</span>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    {% if assessment.period_year is None %}
+      <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+        This assessment covers all reporting years. Risk is computed from your company's own approved data only.
+      </p>
+    {% endif %}
+  {% else %}
+    {# ---------- Empty state ---------- #}
+    <section class="cp-card">
+      <div class="cp-empty">
+        <i data-lucide="shield-check"></i>
+        <p>No risk assessment has been run for your company yet.</p>
+        {% if can_run %}
+          <form method="post" action="{% url 'risk:risk_assessment_run' %}">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">
+              <i data-lucide="shield-check"></i> Run Risk Assessment
+            </button>
+          </form>
+        {% else %}
+          <p class="cp-muted">A company owner or ESG reporting manager can run the assessment.</p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---------- Previous assessments ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Assessment history</h2>
+        <p class="cp-card-sub cp-mt-0">The last {{ history|length }} assessment{{ history|length|pluralize }} for {{ company.name }}</p>
+      </div>
+    </div>
+    {% if history %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Assessment history</caption>
+          <thead>
+            <tr><th scope="col">When</th><th scope="col" class="cp-num">Score</th><th scope="col">Level</th><th scope="col">Period</th><th scope="col">Method</th><th scope="col">Run by</th></tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+              <tr>
+                <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="cp-num">{{ item.score|floatformat:2 }}</td>
+                <td>{% include "risk/_level.html" with level=item.level label=item.get_level_display %}</td>
+                <td>{{ item.period_label }}</td>
+                <td>{{ item.get_method_display }}</td>
+                <td>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.email }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="history"></i><p>No previous assessments yet.</p></div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Risk is a deterministic, rule-based score computed from your company's own data — open anomalies, objective predictions, data quality, evidence and review backlog. It uses real database values only.
+  </p>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Indicator catalog{% endblock %}
+{% block eyebrow %}ESG intelligence hub{% endblock %}
+{% block heading %}Indicator catalog{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'esg:dashboard' %}"><i data-lucide="arrow-left"></i> Dashboard</a>
+  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:coach' %}"><i data-lucide="sparkles"></i> AI coach</a>
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'esg:indicator_create' %}"><i data-lucide="plus"></i> New indicator</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  {% include "partials/list_filters.html" with reset_url=request.path %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} of {{ total_count }} indicator{{ total_count|pluralize }}</h2>
+        <p class="cp-card-sub cp-mt-0">Your company's tracked catalog indicators</p>
+      </div>
+    </div>
+
+    {% if rows %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">ESG indicators</caption>
+          <thead>
+            <tr>
+              <th scope="col">Indicator</th><th scope="col">Pillar</th><th scope="col">Unit</th>
+              <th scope="col">Latest measurement</th><th scope="col">Status</th><th scope="col" class="cp-num">Periods</th><th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'esg:indicator_detail' row.indicator.pk %}">{{ row.indicator.name }}</a>
+                  <div class="cp-muted" style="font-size:0.76rem">
+                    {{ row.indicator.reference }}
+                    {% if row.indicator.is_required %}· <span class="cp-badge cp-badge-neutral">Required</span>{% endif %}
+                    {% if not row.indicator.is_active %}· <span class="cp-badge cp-badge-rejected">Inactive</span>{% endif %}
+                  </div>
+                </td>
+                <td>{{ row.indicator.pillar_label }}</td>
+                <td>{{ row.indicator.unit }}</td>
+                <td>
+                  {% if row.latest and row.latest.has_value %}
+                    <strong>{{ row.latest.display_value }}</strong> {{ row.latest.unit_label }}
+                    <div class="cp-muted" style="font-size:0.76rem">{{ row.latest.period_year }}</div>
+                  {% elif row.latest %}
+                    <span class="cp-muted">Missing value · {{ row.latest.period_year }}</span>
+                  {% else %}
+                    <span class="cp-muted">No data</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.latest %}
+                    {% include "esg/_value_status.html" with value=row.latest %}
+                  {% else %}
+                    <span class="cp-badge cp-badge-neutral">No data</span>
+                  {% endif %}
+                </td>
+                <td class="cp-num">{{ row.periods }}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:indicator_detail' row.indicator.pk %}"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:value_create' row.indicator.pk %}" title="Record a measurement"><i data-lucide="plus"></i> Data</a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}list-checks{% endif %}"></i>
+        {% if has_filters %}
+          <p>No indicator matches these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No indicators yet.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'esg:indicator_create' %}"><i data-lucide="plus"></i> Add an indicator</a>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    An indicator is unique per catalog entry, so duplicates cannot be created. Deactivating an indicator
+    keeps its history — it is a soft archive, not a delete.
+  </p>
+{% endblock %}

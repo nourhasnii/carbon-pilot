@@ -1,0 +1,33 @@
+{% comment %}
+Shared pagination footer for list pages.
+
+Context: ``pagination`` (the dict returned by ``apps.common.listing.paginate``).
+
+Every link is rebuilt with Django's ``{% querystring %}`` tag so the active
+filters survive a page change and the page-size switch resets to page 1.
+{% endcomment %}
+{% if pagination.total %}
+  <nav class="cp-pagination" aria-label="Pagination">
+    <span class="cp-muted">
+      Page {{ pagination.page }} of {{ pagination.pages }} · {{ pagination.total }} result{{ pagination.total|pluralize }}
+    </span>
+    <div class="cp-row cp-row-tight">
+      {% if pagination.has_previous %}
+        <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% querystring page=pagination.previous_page %}" rel="prev"><i data-lucide="arrow-left"></i> Previous</a>
+      {% endif %}
+      {% if pagination.has_next %}
+        <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% querystring page=pagination.next_page %}" rel="next">Next <i data-lucide="arrow-right"></i></a>
+      {% endif %}
+    </div>
+    <div class="cp-row cp-row-tight">
+      <span class="cp-muted">Per page</span>
+      {% for size in pagination.page_size_options %}
+        {% if size == pagination.per_page %}
+          <span class="cp-badge cp-badge-neutral">{{ size }}</span>
+        {% else %}
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% querystring per_page=size page=None %}">{{ size }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </nav>
+{% endif %}

@@ -1,0 +1,205 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ activity.display_name }}{% endblock %}
+{% block eyebrow %}Carbon activity{% endblock %}
+{% block heading %}{{ activity.display_name }}{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_edit %}
+    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_edit' activity.pk %}"><i data-lucide="pencil"></i> Edit</a>
+  {% endif %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_list' %}"><i data-lucide="arrow-left"></i> All activities</a>
+{% endblock %}
+
+{% block content %}
+  {% if activity.is_archived %}
+    <div class="cp-callout is-warning" style="margin-bottom:20px">
+      <i data-lucide="archive"></i>
+      <span>This activity is <strong>archived</strong>. It no longer counts toward the footprint but its history is preserved.{% if activity.archived_at %} Archived {{ activity.archived_at|date:"d M Y H:i" }}{% if activity.archived_by %} by {{ activity.archived_by.get_full_name|default:activity.archived_by.email }}{% endif %}.{% endif %}</span>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">CO2e (calculated)</div>
+      <div class="cp-kpi-value">{{ activity.co2e_kg|floatformat:2 }} <small>kg</small></div>
+      <div class="cp-kpi-sub">= {{ activity.co2e_tonnes|floatformat:4 }} tCO2e</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Quantity</div>
+      <div class="cp-kpi-value">{{ activity.quantity|floatformat:"-4" }} <small>{{ activity.unit }}</small></div>
+      <div class="cp-kpi-sub">Reported amount</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Status</div>
+      <div class="cp-kpi-value" style="font-size:1.1rem">{% include "carbon/_status.html" with activity=activity %}</div>
+      <div class="cp-kpi-sub">Updated {{ activity.updated_at|date:"d M Y H:i" }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Scope</div>
+      <div class="cp-kpi-value" style="font-size:1.1rem">{% include "carbon/_scope.html" with scope=activity.scope scope_label=activity.get_scope_display %}</div>
+      <div class="cp-kpi-sub">{{ activity.get_category_display }}</div>
+    </article>
+  </div>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <div>
+      {# ---------- Workflow actions ---------- #}
+      {% if available_actions %}
+        <section class="cp-card">
+          <h2 class="cp-card-title cp-mt-0">Available actions</h2>
+          <p class="cp-card-sub">Your role allows the actions below for this status.</p>
+          <form method="post" action="{% url 'carbon:activity_action' activity.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="cp-field">
+              <label for="action-comment">Comment</label>
+              <textarea class="field-input" id="action-comment" name="comment" rows="3" placeholder="Optional for submit/approve · required for reject and request correction"></textarea>
+            </div>
+            <div class="cp-row" style="margin-top:14px">
+              {% for action in available_actions %}
+                <button class="cp-btn {% if action.style == 'primary' %}cp-btn-primary{% elif action.style == 'danger' %}cp-btn-ghost{% else %}cp-btn-outline{% endif %} cp-btn-sm"
+                        type="submit" name="action" value="{{ action.key }}"
+                        {% if action.requires_comment %}data-requires-comment="1"{% endif %}>
+                  {{ action.label }}
+                </button>
+              {% endfor %}
+            </div>
+          </form>
+        </section>
+      {% endif %}
+
+      {# ---------- Full details ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title cp-mt-0">Activity details</h2>
+        <p class="cp-card-sub">Everything recorded for this emission source.</p>
+        <dl class="cp-dl">
+          <div><dt>Reporting period</dt><dd>{{ activity.period_start|date:"d M Y" }}{% if activity.period_end %} → {{ activity.period_end|date:"d M Y" }}{% endif %}</dd></div>
+          <div><dt>Department</dt><dd>{{ activity.department.name|default:"—" }}</dd></div>
+          <div><dt>Category</dt><dd>{{ activity.get_category_display }}</dd></div>
+          <div><dt>Data source</dt><dd>{{ activity.data_source|default:"—" }}</dd></div>
+          <div><dt>Emission factor</dt><dd>{% if activity.emission_factor_id %}<a href="{% url 'carbon:factor_detail' activity.emission_factor_id %}">{{ activity.emission_factor_name|default:activity.emission_factor.name }}</a>{% else %}—{% endif %}</dd></div>
+          <div><dt>Factor applied</dt><dd>{% if activity.emission_factor_value %}{{ activity.emission_factor_value|floatformat:6 }} kg CO2e / {{ activity.emission_factor_unit }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Factor source</dt><dd>{{ activity.emission_factor_source|default:"Not documented" }}</dd></div>
+          <div><dt>Factor year / region</dt><dd>{% if activity.emission_factor_year %}{{ activity.emission_factor_year }} · {{ activity.emission_factor_region }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Recorded by</dt><dd>{% if activity.created_by %}{{ activity.created_by.get_full_name|default:activity.created_by.email }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Last reviewer</dt><dd>{% if activity.reviewed_by %}{{ activity.reviewed_by.get_full_name|default:activity.reviewed_by.email }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Approved by</dt><dd>{% if activity.approved_by %}{{ activity.approved_by.get_full_name|default:activity.approved_by.email }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Created</dt><dd>{{ activity.created_at|date:"d M Y H:i" }}</dd></div>
+        </dl>
+
+        <div style="margin-top:22px">
+          <dt style="color:var(--cp-muted);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Evidence</dt>
+          {% if activity.evidence %}
+            <div class="cp-evidence-current">
+              <i data-lucide="paperclip"></i>
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:activity_evidence' activity.pk %}"><i data-lucide="download"></i> Download evidence</a>
+            </div>
+          {% else %}
+            <p class="cp-muted" style="margin:8px 0 0">No evidence document attached.</p>
+          {% endif %}
+        </div>
+
+        {% if activity.review_comment %}
+          <div class="cp-callout {% if activity.status == 'REJECTED' %}is-warning{% endif %}" style="margin-top:22px">
+            <i data-lucide="message-square"></i>
+            <span><strong>Reviewer comment:</strong> {{ activity.review_comment }}</span>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div>
+      {# ---------- Data quality ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title cp-mt-0">Data quality</h2>
+        <p class="cp-card-sub">{{ quality.band_label }}</p>
+        <div class="cp-quality-head">
+          <div class="cp-quality-score">{{ quality.score }}%</div>
+          <div class="cp-quality-track"><i style="width: {{ quality.score }}%"></i></div>
+        </div>
+        <ul class="cp-quality-list">
+          {% for check in quality.checks %}
+            <li class="{% if check.ok %}ok{% else %}warn{% endif %}">
+              <i data-lucide="{% if check.ok %}check-circle-2{% else %}alert-circle{% endif %}"></i>
+              <span>{{ check.label }}{% if check.detail %}<span class="cp-quality-detail"> — {{ check.detail }}</span>{% endif %}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {# ---------- Audit timeline ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title cp-mt-0">Audit timeline</h2>
+        <p class="cp-card-sub">Immutable record of every change.</p>
+        {% if timeline %}
+          <ul class="cp-timeline">
+            {% for entry in timeline %}
+              <li>
+                <div class="cp-timeline-time">{{ entry.created_at|date:"d M Y · H:i" }}</div>
+                <div class="cp-timeline-title">{{ entry.get_action_display }}</div>
+                <div class="cp-timeline-body">
+                  {% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.email }}{% else %}System{% endif %}
+                  {% if entry.from_status and entry.to_status and entry.from_status != entry.to_status %}
+                    · {{ entry.from_status }} → {{ entry.to_status }}
+                  {% endif %}
+                </div>
+                {% if entry.comment %}<div class="cp-timeline-body">“{{ entry.comment }}”</div>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="cp-empty"><i data-lucide="history"></i><p>No audit entries yet.</p></div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+
+  {# ---------- Lifecycle: archive / restore / delete ---------- #}
+  {% if can_delete or can_archive or can_restore %}
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Activity lifecycle</h2>
+      <p class="cp-card-sub">Drafts can be deleted. Submitted, reviewed or approved activities are archived instead so the audit trail is preserved.</p>
+      <div class="cp-row">
+        {% if can_archive %}
+          <form method="post" action="{% url 'carbon:activity_archive' activity.pk %}" onsubmit="return confirm('Archive this activity? It leaves the live list but stays in the audit trail.');">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-ghost" type="submit"><i data-lucide="archive"></i> Archive activity</button>
+          </form>
+        {% endif %}
+        {% if can_restore %}
+          <form method="post" action="{% url 'carbon:activity_restore' activity.pk %}" onsubmit="return confirm('Restore this activity to the live inventory?');">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="rotate-ccw"></i> Restore activity</button>
+          </form>
+        {% endif %}
+        {% if can_delete %}
+          <form method="post" action="{% url 'carbon:activity_delete' activity.pk %}" onsubmit="return confirm('Delete this draft activity? This cannot be undone.');">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-danger" type="submit"><i data-lucide="trash-2"></i> Delete draft</button>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      var form = document.querySelector('form[action*="/action/"]');
+      if (!form) return;
+      form.addEventListener('submit', function (event) {
+        var button = event.submitter;
+        if (button && button.dataset.requiresComment === '1') {
+          var comment = form.querySelector('[name="comment"]');
+          if (comment && !comment.value.trim()) {
+            event.preventDefault();
+            comment.focus();
+            comment.reportValidity ? (comment.setCustomValidity('Please explain your decision before continuing.'), comment.reportValidity(), comment.setCustomValidity('')) : alert('Please explain your decision before continuing.');
+          }
+        }
+      });
+    })();
+  </script>
+{% endblock %}

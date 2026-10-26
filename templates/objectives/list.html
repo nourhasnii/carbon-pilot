@@ -1,0 +1,92 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Objectives{% endblock %}
+{% block eyebrow %}Reduction targets{% endblock %}
+{% block heading %}Objectives & reduction targets{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'objectives:objective_create' %}"><i data-lucide="plus"></i> New objective</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Live objectives</div>
+      <div class="cp-kpi-value">{{ live_count }}</div>
+      <div class="cp-kpi-sub">Tracked reduction targets</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Active</div>
+      <div class="cp-kpi-value">{{ active_count }}</div>
+      <div class="cp-kpi-sub">Still in progress</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Achieved</div>
+      <div class="cp-kpi-value">{{ achieved_count }}</div>
+      <div class="cp-kpi-sub">Within target</div>
+    </article>
+  </div>
+
+  {% include "partials/list_filters.html" with reset_url=request.path %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} objective{{ pagination.total|pluralize }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Carbon reduction objectives</caption>
+          <thead>
+            <tr>
+              <th scope="col">Objective</th><th scope="col">Scope</th><th scope="col">Period</th>
+              <th scope="col" class="cp-num">Baseline</th><th scope="col" class="cp-num">Target</th><th scope="col" class="cp-num">Current</th>
+              <th scope="col">Progress</th><th scope="col">Status</th><th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for objective in pagination.items %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'objectives:objective_detail' objective.pk %}">{{ objective.name }}</a></td>
+                <td>{% if objective.department %}{{ objective.department.name }}{% else %}<span class="cp-badge cp-badge-neutral">Company-wide</span>{% endif %}</td>
+                <td>{{ objective.period_label }}</td>
+                <td class="cp-num">{{ objective.baseline_tco2e|floatformat:2 }}</td>
+                <td class="cp-num">{{ objective.target_tco2e|floatformat:2 }}</td>
+                <td class="cp-num">{{ objective.display_current|floatformat:2 }}</td>
+                <td style="min-width:160px">
+                  <div class="cp-hbar-head"><strong>{{ objective.progress_percent }}%</strong></div>
+                  <div class="cp-hbar-track"><span class="cp-hbar-fill {% if objective.status == 'ACHIEVED' %}is-achieved{% endif %}" style="width: {{ objective.progress_percent }}%"></span></div>
+                </td>
+                <td>{% include "objectives/_status.html" with objective=objective %}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'objectives:objective_detail' objective.pk %}"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'objectives:objective_edit' objective.pk %}" title="Edit objective"><i data-lucide="pencil"></i> Edit</a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}target{% endif %}"></i>
+        {% if has_filters %}
+          <p>No objectives match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No objectives yet. Set a reduction target to start tracking progress.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'objectives:objective_create' %}"><i data-lucide="plus"></i> Create an objective</a>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Live progress counts <strong>approved</strong> activities only. Emissions are summed in tCO2e for each objective's scope and period.
+  </p>
+{% endblock %}

@@ -1,0 +1,2 @@
+{% comment %}Anomaly triage status badge. Expects an `anomaly` in context.{% endcomment %}
+<span class="cp-badge {% if anomaly.status == 'REVIEWED' %}cp-badge-approved{% elif anomaly.status == 'DISMISSED' %}cp-badge-neutral{% else %}cp-badge-submitted{% endif %}">{{ anomaly.get_status_display }}</span>

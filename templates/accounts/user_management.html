@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User management | CarbonPilot</title>
+    <style>
+      :root { --ink: #17332e; --muted: #60716c; --line: #dce6e2; --paper: #f3f7f4; --green: #147d62; --red: #a83c36; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Segoe UI", sans-serif; }
+      header { display: flex; justify-content: space-between; align-items: center; padding: 18px clamp(18px, 4vw, 60px); background: white; border-bottom: 1px solid var(--line); }
+      header a { color: var(--ink); text-decoration: none; font-weight: 700; }
+      main { width: min(100% - 36px, 1240px); margin: 42px auto; }
+      .topline { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+      h1 { margin: 0; font-size: 32px; }
+      p { color: var(--muted); }
+      .button { display: inline-block; border: 0; border-radius: 4px; background: var(--green); color: white; padding: 10px 14px; text-decoration: none; font: inherit; font-weight: 650; cursor: pointer; }
+      .messages { margin: 16px 0; }
+      .messages p { padding: 10px 12px; background: white; border-left: 3px solid var(--green); }
+      .table-wrap { overflow-x: auto; background: white; border: 1px solid var(--line); }
+      table { width: 100%; min-width: 970px; border-collapse: collapse; text-align: left; }
+      th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+      td small { color: var(--muted); display: block; }
+      .status { font-weight: 700; }
+      .actions { display: flex; gap: 7px; flex-wrap: wrap; }
+      .actions form { margin: 0; }
+      .actions button { padding: 6px 9px; font-size: 13px; }
+      .role-select { max-width: 150px; min-height: 30px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+      .danger { background: var(--red); }
+      /* Shared list-page design-system classes used by the filter bar and pagination partials. */
+      .cp-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; background: white; border: 1px solid var(--line); padding: 14px 16px; margin-bottom: 20px; }
+      .cp-field { display: flex; flex-direction: column; gap: 4px; }
+      .cp-field label { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+      .field-input { min-height: 36px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; }
+      .cp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .cp-row-tight { gap: 8px; }
+      .cp-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 650; cursor: pointer; text-decoration: none; }
+      .cp-btn-primary { background: var(--green); border-color: var(--green); color: #fff; }
+      .cp-btn-ghost { background: transparent; }
+      .cp-btn-sm { padding: 6px 9px; font-size: 13px; }
+      .cp-muted { color: var(--muted); }
+      .cp-badge { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; }
+      .cp-badge-neutral { background: var(--paper); border: 1px solid var(--line); color: var(--muted); }
+      .cp-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; text-align: center; color: var(--muted); background: white; border: 1px solid var(--line); }
+      .cp-empty i { width: 28px; height: 28px; }
+      .cp-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; background: white; border: 1px solid var(--line); border-top: 0; }
+      .result-count { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+      @media (max-width: 650px) { .topline { align-items: flex-start; flex-direction: column; } }
+    </style>
+  </head>
+  <body>
+    <header><a href="{% url 'accounts:admin_dashboard' %}">CarbonPilot · Super Admin</a><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="button" type="submit">Sign out</button></form></header>
+    <main>
+      <div class="topline"><div><h1>User management</h1><p>Review account requests and manage access.</p></div><a class="button" href="{% url 'accounts:create_user' %}">Create user</a></div>
+      {% if messages %}<div class="messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+      {% include "partials/list_filters.html" with reset_url=request.path %}
+      <p class="result-count">{{ pagination.total }} account{{ pagination.total|pluralize }}</p>
+      {% if users %}
+      <div class="table-wrap"><table>
+        <caption class="sr-only">User accounts</caption>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Company</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          {% for account in users %}
+          <tr>
+            <td>{{ account.get_full_name|default:"-" }}</td><td>{{ account.email }}</td><td>{{ account.get_role_display }}</td>
+            <td>{{ account.company|default:"-" }}</td><td>{{ account.department|default:"-" }}</td>
+            <td class="status">{{ account.get_status_display }}</td><td><small>{{ account.created_at|date:"Y-m-d H:i" }}</small></td>
+            <td><div class="actions">
+              {% if account.status == "PENDING" %}
+              <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Approve this account?');">{% csrf_token %}<input type="hidden" name="action" value="accept"><label class="sr-only" for="role-{{ account.pk }}">Assign role to {{ account.email }}</label><select class="role-select" id="role-{{ account.pk }}" name="role" required>{% for role, label in role_choices %}<option value="{{ role }}"{% if role == account.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="button" type="submit">Approve</button></form>
+              <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Reject this account?');">{% csrf_token %}<input type="hidden" name="action" value="reject"><button class="button danger" type="submit">Reject</button></form>
+              {% elif account.status == "ACTIVE" %}
+              <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Deactivate this account?');">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><button class="button danger" type="submit">Deactivate</button></form>
+              {% if account.must_change_password %}<form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Generate a new temporary password and resend the approval email?');">{% csrf_token %}<input type="hidden" name="action" value="resend_approval"><button class="button" type="submit">Resend access email</button></form>{% endif %}
+              {% elif account.status == "INACTIVE" %}
+              <form method="post" action="{% url 'accounts:manage_user_action' account.pk %}" onsubmit="return confirm('Reactivate this account?');">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="button" type="submit">Reactivate</button></form>
+              {% else %}<span>-</span>{% endif %}
+            </div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {% include "partials/pagination.html" %}
+      {% elif has_filters %}
+      <div class="cp-empty">
+        <i data-lucide="filter"></i>
+        <p>No accounts match these filters.</p>
+        <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+      </div>
+      {% else %}
+      <div class="cp-empty">
+        <i data-lucide="users"></i>
+        <p>No user accounts yet.</p>
+      </div>
+      {% endif %}
+    </main>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>window.lucide && window.lucide.createIcons();</script>
+  </body>
+</html>

@@ -1,0 +1,147 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}AI recommendations{% endblock %}
+{% block eyebrow %}AI decision support{% endblock %}
+{% block heading %}AI recommendations{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_generate %}
+    <form method="post" action="{% url 'recommendations:recommendation_generate' %}" data-ai-action data-ai-label="Queueing…">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">
+        <i data-lucide="sparkles"></i> Generate recommendations
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if ai_job %}
+    <div class="cp-callout" data-ai-job
+         data-status-url="{% url 'recommendations:ai_job_status' %}"
+         data-job-id="{{ ai_job.pk }}"
+         role="status" aria-live="polite">
+      <span class="cp-spinner" aria-hidden="true" data-ai-job-spinner style="flex:none;margin-top:3px"></span>
+      <div>
+        <strong data-ai-job-title>{{ ai_job.get_status_display }}…</strong>
+        <p class="cp-mt-0" data-ai-job-message style="margin-top:4px">
+          {% if ai_job.status == 'RUNNING' %}
+            The local Qwen model is generating recommendations now. This can take a few minutes.
+          {% else %}
+            Your AI job is queued and will start as soon as a background worker picks it up.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Open</div>
+      <div class="cp-kpi-value">{{ open_count }}</div>
+      <div class="cp-kpi-sub">New or in progress</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">High priority</div>
+      <div class="cp-kpi-value">{{ high_count }}</div>
+      <div class="cp-kpi-sub">Act first</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">AI · Qwen</div>
+      <div class="cp-kpi-value">{{ qwen_count }}</div>
+      <div class="cp-kpi-sub">Decided by the local model</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Rule-based</div>
+      <div class="cp-kpi-value">{{ rule_count }}</div>
+      <div class="cp-kpi-sub">Deterministic fallback</div>
+    </article>
+  </div>
+
+  {% include "partials/list_filters.html" with reset_url=request.path %}
+
+  <section style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} recommendation{{ pagination.total|pluralize }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-grid cp-grid-2">
+        {% for rec in pagination.items %}
+          <article class="cp-card">
+            <div class="cp-section-head">
+              <div>
+                <h2 class="cp-card-title cp-mt-0"><a class="cp-cell-link" href="{% url 'recommendations:recommendation_detail' rec.pk %}">{{ rec.title }}</a></h2>
+                <p class="cp-card-sub cp-mt-0">
+                  {% include "recommendations/_priority.html" with priority=rec.priority label=rec.get_priority_display %}
+                  {% include "recommendations/_status.html" with status=rec.status label=rec.get_status_display %}
+                  {% include "recommendations/_method.html" with generation_method=rec.generation_method %}
+                  <span class="cp-badge cp-badge-neutral">{{ rec.get_source_display }}</span>
+                </p>
+              </div>
+            </div>
+            <p>{{ rec.message }}</p>
+            <div class="cp-row cp-row-tight" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+              {% if rec.department %}<span class="cp-muted">{{ rec.department.name }}</span>{% else %}<span class="cp-muted">Company-wide</span>{% endif %}
+              {% if rec.anomaly_id %}<a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:anomaly_detail' rec.anomaly_id %}"><i data-lucide="shield-alert"></i> Anomaly #{{ rec.anomaly_id }}</a>{% endif %}
+              {% if rec.objective_id %}<a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'objectives:objective_detail' rec.objective_id %}"><i data-lucide="target"></i> Objective #{{ rec.objective_id }}</a>{% endif %}
+            </div>
+            <div class="cp-row cp-row-tight" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+              <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'recommendations:recommendation_detail' rec.pk %}"><i data-lucide="eye"></i> View Details</a>
+              {% if rec.user_can_manage %}
+                {% if rec.status == 'NEW' %}
+                  <form method="post" action="{% url 'recommendations:recommendation_start_action' rec.pk %}">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit"><i data-lucide="play"></i> Start Action</button>
+                  </form>
+                {% endif %}
+                {% if rec.status != 'DONE' %}
+                  <form method="post" action="{% url 'recommendations:recommendation_set_status' rec.pk 'DONE' %}">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i> Done</button>
+                  </form>
+                {% endif %}
+                {% if rec.status != 'DISMISSED' %}
+                  <form method="post" action="{% url 'recommendations:recommendation_set_status' rec.pk 'DISMISSED' %}">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit"><i data-lucide="x"></i> Dismiss</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+              <span class="cp-muted" style="margin-left:auto;font-size:0.78rem">{{ rec.created_at|date:"M j, Y H:i" }}</span>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}sparkles{% endif %}"></i>
+        {% if has_filters %}
+          <p>No recommendations match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No recommendations yet. Generate recommendations to get AI-backed actions.</p>
+          {% if can_generate %}
+            <form method="post" action="{% url 'recommendations:recommendation_generate' %}" data-ai-action data-ai-label="Queueing…">
+              {% csrf_token %}
+              <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Generate recommendations</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Recommendations labelled <strong>AI · Qwen</strong> are decided by the local Qwen model from your approved evidence.
+    <strong>Rule-based</strong> rows are deterministic fallbacks produced when the AI model is unavailable. All facts come from CarbonPilot's own data.
+  </p>
+{% endblock %}
+
+{% block scripts %}
+  {% load static %}
+  <script src="{% static 'js/ai-job-poll.js' %}"></script>
+{% endblock %}

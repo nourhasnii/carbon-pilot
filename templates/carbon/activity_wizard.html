@@ -1,0 +1,263 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Add carbon activity{% endblock %}
+{% block eyebrow %}Carbon management · New activity{% endblock %}
+{% block heading %}Add carbon activity{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_wizard' %}?reset=1">
+    <i data-lucide="rotate-ccw"></i> Start over
+  </a>
+{% endblock %}
+
+{% block content %}
+  {% if created %}
+    {# ---------- Success panel ---------- #}
+    <section class="cp-card cp-success">
+      <div class="cp-success-icon"><i data-lucide="check-circle-2"></i></div>
+      <h2 class="cp-card-title">
+        {% if created.status == 'SUBMITTED' %}Activity submitted for review{% else %}Draft activity saved{% endif %}
+      </h2>
+      <p class="cp-card-sub cp-mt-0">
+        {% if created.status == 'SUBMITTED' %}
+          Your activity is now in the validation workflow and will appear in the official footprint once approved.
+        {% else %}
+          Your activity has been saved as a draft. Submit it later to start the review workflow.
+        {% endif %}
+      </p>
+      <div class="cp-summary">
+        <div class="cp-summary-item"><span>Activity</span><strong>{{ created.display_name }}</strong></div>
+        <div class="cp-summary-item"><span>Scope</span><strong>{{ created.get_scope_display }}</strong></div>
+        <div class="cp-summary-item"><span>Quantity</span><strong>{{ created.quantity|floatformat:"-4" }} {{ created.unit }}</strong></div>
+        <div class="cp-summary-item"><span>CO2e</span><strong>{{ created.co2e_kg|floatformat:2 }} kg</strong></div>
+        <div class="cp-summary-item"><span>Reporting period</span><strong>{{ created.period_label }}</strong></div>
+        <div class="cp-summary-item"><span>Status</span><strong>{{ created.get_status_display }}</strong></div>
+      </div>
+      <div class="cp-actions" style="justify-content:center">
+        <a class="cp-btn cp-btn-primary" href="{% url 'carbon:activity_wizard' %}?reset=1"><i data-lucide="plus-circle"></i> Add another activity</a>
+      </div>
+    </section>
+  {% else %}
+    {# ---------- Stepper ---------- #}
+    <nav class="cp-stepper" aria-label="Activity creation steps">
+      {% for number, label in step_labels %}
+        <div class="cp-step {% if number == step %}is-current{% elif number < step %}is-done{% endif %}">
+          <span class="cp-step-dot">{% if number < step %}<i data-lucide="check"></i>{% else %}{{ number }}{% endif %}</span>
+          <span>
+            <span class="cp-step-label">Step {{ number }}</span>
+            <span class="cp-step-name">{{ label }}</span>
+          </span>
+        </div>
+      {% endfor %}
+    </nav>
+
+    {% if step == 1 %}
+      {# ---------- STEP 1 — Activity ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title">What are you reporting?</h2>
+        <p class="cp-card-sub">Select the category or source of this carbon activity.</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="step" value="1" />
+          {% if form.category.errors %}<div class="cp-nonfield-error">{{ form.category.errors|striptags }}</div>{% endif %}
+          <div class="cp-choice-grid" role="radiogroup" aria-label="Activity category">
+            {% for value, label in category_choices %}
+              <label class="cp-choice">
+                <input type="radio" name="category" value="{{ value }}" {% if form.category.value == value %}checked{% endif %} />
+                <span class="cp-choice-icon">
+                  {% if value == 'ELECTRICITY' %}<i data-lucide="zap"></i>
+                  {% elif value == 'NATURAL_GAS' %}<i data-lucide="flame"></i>
+                  {% elif value == 'FUEL' %}<i data-lucide="fuel"></i>
+                  {% elif value == 'BUSINESS_TRAVEL' %}<i data-lucide="plane"></i>
+                  {% elif value == 'TRANSPORTATION' %}<i data-lucide="truck"></i>
+                  {% elif value == 'PURCHASED_GOODS' %}<i data-lucide="package"></i>
+                  {% elif value == 'WASTE' %}<i data-lucide="trash-2"></i>
+                  {% elif value == 'WATER' %}<i data-lucide="droplet"></i>
+                  {% else %}<i data-lucide="more-horizontal"></i>{% endif %}
+                </span>
+                <span class="cp-choice-body"><strong>{{ label }}</strong></span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <div class="cp-field cp-span-2" style="margin-top:22px">
+            <label for="{{ form.name.id_for_label }}">Activity name <span class="cp-muted">(optional)</span></label>
+            {{ form.name }}
+            <span class="cp-hint">A short label to recognise this activity, e.g. “Head office electricity — Q1”.</span>
+            {% if form.name.errors %}<span class="cp-error">{{ form.name.errors|striptags }}</span>{% endif %}
+          </div>
+
+          <div class="cp-actions">
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary" type="submit">Continue <i data-lucide="arrow-right"></i></button>
+          </div>
+        </form>
+      </section>
+
+    {% elif step == 2 %}
+      {# ---------- STEP 2 — Data ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title">Activity data</h2>
+        <p class="cp-card-sub">
+          Reporting <strong>{{ category_label }}</strong>.
+          Enter the measured quantity, its unit and the reporting period.
+        </p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="step" value="2" />
+          {% include "carbon/_form_error_summary.html" %}
+          <div class="cp-field-grid">
+            <div class="cp-field">
+              <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+              {{ form.quantity }}
+              {% if form.quantity.errors %}<span class="cp-error">{{ form.quantity.errors|striptags }}</span>{% endif %}
+            </div>
+            <div class="cp-field">
+              <label for="{{ form.unit.id_for_label }}">Unit</label>
+              {{ form.unit }}
+              <datalist id="unit-options">
+                {% for unit in unit_options %}<option value="{{ unit }}"></option>{% endfor %}
+              </datalist>
+              <span class="cp-hint">e.g. kWh, MWh, L, m3, kg, t, km, passenger-km, tonne-km.</span>
+              {% if form.unit.errors %}<span class="cp-error">{{ form.unit.errors|striptags }}</span>{% endif %}
+            </div>
+            <div class="cp-field">
+              <label for="{{ form.period_start.id_for_label }}">Reporting period — start</label>
+              {{ form.period_start }}
+              {% if form.period_start.errors %}<span class="cp-error">{{ form.period_start.errors|striptags }}</span>{% endif %}
+            </div>
+            <div class="cp-field">
+              <label for="{{ form.period_end.id_for_label }}">Reporting period — end <span class="cp-muted">(optional)</span></label>
+              {{ form.period_end }}
+              {% if form.period_end.errors %}<span class="cp-error">{{ form.period_end.errors|striptags }}</span>{% endif %}
+            </div>
+            <div class="cp-field cp-span-2">
+              <label for="{{ form.department.id_for_label }}">Department</label>
+              {{ form.department }}
+              <span class="cp-hint">The department accountable for this activity.</span>
+              {% if form.department.errors %}<span class="cp-error">{{ form.department.errors|striptags }}</span>{% endif %}
+            </div>
+          </div>
+          {% if form.non_field_errors %}<div class="cp-nonfield-error">{{ form.non_field_errors|striptags }}</div>{% endif %}
+
+          <div class="cp-actions">
+            <a class="cp-btn cp-btn-outline" href="{% url 'carbon:activity_wizard' %}?step=1"><i data-lucide="arrow-left"></i> Back</a>
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary" type="submit">Continue <i data-lucide="arrow-right"></i></button>
+          </div>
+        </form>
+      </section>
+
+    {% elif step == 3 %}
+      {# ---------- STEP 3 — Emission factor ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title">Emission factor</h2>
+        <p class="cp-card-sub">
+          CarbonPilot recommends a factor for <strong>{{ state.category|title }}</strong> ({{ scope_label }}).
+          Review the recommended factor or choose another from the library.
+        </p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="step" value="3" />
+          {% if form.emission_factor.errors %}<div class="cp-nonfield-error">{{ form.emission_factor.errors|striptags }}</div>{% endif %}
+          {% if candidates %}
+            <div class="cp-factor-list" role="radiogroup" aria-label="Emission factor">
+              {% for factor in candidates %}
+                <label class="cp-factor">
+                  <input type="radio" name="emission_factor" value="{{ factor.pk }}" {% if form.emission_factor.value == factor.pk|stringformat:'s' %}checked{% endif %} />
+                  <span class="cp-factor-main">
+                    <strong>{{ factor.name }}</strong>
+                    {% if forloop.first %}<span class="cp-recommended-tag"><i data-lucide="sparkles"></i> Recommended</span>{% endif %}
+                    <span class="cp-factor-meta">
+                      <span class="cp-badge cp-badge-{% if factor.scope == 'SCOPE_1' %}scope1{% elif factor.scope == 'SCOPE_2' %}scope2{% else %}scope3{% endif %}">{{ factor.get_scope_display }}</span>
+                      <span>Source: {{ factor.effective.source|default:"—" }}</span>
+                      <span>Region: {{ factor.effective.region }}</span>
+                      <span>Year: {{ factor.effective.year }}</span>
+                      <span class="cp-badge {% if factor.verification_status == 'VERIFIED' %}cp-badge-verified{% elif factor.verification_status == 'DEMO' %}cp-badge-demo{% else %}cp-badge-unverified{% endif %}">{{ factor.get_verification_status_display }}</span>
+                    </span>
+                    {% if factor.effective.methodology %}<span class="cp-factor-meta"><span>{{ factor.effective.methodology|truncatechars:140 }}</span></span>{% endif %}
+                  </span>
+                  <span class="cp-factor-value">
+                    <strong>{{ factor.effective.value|floatformat:"-6" }}</strong>
+                    <small>kg CO2e / {{ factor.effective.unit }}</small>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="cp-empty">
+              <i data-lucide="search-x"></i>
+              <p>No emission factor is available for this category and scope yet.</p>
+              <p class="cp-muted">Ask a company administrator to add one to the emission factor library.</p>
+            </div>
+          {% endif %}
+
+          <div class="cp-actions">
+            <a class="cp-btn cp-btn-outline" href="{% url 'carbon:activity_wizard' %}?step=2"><i data-lucide="arrow-left"></i> Back</a>
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary" type="submit" {% if not candidates %}aria-disabled="true" disabled{% endif %}>Continue <i data-lucide="arrow-right"></i></button>
+          </div>
+        </form>
+      </section>
+
+    {% else %}
+      {# ---------- STEP 4 — Review ---------- #}
+      <section class="cp-card">
+        <h2 class="cp-card-title">Review &amp; confirm</h2>
+        <p class="cp-card-sub">Verify the calculation below. CO2e is computed server-side and cannot be edited.</p>
+
+        {% if preview.available %}
+          <div class="cp-calc">
+            <div class="cp-calc-row">
+              <strong>{{ preview.quantity|floatformat:"-4" }} {{ preview.unit }}</strong>
+              <span class="cp-calc-op">×</span>
+              <strong>{{ preview.factor_attrs.value|floatformat:"-6" }} kg CO2e / {{ preview.factor_attrs.unit }}</strong>
+            </div>
+            <div class="cp-calc-total">
+              <div class="cp-calc-value">{{ preview.co2e_kg|floatformat:2 }} kg CO2e</div>
+              <div class="cp-calc-sub">= {{ preview.co2e_tonnes|floatformat:2 }} tCO2e</div>
+            </div>
+          </div>
+          <div class="cp-summary" style="margin-top:20px">
+            <div class="cp-summary-item"><span>Category</span><strong>{{ state.category|title }}</strong></div>
+            <div class="cp-summary-item"><span>Scope</span><strong>{{ preview.factor.get_scope_display }}</strong></div>
+            <div class="cp-summary-item"><span>Reporting period</span><strong>{% if state.period_end %}{{ state.period_start }} → {{ state.period_end }}{% else %}{{ state.period_start }}{% endif %}</strong></div>
+            <div class="cp-summary-item"><span>Emission factor</span><strong>{{ preview.factor.name }}</strong></div>
+            <div class="cp-summary-item"><span>Factor source</span><strong>{{ preview.factor.source|default:"—" }}</strong></div>
+            <div class="cp-summary-item"><span>Factor year</span><strong>{{ preview.factor.year }}</strong></div>
+          </div>
+        {% else %}
+          <div class="cp-nonfield-error">{{ preview.message }}</div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" novalidate style="margin-top:24px">
+          {% csrf_token %}
+          <input type="hidden" name="step" value="4" />
+          <div class="cp-field-grid">
+            <div class="cp-field">
+              <label for="{{ form.data_source.id_for_label }}">Data source <span class="cp-muted">(optional)</span></label>
+              {{ form.data_source }}
+              <span class="cp-hint">Where the raw data comes from: invoice, meter reading, supplier report…</span>
+              {% if form.data_source.errors %}<span class="cp-error">{{ form.data_source.errors|striptags }}</span>{% endif %}
+            </div>
+            <div class="cp-field">
+              <label for="{{ form.evidence.id_for_label }}">Evidence / document <span class="cp-muted">(optional)</span></label>
+              <div class="cp-dropzone">
+                {{ form.evidence }}
+                <span class="cp-hint">Electricity invoice, fuel receipt, meter reading, supplier document.</span>
+              </div>
+              {% if form.evidence.errors %}<span class="cp-error">{{ form.evidence.errors|striptags }}</span>{% endif %}
+            </div>
+          </div>
+
+          <div class="cp-actions">
+            <a class="cp-btn cp-btn-outline" href="{% url 'carbon:activity_wizard' %}?step=3"><i data-lucide="arrow-left"></i> Back</a>
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-ghost" type="submit" name="action" value="draft" {% if not preview.available %}disabled{% endif %}><i data-lucide="save"></i> Save draft</button>
+            <button class="cp-btn cp-btn-primary" type="submit" name="action" value="submit" {% if not preview.available %}disabled{% endif %}><i data-lucide="send"></i> Submit for review</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}

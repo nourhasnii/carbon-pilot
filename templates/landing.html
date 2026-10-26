@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f8fafc" />
+    <meta name="description" content="CarbonPilot turns carbon data into predictive ESG intelligence with enterprise carbon management, AI analytics and board-ready reporting." />
+    <title>CarbonPilot | Predictive ESG Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.468.0/lucide.min.css" />
+    <link rel="stylesheet" href="{% static 'css/landing-page.css' %}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="{% static 'js/landing-page.js' %}" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="CarbonPilot home">
+          <span class="brand-mark"><i data-lucide="chart-no-axes-combined"></i></span>
+          <span>CarbonPilot</span>
+        </a>
+
+        <button class="menu-toggle icon-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="site-navigation">
+          <i data-lucide="menu"></i>
+        </button>
+
+        <nav class="main-nav" id="site-navigation" aria-label="Main navigation">
+          <a href="#platform">Platform</a>
+          <a href="#features">Features</a>
+          <a href="#analytics">Analytics</a>
+          <a href="#how-it-works">How it Works</a>
+          <a href="#reporting">ESG Reporting</a>
+          <a href="#about">About Us</a>
+          <div class="mobile-nav-actions">
+            <a class="button button-outline" href="/login/">Log in</a>
+            <button class="button button-primary" type="button" data-open-demo>Request a Demo <i data-lucide="arrow-up-right"></i></button>
+          </div>
+        </nav>
+
+        <div class="header-actions">
+          <a class="login-link" href="/login/">Log in</a>
+          <button class="button button-primary button-small" type="button" data-open-demo>Request a Demo <i data-lucide="arrow-up-right"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="platform">
+        <div class="hero-grid-pattern" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-one" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-two" aria-hidden="true"></div>
+        <div class="shell hero-layout">
+          <div class="hero-copy reveal">
+            <span class="eyebrow"><i data-lucide="sparkles"></i> AI-Powered ESG Intelligence</span>
+            <h1>Turn Carbon Data Into <span class="gradient-text">Predictive ESG Intelligence.</span></h1>
+            <p class="hero-description">Centralize emissions, predict sustainability performance, manage ESG risks and turn environmental data into strategic decisions.</p>
+            <div class="hero-actions">
+              <button class="button button-primary button-large" type="button" data-open-demo>Request a Demo <i data-lucide="arrow-right"></i></button>
+              <a class="button button-quiet button-large" href="#features">Explore Platform <i data-lucide="play"></i></a>
+            </div>
+            <ul class="hero-checks" aria-label="Platform capabilities">
+              <li><i data-lucide="circle-check"></i> Carbon Management</li>
+              <li><i data-lucide="circle-check"></i> AI Analytics</li>
+              <li><i data-lucide="circle-check"></i> ESG Reporting</li>
+            </ul>
+            <div class="hero-proof"><span class="proof-avatars" aria-hidden="true"><b>ES</b><b>CO</b><b>AI</b></span><span>One clear view of your ESG performance</span></div>
+          </div>
+
+          <div class="hero-visual reveal reveal-late">
+            <div class="dashboard-preview" aria-label="CarbonPilot dashboard preview, demo data">
+              <div class="preview-topbar">
+                <div class="preview-brand"><span class="preview-brand-icon"><i data-lucide="chart-no-axes-combined"></i></span><strong>CarbonPilot</strong></div>
+                <div class="preview-period"><span class="online-dot"></span> Q1 2026 <i data-lucide="chevron-down"></i></div>
+                <div class="preview-avatar" aria-label="Demo profile">NP</div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-heading"><div><span class="preview-kicker">PORTFOLIO OVERVIEW</span><h2>ESG Overview</h2></div><span class="demo-label">DEMO DATA</span></div>
+                <div class="preview-kpis">
+                  <article class="preview-kpi"><span class="kpi-icon kpi-blue"><i data-lucide="shield-check"></i></span><span class="kpi-label">Risk Score</span><strong>32 <small>/ 100</small></strong><span class="kpi-note positive-note">Low risk</span></article>
+                  <article class="preview-kpi"><span class="kpi-icon kpi-green"><i data-lucide="target"></i></span><span class="kpi-label">Objective Achievement</span><strong>78<small>%</small></strong><span class="kpi-note">+6.2% this quarter</span></article>
+                  <article class="preview-kpi"><span class="kpi-icon kpi-cyan"><i data-lucide="lightbulb"></i></span><span class="kpi-label">Recommendations</span><strong>24</strong><span class="kpi-note">8 ready to review</span></article>
+                </div>
+                <div class="preview-chart-card">
+                  <div class="chart-heading"><div><strong>Emissions &amp; Target</strong><span>Monthly performance · tCO₂e</span></div><button class="chart-menu" type="button" aria-label="More chart options"><i data-lucide="ellipsis"></i></button></div>
+                  <div class="chart-legend"><span><i class="legend-dot actual-dot"></i>Actual Emissions</span><span><i class="legend-line target-line"></i>Target</span></div>
+                  <div class="chart-frame hero-chart-frame"><canvas id="heroEmissionsChart" role="img" aria-label="Demo emissions and target chart"></canvas></div>
+                </div>
+                <div class="preview-bottom">
+                  <article class="insight-card"><span class="insight-icon"><i data-lucide="sparkles"></i></span><div><span class="insight-label">AI RECOMMENDATION</span><strong>Reduce electricity use in Production by 8%.</strong><span class="insight-meta">Potential impact · 186 tCO₂e</span></div><i class="insight-arrow" data-lucide="arrow-up-right"></i></article>
+                  <article class="risk-card"><span class="risk-icon"><i data-lucide="shield-check"></i></span><span><small>RISK ASSESSMENT</small><strong>Low Risk</strong></span><span class="risk-score">32</span></article>
+                </div>
+              </div>
+            </div>
+            <div class="float-note float-note-top"><span class="float-note-icon"><i data-lucide="trending-down"></i></span><span><small>Emissions this quarter</small><strong>↓ 8.4%</strong></span></div>
+            <div class="float-note float-note-bottom"><span class="float-note-icon float-note-blue"><i data-lucide="badge-check"></i></span><span><small>Reporting status</small><strong>On track</strong></span></div>
+          </div>
+        </div>
+        <a class="hero-scroll" href="#platform-pillars" aria-label="Scroll to platform overview"><span></span></a>
+      </section>
+
+      <section class="pillars-section" id="platform-pillars">
+        <div class="shell">
+          <div class="section-intro compact-intro reveal"><span class="eyebrow eyebrow-muted">A clearer picture</span><h2>Everything you need to manage ESG performance.</h2></div>
+          <div class="pillar-grid">
+            <article class="pillar reveal"><span class="pillar-number">01</span><span class="icon-tile tile-green"><i data-lucide="leaf"></i></span><div><h3>Carbon Data</h3><p>One reliable emissions baseline.</p></div><i class="pillar-arrow" data-lucide="arrow-up-right"></i></article>
+            <article class="pillar reveal"><span class="pillar-number">02</span><span class="icon-tile tile-blue"><i data-lucide="chart-no-axes-combined"></i></span><div><h3>AI Analytics</h3><p>See patterns and what comes next.</p></div><i class="pillar-arrow" data-lucide="arrow-up-right"></i></article>
+            <article class="pillar reveal"><span class="pillar-number">03</span><span class="icon-tile tile-cyan"><i data-lucide="shield-alert"></i></span><div><h3>Risk Intelligence</h3><p>Prioritize exposure and action.</p></div><i class="pillar-arrow" data-lucide="arrow-up-right"></i></article>
+            <article class="pillar reveal"><span class="pillar-number">04</span><span class="icon-tile tile-violet"><i data-lucide="file-text"></i></span><div><h3>ESG Reporting</h3><p>Make performance decision-ready.</p></div><i class="pillar-arrow" data-lucide="arrow-up-right"></i></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section features-section" id="features">
+        <div class="shell">
+          <div class="section-heading reveal"><div><span class="eyebrow">One connected platform</span><h2>One platform.<br /><span class="heading-muted">Complete ESG intelligence.</span></h2></div><p>Move from disconnected spreadsheets to a shared operating picture for sustainability performance.</p></div>
+          <div class="feature-grid">
+            <article class="feature-card reveal"><span class="icon-tile tile-green"><i data-lucide="leaf"></i></span><h3>Carbon Management</h3><p>Track operational emissions across sites, teams and reporting scopes.</p><ul><li>Scope 1, 2 &amp; 3 tracking</li><li>Department-level insights</li><li>Centralized activity data</li></ul><a class="round-arrow" href="#analytics" aria-label="Explore Carbon Management"><i data-lucide="arrow-up-right"></i></a></article>
+            <article class="feature-card reveal"><span class="icon-tile tile-blue"><i data-lucide="building-2"></i></span><h3>Enterprise Management</h3><p>Connect sustainability activity to the teams accountable for progress.</p><ul><li>Company and site hierarchy</li><li>Teams and responsibilities</li><li>Role-based access</li></ul><a class="round-arrow" href="#about" aria-label="Explore Enterprise Management"><i data-lucide="arrow-up-right"></i></a></article>
+            <article class="feature-card reveal"><span class="icon-tile tile-amber"><i data-lucide="target"></i></span><h3>Objectives &amp; Alerts</h3><p>Turn commitments into visible, measurable operating goals.</p><ul><li>Reduction objectives</li><li>Progress monitoring</li><li>Performance alerts</li></ul><a class="round-arrow" href="#how-it-works" aria-label="Explore Objectives and Alerts"><i data-lucide="arrow-up-right"></i></a></article>
+            <article class="feature-card reveal"><span class="icon-tile tile-cyan"><i data-lucide="users-round"></i></span><h3>Employee Engagement</h3><p>Give every team a clear role in organization-wide progress.</p><ul><li>Team-level contributions</li><li>Shared action ownership</li><li>Progress visibility</li></ul><a class="round-arrow" href="#about" aria-label="Explore Employee Engagement"><i data-lucide="arrow-up-right"></i></a></article>
+            <article class="feature-card feature-card-highlight reveal"><span class="feature-glow" aria-hidden="true"></span><span class="icon-tile tile-violet"><i data-lucide="brain-circuit"></i></span><span class="feature-tag">INTELLIGENCE LAYER</span><h3>Predictive Analytics</h3><p>Move beyond historical reporting with signals that help teams act earlier.</p><ul><li>Anomaly detection</li><li>Performance forecasts</li><li>AI recommendations</li></ul><a class="round-arrow" href="#analytics" aria-label="Explore Predictive Analytics"><i data-lucide="arrow-up-right"></i></a><div class="feature-spark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="analytics-section" id="analytics">
+        <div class="shell analytics-layout">
+          <div class="analytics-copy reveal"><span class="eyebrow eyebrow-dark"><i data-lucide="sparkles"></i> Intelligence, in context</span><h2>Don't just measure.<br /><span class="gradient-text">Predict what's next.</span></h2><p>CarbonPilot combines your operating data with AI-assisted analysis to make emerging issues and promising actions easier to see.</p>
+            <div class="analytics-metrics"><article class="analytics-metric"><span class="metric-mark mark-orange"><i data-lucide="scan-search"></i></span><small>Anomaly Detection</small><strong>3 <em>signals</em></strong></article><article class="analytics-metric"><span class="metric-mark mark-blue"><i data-lucide="chart-no-axes-combined"></i></span><small>Prediction</small><strong>78<em>% probability</em></strong></article><article class="analytics-metric"><span class="metric-mark mark-green"><i data-lucide="shield-check"></i></span><small>Risk Score</small><strong>32 <em>/ 100</em></strong></article></div>
+            <a class="text-link" href="#reporting">See how insights become action <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="analytics-dashboard reveal reveal-late">
+            <div class="analytics-dashboard-head"><div><span class="dashboard-overline">PREDICTIVE ANALYSIS</span><h3>Emissions trajectory</h3><p>Actual performance and projected target · demo data</p></div><button class="period-select" type="button">2026 <i data-lucide="chevron-down"></i></button></div>
+            <div class="analytics-chart-legend"><span><i class="legend-dot actual-dot"></i>Actual emissions</span><span><i class="legend-line forecast-line"></i>Forecast</span><span><i class="legend-line target-line"></i>Target</span></div>
+            <div class="chart-frame analytics-chart-frame"><canvas id="forecastChart" role="img" aria-label="Demo emissions forecast chart"></canvas></div>
+            <div class="chart-footnote"><span><i data-lucide="info"></i> Forecast based on current activity trends</span><span class="confidence"><i data-lucide="circle-check"></i> 78% confidence</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section process-section" id="how-it-works">
+        <div class="shell">
+          <div class="section-intro reveal"><span class="eyebrow">A practical workflow</span><h2>From raw data to real progress.</h2><p>Bring your sustainability workflow into focus, one step at a time.</p></div>
+          <div class="process-grid"><div class="process-track" aria-hidden="true"><span></span></div>
+            <article class="process-step reveal"><span class="step-index">01</span><span class="icon-tile tile-green"><i data-lucide="database"></i></span><h3>Collect</h3><p>Bring emissions and activity data together across your organization.</p></article>
+            <article class="process-step reveal"><span class="step-index">02</span><span class="icon-tile tile-blue"><i data-lucide="chart-no-axes-combined"></i></span><h3>Analyze</h3><p>Understand performance by scope, team, site and time period.</p></article>
+            <article class="process-step reveal"><span class="step-index">03</span><span class="icon-tile tile-violet"><i data-lucide="brain-circuit"></i></span><h3>Predict</h3><p>Surface anomalies, likely outcomes and high-impact opportunities.</p></article>
+            <article class="process-step reveal"><span class="step-index">04</span><span class="icon-tile tile-cyan"><i data-lucide="move-up-right"></i></span><h3>Act</h3><p>Align teams around actions and track progress against objectives.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="reporting-section" id="reporting">
+        <div class="shell reporting-layout">
+          <div class="report-art reveal" aria-label="Preview of a CarbonPilot ESG report, demo data">
+            <div class="report-shadow-sheet"></div>
+            <article class="report-document"><div class="report-doc-top"><span class="report-logo"><i data-lucide="chart-no-axes-combined"></i> CarbonPilot</span><span>Q1 2026 · DEMO</span></div><div class="report-title"><span>ESG PERFORMANCE REPORT</span><h3>Impact, made<br />visible.</h3><p>Quarterly portfolio overview</p></div><div class="report-cover-chart"><div class="report-chart-heading"><span>Emissions by month</span><strong>-8.4% <i data-lucide="trending-down"></i></strong></div><div class="report-bars" aria-hidden="true"><i style="--bar-height: 68%"></i><i style="--bar-height: 83%"></i><i style="--bar-height: 58%"></i><i style="--bar-height: 76%"></i><i style="--bar-height: 49%"></i><i style="--bar-height: 63%"></i><i style="--bar-height: 40%"></i><i style="--bar-height: 55%"></i><i style="--bar-height: 34%"></i><i style="--bar-height: 46%"></i></div><div class="report-months"><span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span></div></div><div class="report-doc-footer"><span>CONFIDENTIAL · CARBONPILOT</span><span>01 / 12</span></div></article>
+            <div class="report-stamp"><i data-lucide="badge-check"></i><span>READY TO<br />SHARE</span></div>
+          </div>
+          <div class="reporting-copy reveal reveal-late"><span class="eyebrow">Reporting that moves work forward</span><h2>From raw data to <span class="heading-muted">board-ready ESG reporting.</span></h2><p>Bring performance, objectives and emerging risks into a clear view for leaders, investors and the teams delivering change.</p><ul class="report-checklist"><li><i data-lucide="circle-check"></i> Emission performance</li><li><i data-lucide="circle-check"></i> Objectives and progress</li><li><i data-lucide="circle-check"></i> AI predictions</li><li><i data-lucide="circle-check"></i> Risk assessment</li><li><i data-lucide="circle-check"></i> Recommended actions</li></ul><a class="button button-dark" href="#features">Explore ESG Reporting <i data-lucide="arrow-right"></i></a></div>
+        </div>
+      </section>
+
+      <section class="section usecases-section" id="use-cases">
+        <div class="shell">
+          <div class="usecases-heading reveal"><div><span class="eyebrow">Across your value chain</span><h2>Built for modern organizations.</h2><p>Different operations. One clearer view of impact.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-prev aria-label="Previous organization"><i data-lucide="arrow-left"></i></button><button class="carousel-arrow" type="button" data-carousel-next aria-label="Next organization"><i data-lucide="arrow-right"></i></button></div></div>
+          <div class="usecase-carousel reveal" data-carousel aria-roledescription="carousel" aria-label="CarbonPilot organization use cases">
+            <div class="usecase-track" data-carousel-track>
+              <article class="usecase-slide" aria-label="1 of 5: Manufacturing"><div class="usecase-art art-manufacturing"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-icon"><i data-lucide="factory"></i></span><span class="art-caption">OPERATIONS / 01</span><span class="art-coordinate">51°30' N</span></div><div class="usecase-copy"><span class="usecase-type">INDUSTRIAL OPERATIONS</span><h3>Manufacturing</h3><p>Understand facility emissions, energy use and process-level opportunities across production.</p><div class="usecase-metrics"><span><strong>−16.4%</strong><small>Scope 1 trend</small></span><span><strong>12 sites</strong><small>In one view</small></span><span><strong>Demo data</strong><small>Illustrative metrics</small></span></div></div></article>
+              <article class="usecase-slide" aria-label="2 of 5: Retail"><div class="usecase-art art-retail"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-icon"><i data-lucide="store"></i></span><span class="art-caption">VALUE CHAIN / 02</span><span class="art-coordinate">40°42' N</span></div><div class="usecase-copy"><span class="usecase-type">DISTRIBUTION NETWORKS</span><h3>Retail</h3><p>Connect store operations, suppliers and logistics to understand your distributed footprint.</p><div class="usecase-metrics"><span><strong>−9.1%</strong><small>Site intensity</small></span><span><strong>240 stores</strong><small>In one view</small></span><span><strong>Demo data</strong><small>Illustrative metrics</small></span></div></div></article>
+              <article class="usecase-slide" aria-label="3 of 5: Technology"><div class="usecase-art art-technology"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-icon"><i data-lucide="microchip"></i></span><span class="art-caption">DIGITAL INFRASTRUCTURE / 03</span><span class="art-coordinate">37°46' N</span></div><div class="usecase-copy"><span class="usecase-type">DIGITAL INFRASTRUCTURE</span><h3>Technology</h3><p>Bring cloud, workplace and supplier impact into a consistent performance picture.</p><div class="usecase-metrics"><span><strong>+18%</strong><small>Efficiency trend</small></span><span><strong>3 scopes</strong><small>In one view</small></span><span><strong>Demo data</strong><small>Illustrative metrics</small></span></div></div></article>
+              <article class="usecase-slide" aria-label="4 of 5: Finance"><div class="usecase-art art-finance"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-icon"><i data-lucide="landmark"></i></span><span class="art-caption">PORTFOLIO / 04</span><span class="art-coordinate">48°51' N</span></div><div class="usecase-copy"><span class="usecase-type">PORTFOLIO INTELLIGENCE</span><h3>Finance</h3><p>Review portfolio exposure and sustainability signals with a consistent risk lens.</p><div class="usecase-metrics"><span><strong>32 / 100</strong><small>Demo risk score</small></span><span><strong>86%</strong><small>Coverage trend</small></span><span><strong>Demo data</strong><small>Illustrative metrics</small></span></div></div></article>
+              <article class="usecase-slide" aria-label="5 of 5: Logistics"><div class="usecase-art art-logistics"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-icon"><i data-lucide="truck"></i></span><span class="art-caption">MOVEMENT / 05</span><span class="art-coordinate">52°22' N</span></div><div class="usecase-copy"><span class="usecase-type">TRANSPORT &amp; LOGISTICS</span><h3>Logistics</h3><p>Spot transport intensity trends and prioritize practical fleet and route improvements.</p><div class="usecase-metrics"><span><strong>−12.8%</strong><small>Fleet trend</small></span><span><strong>4 regions</strong><small>In one view</small></span><span><strong>Demo data</strong><small>Illustrative metrics</small></span></div></div></article>
+            </div>
+          </div>
+          <div class="carousel-footer"><div class="carousel-dots" role="group" aria-label="Choose organization slide"><button type="button" class="carousel-dot is-active" aria-label="Show Manufacturing" aria-current="true"></button><button type="button" class="carousel-dot" aria-label="Show Retail"></button><button type="button" class="carousel-dot" aria-label="Show Technology"></button><button type="button" class="carousel-dot" aria-label="Show Finance"></button><button type="button" class="carousel-dot" aria-label="Show Logistics"></button></div><span class="demo-disclaimer"><i data-lucide="info"></i> Metrics shown are illustrative demo data.</span></div>
+        </div>
+      </section>
+
+      <section class="section about-section" id="about">
+        <div class="shell about-layout"><div class="about-copy reveal"><span class="eyebrow">About CarbonPilot</span><h2>Built for the next generation of sustainable businesses.</h2><p>We believe sustainability teams deserve more than disconnected spreadsheets. CarbonPilot helps organizations connect reliable data, clear analysis and accountable action in a single ESG workspace.</p><a class="text-link" href="#how-it-works">A better way to make progress <i data-lucide="arrow-right"></i></a></div><div class="values-grid"><article class="value-card reveal"><span class="value-number">01</span><span class="icon-tile tile-blue"><i data-lucide="database"></i></span><h3>Data-driven</h3><p>Decisions grounded in connected, traceable information.</p></article><article class="value-card reveal"><span class="value-number">02</span><span class="icon-tile tile-violet"><i data-lucide="sparkles"></i></span><h3>AI-powered</h3><p>Intelligence that helps teams focus on what matters.</p></article><article class="value-card reveal"><span class="value-number">03</span><span class="icon-tile tile-green"><i data-lucide="shield-check"></i></span><h3>ESG-ready</h3><p>Enterprise workflows designed around sustainability goals.</p></article></div></div>
+      </section>
+
+      <section class="final-cta-section">
+        <div class="cta-data-lines" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><i></i><i></i><i></i></div>
+        <div class="shell final-cta reveal"><div><span class="cta-eyebrow"><i data-lucide="orbit"></i> Make your next move count</span><h2>Ready to turn sustainability data into strategic action?</h2><p>Build a more connected view of performance, risk and opportunity.</p></div><button class="button button-light button-large" type="button" data-open-demo>Request a Demo <i data-lucide="arrow-right"></i></button></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-main"><div class="footer-brand-column"><a class="brand footer-brand" href="/" aria-label="CarbonPilot home"><span class="brand-mark"><i data-lucide="chart-no-axes-combined"></i></span><span>CarbonPilot</span></a><p>Turn carbon data into predictive ESG intelligence for a more sustainable future.</p><div class="social-links"><a href="#about" aria-label="LinkedIn"><i data-lucide="linkedin"></i></a><a href="#about" aria-label="X"><i data-lucide="at-sign"></i></a><a href="#about" aria-label="GitHub"><i data-lucide="github"></i></a></div></div>
+        <div class="footer-column"><h3>Platform</h3><a href="#platform">Overview</a><a href="#analytics">Analytics</a><a href="#analytics">Predictions</a><a href="#analytics">Risk Assessment</a><a href="#reporting">ESG Reports</a></div>
+        <div class="footer-column"><h3>Company</h3><a href="#about">About</a><a href="mailto:hello@carbonpilot.example">Contact</a></div>
+        <div class="footer-column"><h3>Resources</h3><a href="#features">Documentation</a><a href="#features">API</a><a href="#how-it-works">Guides</a></div>
+        <div class="footer-column"><h3>Legal</h3><a href="#">Privacy</a><a href="#">Terms</a></div>
+      </div><div class="shell footer-bottom"><span>© 2026 CarbonPilot. All rights reserved.</span><span>Built for measurable progress.</span></div>
+    </footer>
+
+    <div class="demo-modal" id="demoModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="demoModalTitle">
+      <button class="modal-backdrop" type="button" data-close-demo aria-label="Close demo request"></button>
+      <div class="modal-panel"><button class="modal-close icon-button" type="button" data-close-demo aria-label="Close"><i data-lucide="x"></i></button><span class="eyebrow"><i data-lucide="calendar-days"></i> See CarbonPilot in action</span><h2 id="demoModalTitle">Request a Demo</h2><p>Tell us a little about your team and sustainability goals.</p><form class="demo-form"><label>Name<input name="name" autocomplete="name" required /></label><label>Work email<input name="email" type="email" autocomplete="email" required /></label><label>Company<input name="company" autocomplete="organization" required /></label><label>What would you like to measure?<textarea name="message" rows="3"></textarea></label><button class="button button-primary" type="submit">Send request <i data-lucide="arrow-right"></i></button><p class="form-note" role="status" aria-live="polite"></p></form></div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,215 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}AI completeness coach{% endblock %}
+{% block eyebrow %}ESG intelligence hub{% endblock %}
+{% block heading %}AI completeness coach{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'esg:dashboard' %}"><i data-lucide="arrow-left"></i> Dashboard</a>
+  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:indicator_list' %}"><i data-lucide="list"></i> Indicator catalog</a>
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'esg:coach_run' %}" data-ai-action data-ai-label="Coaching…">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ period_year|default:'' }}">
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Run AI coach</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout">
+    <i data-lucide="info"></i>
+    <span>
+      CarbonPilot computes every score and gap from your own data. The local <strong>Qwen</strong> model only
+      <strong>prioritises</strong> those gaps and explains what to do next — it never invents KPIs, measurements
+      or compliance claims. The deterministic dashboard works with or without AI.
+    </span>
+  </div>
+
+  <form method="get" class="cp-card" style="margin-top:20px">
+    <div class="cp-field-grid">
+      <div class="cp-field">
+        <label for="year">Reporting period</label>
+        <select class="field-input" id="year" name="year">
+          <option value="">Latest period with data</option>
+          {% for y in years %}<option value="{{ y }}" {% if period_year|stringformat:"s" == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label aria-hidden="true">&nbsp;</label>
+        <div class="cp-row">
+          <button class="cp-btn cp-btn-outline" type="submit"><i data-lucide="filter"></i> Apply</button>
+          <a class="cp-btn cp-btn-ghost" href="{% url 'esg:coach' %}">Reset</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Current completeness</h2>
+      <p class="cp-card-sub cp-mt-0">The factual baseline the coach reasons from — {{ period_year }}</p>
+      <div class="cp-hbars">
+        <div class="cp-hbar-link" style="cursor:default">
+          <div class="cp-hbar-head">
+            <strong>Overall data completeness</strong>
+            <span>{{ result.overall_score|floatformat:2 }} / 100</span>
+          </div>
+          <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ result.overall_score|floatformat:0 }}%"></span></div>
+        </div>
+        {% for row in pillar_rows %}
+          <div class="cp-hbar-link" style="cursor:default">
+            <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.score|floatformat:1 }}%</span></div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.score|floatformat:0 }}%"></span></div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="cp-row" style="margin-top:14px">
+        <span class="cp-badge {{ readiness_badge }}">{{ readiness_label }}</span>
+        <span class="cp-badge cp-badge-neutral">{{ gaps_total }} gap{{ gaps_total|pluralize }}</span>
+      </div>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">How to read this page</h2>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:8px;font-size:0.88rem">
+        <li>Everything under <strong>Current completeness</strong> is a verified fact computed by Django.</li>
+        <li>Everything under <span class="cp-badge cp-badge-approved">AI · QWEN</span> is an <strong>AI suggestion</strong>, grounded in those facts but not guaranteed.</li>
+        <li>A recommended indicator only becomes a draft when <strong>you confirm it</strong> and supply its unit.</li>
+        <li>If Ollama is unavailable, the dashboard and every score keep working.</li>
+      </ul>
+    </section>
+  </div>
+
+  {% if coach %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">ESG completeness coaching</h2>
+          <p class="cp-card-sub cp-mt-0">
+            Model {{ coach.model|default:"qwen2.5:7b" }}
+            {% if coach.generated_at_display %}· {{ coach.generated_at_display }}{% endif %}
+          </p>
+        </div>
+        <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · QWEN</span>
+      </div>
+
+      {% if not coach.ai_available %}
+        <div class="cp-callout is-warning">
+          <i data-lucide="alert-triangle"></i>
+          <span>{{ coach.message }}</span>
+        </div>
+      {% else %}
+        {% if coach.message %}<p class="cp-muted" style="font-size:0.84rem">{{ coach.message }}</p>{% endif %}
+
+        {% if coach.executive_summary %}
+          <h3 class="cp-card-title" style="font-size:0.95rem">Executive summary</h3>
+          <div class="cp-callout" style="display:block;margin-top:8px;white-space:pre-wrap">{{ coach.executive_summary }}</div>
+        {% endif %}
+
+        <h3 class="cp-card-title" style="font-size:0.95rem;margin-top:22px">
+          Priority gaps <span class="cp-badge cp-badge-neutral">{{ coach.priority_gaps|length }}</span>
+        </h3>
+        {% if coach.priority_gaps %}
+          <div class="cp-grid cp-grid-2" style="gap:14px;margin-top:10px">
+            {% for gap in coach.priority_gaps %}
+              <article class="cp-callout" style="display:block">
+                <div class="cp-row" style="gap:8px;flex-wrap:wrap">
+                  <span class="cp-badge {% if gap.priority == 'HIGH' %}cp-badge-sev-high{% elif gap.priority == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ gap.priority }}</span>
+                  <span class="cp-badge cp-badge-neutral">{{ gap.pillar_label }}</span>
+                </div>
+                <strong style="display:block;margin-top:8px">{{ gap.issue }}</strong>
+                <p style="margin:6px 0 0;font-size:0.84rem">{{ gap.explanation }}</p>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cp-empty"><i data-lucide="check-circle-2"></i><p>The coach found no priority gap in your data.</p></div>
+        {% endif %}
+
+        <h3 class="cp-card-title" style="font-size:0.95rem;margin-top:22px">
+          Recommended indicators <span class="cp-badge cp-badge-neutral">{{ coach.recommended_indicators|length }}</span>
+        </h3>
+        {% if coach.recommended_indicators %}
+          <div class="cp-grid cp-grid-2" style="gap:14px;margin-top:10px">
+            {% for item in coach.recommended_indicators %}
+              <article class="cp-callout" style="display:block">
+                <div class="cp-row" style="gap:8px;flex-wrap:wrap">
+                  <strong>{{ item.name }}</strong>
+                  <span class="cp-badge cp-badge-neutral">{{ item.pillar_label }}</span>
+                </div>
+                <p style="margin:8px 0 0;font-size:0.84rem">{{ item.justification }}</p>
+
+                {% if can_manage %}
+                  <details style="margin-top:12px">
+                    <summary class="cp-btn cp-btn-outline cp-btn-sm"><i data-lucide="plus"></i> Adopt as a draft indicator</summary>
+                    <form method="post" action="{% url 'esg:coach_confirm_recommendation' %}" style="margin-top:12px;display:grid;gap:10px">
+                      {% csrf_token %}
+                      <input type="hidden" name="justification" value="{{ item.justification }}">
+                      <div class="cp-field">
+                        <label for="rec-name-{{ forloop.counter }}">Indicator name</label>
+                        <input class="field-input" type="text" id="rec-name-{{ forloop.counter }}" name="name" value="{{ item.name }}" required>
+                      </div>
+                      <div class="cp-field">
+                        <label for="rec-pillar-{{ forloop.counter }}">Pillar</label>
+                        <select class="field-input" id="rec-pillar-{{ forloop.counter }}" name="pillar">
+                          <option value="ENVIRONMENTAL" {% if item.pillar == 'ENVIRONMENTAL' %}selected{% endif %}>Environmental</option>
+                          <option value="SOCIAL" {% if item.pillar == 'SOCIAL' %}selected{% endif %}>Social</option>
+                          <option value="GOVERNANCE" {% if item.pillar == 'GOVERNANCE' %}selected{% endif %}>Governance</option>
+                        </select>
+                      </div>
+                      <div class="cp-field">
+                        <label for="rec-unit-{{ forloop.counter }}">Measurement unit <span aria-hidden="true">*</span></label>
+                        <input class="field-input" type="text" id="rec-unit-{{ forloop.counter }}" name="unit" placeholder="e.g. tCO2e, MWh, %, hours" required>
+                        <span class="cp-hint">You must supply the unit — CarbonPilot never invents one.</span>
+                      </div>
+                      <label class="cp-row" style="gap:8px;font-size:0.84rem">
+                        <input type="checkbox" name="make_required"> Add to my required-indicator catalog
+                      </label>
+                      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i> Confirm and create draft</button>
+                    </form>
+                  </details>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cp-empty"><i data-lucide="check-circle-2"></i><p>The coach recommends no additional indicator.</p></div>
+        {% endif %}
+
+        <h3 class="cp-card-title" style="font-size:0.95rem;margin-top:22px">
+          Management next steps <span class="cp-badge cp-badge-neutral">{{ coach.management_next_steps|length }}</span>
+        </h3>
+        {% if coach.management_next_steps %}
+          <ol style="margin:10px 0 0 18px;padding:0;display:grid;gap:8px;font-size:0.88rem">
+            {% for step in coach.management_next_steps %}<li>{{ step }}</li>{% endfor %}
+          </ol>
+        {% else %}
+          <div class="cp-empty"><i data-lucide="list"></i><p>No next step was suggested.</p></div>
+        {% endif %}
+
+        <p class="cp-muted" style="margin-top:18px;font-size:0.78rem">
+          AI suggestions are grounded in the facts above but are not verified figures. Confirm any indicator
+          you adopt, and treat every number as coming from CarbonPilot's own data — never from the model.
+        </p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-empty">
+        <i data-lucide="sparkles"></i>
+        <p>No coaching has been run for this reporting period yet.</p>
+        {% if can_run_ai %}
+          <form method="post" action="{% url 'esg:coach_run' %}" data-ai-action data-ai-label="Coaching…">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ period_year|default:'' }}">
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Run AI coach</button>
+          </form>
+          <p class="cp-muted" style="margin-top:8px">The local Qwen model prioritises your gaps and explains next steps.</p>
+        {% else %}
+          <p class="cp-muted">A company owner or ESG reporting manager can run the AI coach.</p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

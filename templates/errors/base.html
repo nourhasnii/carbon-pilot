@@ -1,0 +1,44 @@
+{% load static %}<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{% block title %}Something went wrong{% endblock %} | CarbonPilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{% static 'css/carbon.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/errors.css' %}" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  </head>
+  {# Error pages reuse the authenticated workspace design system (carbon.css). #}
+  {# The 500 page renders without a request context, so nothing here may use request data. #}
+  <body class="cp-carbon">
+    <header class="cp-error-header">
+      <a class="cp-brand" href="{% url 'accounts:dashboard' %}">
+        <span class="cp-brand-mark"><i data-lucide="leaf"></i></span>
+        <span>
+          <strong>CarbonPilot</strong>
+          <small>ESG &amp; carbon management</small>
+        </span>
+      </a>
+    </header>
+
+    <main class="cp-error-wrap">
+      <section class="cp-card cp-error-card" aria-labelledby="cp-error-title">
+        <span class="cp-error-mark {% block tone %}tone-neutral{% endblock %}" aria-hidden="true"><i data-lucide="{% block icon %}alert-triangle{% endblock %}"></i></span>
+        <p class="cp-error-code"><span class="cp-sr-only">Error </span>{% block code %}{% endblock %}</p>
+        <h1 class="cp-error-title" id="cp-error-title">{% block heading %}{% endblock %}</h1>
+        <p class="cp-error-text">{% block message %}{% endblock %}</p>
+        <div class="cp-error-actions">
+          <a class="cp-btn cp-btn-primary" href="{% url 'accounts:dashboard' %}"><i data-lucide="layout-dashboard"></i> Back to dashboard</a>
+          <a class="cp-btn cp-btn-ghost" href="/"><i data-lucide="home"></i> Back to home</a>
+        </div>
+      </section>
+      <p class="cp-error-footnote">{% block footnote %}If the problem persists, contact your workspace administrator.{% endblock %}</p>
+    </main>
+
+    <script>window.lucide && window.lucide.createIcons();</script>
+  </body>
+</html>

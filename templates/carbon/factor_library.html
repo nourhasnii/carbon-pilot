@@ -1,0 +1,138 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Emission Factor Library{% endblock %}
+{% block eyebrow %}Reference library{% endblock %}
+{% block heading %}Emission Factor Library{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_manage_factors %}
+    <a class="cp-btn cp-btn-primary" href="{% url 'carbon:factor_create' %}"><i data-lucide="plus"></i> Add emission factor</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total factors</div>
+      <div class="cp-kpi-value">{{ total }}</div>
+      <div class="cp-kpi-sub">Available in this library</div>
+    </article>
+    <article class="cp-kpi cp-kpi-scope2">
+      <div class="cp-kpi-label">Active</div>
+      <div class="cp-kpi-value">{{ active_count }}</div>
+      <div class="cp-kpi-sub">Selectable for new activities</div>
+    </article>
+    <article class="cp-kpi cp-kpi-scope1">
+      <div class="cp-kpi-label">Inactive</div>
+      <div class="cp-kpi-value">{{ inactive_count }}</div>
+      <div class="cp-kpi-sub">Retained for historical traceability</div>
+    </article>
+  </div>
+
+  <div class="cp-kpi-grid" style="margin-top:12px">
+    {% for item in scope_metrics %}
+      <article class="cp-kpi"><div class="cp-kpi-label">{{ item.label }}</div><div class="cp-kpi-value">{{ item.count }}</div></article>
+    {% endfor %}
+  </div>
+
+  <form class="cp-toolbar" method="get" role="search" style="margin-top:20px">
+    <div class="cp-field">
+      <label for="fl-search">Search</label>
+      <input class="field-input" id="fl-search" name="q" value="{{ selected.q }}" placeholder="Factor name or source" />
+    </div>
+    <div class="cp-field">
+      <label for="fl-category">Category</label>
+      <select class="field-input" id="fl-category" name="category">
+        <option value="">All categories</option>
+        {% for value, label in category_choices %}
+          <option value="{{ value }}" {% if selected.category == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="cp-field">
+      <label for="fl-scope">Scope</label>
+      <select class="field-input" id="fl-scope" name="scope">
+        <option value="">All scopes</option>
+        {% for value, label in scope_choices %}
+          <option value="{{ value }}" {% if selected.scope == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="cp-field">
+      <label for="fl-region">Region</label>
+      <input class="field-input" id="fl-region" name="region" list="region-options" value="{{ selected.region }}" placeholder="e.g. France" />
+    </div>
+    <div class="cp-field">
+      <label for="fl-year">Reference year</label>
+      <select class="field-input" id="fl-year" name="year">
+        <option value="">All years</option>
+        {% for year in years %}<option value="{{ year }}" {% if selected.year == year|stringformat:'s' %}selected{% endif %}>{{ year }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="cp-field">
+      <label for="fl-status">Status</label>
+      <select class="field-input" id="fl-status" name="status">
+        <option value="">All statuses</option>
+        <option value="ACTIVE" {% if selected.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+        <option value="INACTIVE" {% if selected.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="cp-row">
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="filter"></i> Apply</button>
+      <a class="cp-btn cp-btn-ghost" href="{% url 'carbon:factor_library' %}">Reset</a>
+    </div>
+  </form>
+  <datalist id="region-options">
+    {% for region in regions %}<option value="{{ region }}"></option>{% endfor %}
+  </datalist>
+
+  <section class="cp-card">
+    <h2 class="cp-card-title cp-mt-0">Factors</h2>
+    <p class="cp-card-sub">Values are kilograms of CO2e per factor unit. Demo entries are examples, not official values.</p>
+    {% if factors %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Emission factors</caption>
+          <thead>
+            <tr><th scope="col">Factor</th><th scope="col">Category</th><th scope="col">Scope</th><th scope="col" class="cp-num">Value</th><th scope="col">Region</th><th scope="col">Year</th><th scope="col">Status</th><th scope="col">Source</th><th scope="col">Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for factor in factors %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:factor_detail' factor.pk %}">{{ factor.name }}</a></td>
+                <td>{{ factor.get_category_display }}</td>
+                <td>{% include "carbon/_scope.html" with scope=factor.scope scope_label=factor.get_scope_display %}</td>
+                <td class="cp-num">{{ factor.effective.value|floatformat:6 }} <small>kg / {{ factor.effective.unit }}</small>{% if factor.has_override %}<br><span class="cp-badge cp-badge-demo">Customized</span>{% endif %}</td>
+                <td>{{ factor.effective.region|default:"—" }}</td>
+                <td>{{ factor.effective.year }}</td>
+                <td>
+                  <span class="cp-badge {% if factor.effective_active %}cp-badge-approved{% else %}cp-badge-neutral{% endif %}">{% if factor.effective_active %}ACTIVE{% else %}INACTIVE{% endif %}</span>
+                  {% if factor.is_shared %}<br><span class="cp-badge cp-badge-neutral">Shared</span>{% endif %}
+                </td>
+                <td>{{ factor.effective.source|default:"—" }}{% if factor.verification_status == 'DEMO' %}<br><span class="cp-badge cp-badge-demo">Demo / Example</span>{% endif %}</td>
+                <td class="cp-actions-col">
+                  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:factor_detail' factor.pk %}"><i data-lucide="eye"></i> View details</a>
+                  {% if factor.can_edit %}
+                    <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:factor_edit' factor.pk %}"><i data-lucide="pencil"></i> Edit</a>
+                  {% endif %}
+                  {% if factor.can_toggle %}
+                    <form method="post" action="{% url 'carbon:factor_toggle_status' factor.pk %}" style="display:inline" onsubmit="return confirm('Are you sure you want to {% if factor.effective_active %}deactivate{% else %}activate{% endif %} this factor{% if factor.is_shared %} for your company{% endif %}?');">
+                      {% csrf_token %}
+                      <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit"><i data-lucide="{% if factor.effective_active %}circle-pause{% else %}circle-play{% endif %}"></i> {% if factor.effective_active %}Deactivate{% else %}Activate{% endif %}</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="beaker"></i>
+        <p>No emission factors match these filters.</p>
+        {% if can_manage_factors %}<p><a class="cp-btn cp-btn-outline" href="{% url 'carbon:factor_create' %}"><i data-lucide="plus"></i> Add emission factor</a></p>{% endif %}
+      </div>
+    {% endif %}
+    {% include "partials/pagination.html" with pagination=page %}
+  </section>
+{% endblock %}

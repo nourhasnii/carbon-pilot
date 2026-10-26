@@ -1,0 +1,118 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Suppliers{% endblock %}
+{% block eyebrow %}Supplier sustainability{% endblock %}
+{% block heading %}Suppliers{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'suppliers:supplier_compare' %}"><i data-lucide="git-compare"></i> Compare</a>
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'suppliers:supplier_create' %}"><i data-lucide="plus"></i> Add supplier</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  <datalist id="country-options">
+    {% for value in country_options %}<option value="{{ value }}"></option>{% endfor %}
+  </datalist>
+  <datalist id="category-options">
+    {% for value in category_options %}<option value="{{ value }}"></option>{% endfor %}
+  </datalist>
+
+  {% if priority %}
+    <section class="cp-card" style="margin-bottom:20px">
+      <h2 class="cp-card-title cp-mt-0">Priority suppliers</h2>
+      <p class="cp-card-sub">Ranked by missing ESG documentation, risk level and linked Scope 3 emissions.</p>
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Priority suppliers needing attention</caption>
+          <thead><tr><th scope="col">Supplier</th><th scope="col">Why it needs attention</th><th scope="col" class="cp-num">Scope 3</th><th scope="col" class="cp-num">Priority</th></tr></thead>
+          <tbody>
+            {% for row in priority %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'suppliers:supplier_detail' row.supplier.pk %}">{{ row.supplier.name }}</a></td>
+                <td>
+                  {% for reason in row.reasons %}<span class="cp-badge cp-badge-neutral">{{ reason }}</span> {% endfor %}
+                </td>
+                <td class="cp-num">{{ row.scope3_tonnes|floatformat:2 }} t</td>
+                <td class="cp-num">{{ row.score|floatformat:1 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% include "partials/list_filters.html" with reset_url=request.path %}
+
+  <section class="cp-card">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} supplier{{ pagination.total|pluralize }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Suppliers</caption>
+          <thead>
+            <tr>
+              <th scope="col">Supplier</th><th scope="col">Country</th><th scope="col">Category</th><th scope="col">ESG status</th>
+              <th scope="col">Risk</th><th scope="col" class="cp-num">Docs</th><th scope="col">Active</th>
+              <th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for supplier in pagination.items %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'suppliers:supplier_detail' supplier.pk %}">{{ supplier.name }}</a>
+                  {% if supplier.legal_name %}<div class="cp-muted" style="font-size:0.78rem">{{ supplier.legal_name }}</div>{% endif %}
+                </td>
+                <td>{{ supplier.country }}</td>
+                <td>{{ supplier.category }}</td>
+                <td>{% include "suppliers/_esg_status.html" with status=supplier.esg_status label=supplier.get_esg_status_display %}</td>
+                <td>
+                  {% if supplier.risk_level %}
+                    {% include "risk/_level.html" with level=supplier.risk_level label=supplier.get_risk_level_display %}
+                  {% else %}<span class="cp-muted">Not rated</span>{% endif %}
+                </td>
+                <td class="cp-num">{{ supplier.document_count }}</td>
+                <td>
+                  {% if supplier.is_active %}<span class="cp-badge cp-badge-approved">Active</span>
+                  {% else %}<span class="cp-badge cp-badge-neutral">Inactive</span>{% endif %}
+                </td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'suppliers:supplier_detail' supplier.pk %}" title="View supplier"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage %}
+                      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'suppliers:supplier_edit' supplier.pk %}" title="Edit supplier"><i data-lucide="pencil"></i> Edit</a>
+                      <form method="post" action="{% url 'suppliers:supplier_toggle_active' supplier.pk %}" onsubmit="return confirm('{% if supplier.is_active %}Deactivate{% else %}Activate{% endif %} this supplier?');">
+                        {% csrf_token %}
+                        <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit" title="{% if supplier.is_active %}Deactivate{% else %}Activate{% endif %} supplier">
+                          <i data-lucide="{% if supplier.is_active %}power-off{% else %}power{% endif %}"></i> {% if supplier.is_active %}Deactivate{% else %}Activate{% endif %}
+                        </button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}truck{% endif %}"></i>
+        {% if has_filters %}
+          <p>No suppliers match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No suppliers yet.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'suppliers:supplier_create' %}"><i data-lucide="plus"></i> Add your first supplier</a>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

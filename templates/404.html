@@ -1,0 +1,10 @@
+{% extends "errors/base.html" %}
+
+{# 404 — also used for cross-tenant access, so it must never confirm whether a resource exists. #}
+{% block title %}Page not found{% endblock %}
+{% block tone %}tone-info{% endblock %}
+{% block icon %}compass{% endblock %}
+{% block code %}404{% endblock %}
+{% block heading %}We couldn't find that page{% endblock %}
+{% block message %}The page you're looking for doesn't exist, may have been moved, or isn't available to your workspace.{% endblock %}
+{% block footnote %}Check the address for typos, then head back to your workspace.{% endblock %}

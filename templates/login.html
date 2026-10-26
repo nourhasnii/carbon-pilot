@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Sign in | CarbonPilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}" />
+    <script src="{% static 'js/auth.js' %}" defer></script>
+  </head>
+  <body class="auth-page" data-auth-page="login">
+    <main class="auth-layout">
+      <section class="brand-panel" aria-label="CarbonPilot product overview">
+        <div class="brand-panel-grid" aria-hidden="true"></div>
+        <div class="brand-glow brand-glow-green" aria-hidden="true"></div>
+        <div class="brand-glow brand-glow-blue" aria-hidden="true"></div>
+        <div class="brand-panel-content">
+          <a class="auth-brand" href="/" aria-label="CarbonPilot home"><span class="auth-brand-mark"><i data-lucide="chart-no-axes-combined"></i></span><span>CarbonPilot</span></a>
+          <div class="brand-message">
+            <span class="brand-kicker"><i data-lucide="sparkles"></i> ESG intelligence platform</span>
+            <h1>Turn Carbon Data Into <span>Predictive ESG Intelligence.</span></h1>
+            <p>Measure. Predict. Act.</p>
+          </div>
+
+          <div class="auth-dashboard" aria-label="CarbonPilot product preview with illustrative data">
+            <div class="auth-dash-top"><div><span class="dash-caption">WORKSPACE OVERVIEW</span><strong>ESG performance</strong></div><span class="preview-tag">PREVIEW</span></div>
+            <div class="auth-metrics">
+              <article class="auth-metric"><span class="metric-icon metric-indigo"><i data-lucide="shield-check"></i></span><small>ESG Risk</small><strong>32 <em>/ 100</em></strong><span class="metric-status status-green"><i data-lucide="circle-check"></i> Low Risk</span></article>
+              <article class="auth-metric"><span class="metric-icon metric-green"><i data-lucide="target"></i></span><small>Objective</small><strong>78<em>%</em></strong><span class="metric-status status-green"><i data-lucide="trending-up"></i> On Track</span></article>
+              <article class="auth-metric"><span class="metric-icon metric-cyan"><i data-lucide="brain-circuit"></i></span><small>AI Prediction</small><strong>91<em>%</em></strong><span class="metric-status status-blue"><i data-lucide="sparkles"></i> Confidence</span></article>
+            </div>
+            <div class="auth-chart-card"><div class="auth-chart-heading"><span><strong>Emissions trajectory</strong><small>Actual vs. reduction target · demo data</small></span><span class="chart-period">6 MONTHS <i data-lucide="chevron-down"></i></span></div><div class="auth-chart-legend"><span><i class="legend-actual"></i>Actual</span><span><i class="legend-target"></i>Target</span></div><div class="auth-chart-frame"><canvas id="authEmissionsChart" role="img" aria-label="Illustrative emissions trend"></canvas></div></div>
+            <div class="auth-insights"><div class="auth-insight"><span class="insight-mark insight-ai"><i data-lucide="sparkles"></i></span><span><small>AI RECOMMENDATION</small><strong>Reduce production electricity use by 8%.</strong></span><i class="insight-arrow" data-lucide="arrow-up-right"></i></div><div class="auth-insight"><span class="insight-mark insight-alert"><i data-lucide="triangle-alert"></i></span><span><small>ANOMALY DETECTED</small><strong>Scope 2 activity needs review.</strong></span><i class="insight-arrow" data-lucide="arrow-up-right"></i></div></div>
+          </div>
+          <div class="brand-footnote"><i data-lucide="shield-check"></i> Enterprise-focused access <span>·</span> Demo product data</div>
+        </div>
+        <div class="brand-orbit" aria-hidden="true"><span></span><span></span><i></i><i></i><i></i></div>
+      </section>
+
+      <section class="form-panel">
+        <div class="mobile-brand"><a class="auth-brand" href="/" aria-label="CarbonPilot home"><span class="auth-brand-mark"><i data-lucide="chart-no-axes-combined"></i></span><span>CarbonPilot</span></a><span>ESG intelligence platform</span></div>
+        <div class="form-panel-inner">
+          <a class="back-link" href="/"><i data-lucide="arrow-left"></i> Back to CarbonPilot</a>
+          <div class="form-heading"><span class="form-overline">YOUR WORKSPACE</span><h2>Welcome back</h2><p>Sign in to your CarbonPilot workspace.</p></div>
+
+          {% if messages %}<div class="form-messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+          <form class="auth-form login-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}" />
+            {% for error in form.non_field_errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            <div class="field-group"><label for="login-email">Work email</label><div class="input-shell"><i data-lucide="mail"></i>{{ form.username }}<span class="field-valid-icon"><i data-lucide="circle-check"></i></span></div>{{ form.username.errors }}</div>
+            <div class="field-group"><div class="field-label-row"><label for="login-password">Password</label></div><div class="input-shell"><i data-lucide="lock-keyhole"></i>{{ form.password }}<button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div>{{ form.password.errors }}</div>
+            <div class="form-options"><label class="check-label"><input type="checkbox" name="remember" /><span class="custom-check"><i data-lucide="check"></i></span><span>Remember me</span></label><span class="session-note"><i data-lucide="shield-check"></i> Workspace access</span></div>
+            <button class="submit-button" type="submit">Sign in <i data-lucide="arrow-right"></i></button>
+          </form>
+          <p class="switch-auth">Don't have an account? <a href="/signup/">Create an account</a></p>
+          <div class="security-note"><i data-lucide="shield-check"></i><span><strong>Designed for organization-level workflows.</strong><small>Only approved, active accounts can access CarbonPilot.</small></span></div>
+        </div>
+        <footer class="auth-footer"><span>© 2026 CarbonPilot</span><a href="mailto:hello@carbonpilot.example">Need help?</a></footer>
+      </section>
+    </main>
+  </body>
+</html>

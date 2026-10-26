@@ -1,0 +1,73 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ factor.name }}{% endblock %}
+{% block eyebrow %}Emission Factor Library{% endblock %}
+{% block heading %}{{ factor.name }}{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_edit_factor %}
+    <a class="cp-btn cp-btn-outline" href="{% url 'carbon:factor_edit' factor.pk %}"><i data-lucide="pencil"></i> Edit factor</a>
+  {% endif %}
+  {% if can_toggle_factor %}
+    <form method="post" action="{% url 'carbon:factor_toggle_status' factor.pk %}" onsubmit="return confirm('Are you sure you want to {% if effective_active %}deactivate{% else %}activate{% endif %} this factor{% if factor.is_shared %} for your company{% endif %}?');">
+      {% csrf_token %}
+      <button class="cp-btn {% if effective_active %}cp-btn-ghost{% else %}cp-btn-primary{% endif %}" type="submit"><i data-lucide="{% if effective_active %}circle-pause{% else %}circle-play{% endif %}"></i> {% if effective_active %}Deactivate{% else %}Activate{% endif %}</button>
+    </form>
+  {% endif %}
+  <a class="cp-btn cp-btn-ghost" href="{% url 'carbon:factor_library' %}"><i data-lucide="arrow-left"></i> Library</a>
+{% endblock %}
+
+{% block content %}
+  <section class="cp-card">
+    <div class="cp-row" style="justify-content:space-between">
+      <div>
+        <p class="cp-card-sub cp-mt-0">{{ factor.get_category_display }} · {{ factor.get_scope_display }}</p>
+        <span class="cp-badge {% if effective_active %}cp-badge-approved{% else %}cp-badge-neutral{% endif %}">{% if effective_active %}ACTIVE{% else %}INACTIVE{% endif %}</span>
+        {% if factor.is_shared %}<span class="cp-badge cp-badge-neutral">Shared library</span>{% endif %}
+        {% if has_override %}<span class="cp-badge cp-badge-demo">Customized for your company</span>{% endif %}
+        <span class="cp-badge {% if factor.is_verified %}cp-badge-verified{% elif factor.verification_status == 'DEMO' %}cp-badge-demo{% else %}cp-badge-unverified{% endif %}">{{ factor.get_verification_status_display }}</span>
+      </div>
+      <div class="cp-calc-value">{{ effective.value|floatformat:6 }} <small>kg CO2e / {{ effective.unit }}</small></div>
+    </div>
+    {% if factor.is_shared %}
+      <div class="cp-callout" style="margin-top:18px"><i data-lucide="share-2"></i><span><strong>Shared library factor.</strong> Its platform values are maintained centrally. Editing it changes the values <em>your company</em> uses — other companies keep the shared values. Deactivating it here only affects your company too.</span></div>
+    {% endif %}
+    {% if factor.verification_status == 'DEMO' %}
+      <div class="cp-callout is-warning" style="margin-top:18px"><i data-lucide="triangle-alert"></i><span><strong>Demo / Example factor.</strong> This is not an official emission factor and should not be used for formal reporting.</span></div>
+    {% endif %}
+  </section>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Factor details</h2>
+      <dl class="cp-dl">
+        <div><dt>Factor name</dt><dd>{{ factor.name }}</dd></div>
+        <div><dt>Category</dt><dd>{{ factor.get_category_display }}</dd></div>
+        <div><dt>Scope</dt><dd>{{ factor.get_scope_display }}</dd></div>
+        <div><dt>Factor value</dt><dd>{{ effective.value|floatformat:6 }} kg CO2e / {{ effective.unit }}{% if has_override %} <span class="cp-badge cp-badge-demo">Customized</span>{% endif %}</dd></div>
+        <div><dt>Factor unit</dt><dd>{{ effective.unit }}</dd></div>
+        <div><dt>Country / Region</dt><dd>{{ effective.region|default:"—" }}</dd></div>
+        <div><dt>Reference year</dt><dd>{{ effective.year }}</dd></div>
+        <div><dt>Source</dt><dd>{{ effective.source|default:"—" }}</dd></div>
+        <div><dt>Methodology</dt><dd>{{ effective.methodology|default:"—"|linebreaksbr }}</dd></div>
+        <div><dt>Created by</dt><dd>{% if factor.created_by %}{{ factor.created_by.get_full_name|default:factor.created_by.email }}{% else %}System / imported{% endif %}</dd></div>
+        <div><dt>Created</dt><dd>{{ factor.created_at|date:"d M Y H:i" }}</dd></div>
+        <div><dt>Last updated</dt><dd>{{ factor.updated_at|date:"d M Y H:i" }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Activity usage</h2>
+      <p class="cp-card-sub">Used by <strong>{{ used_count }}</strong> carbon activities visible to you.</p>
+      {% if activities %}
+        <ul class="cp-quality-list">
+          {% for activity in activities %}
+            <li><i data-lucide="activity"></i><span><a href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a><span class="cp-quality-detail"> · {{ activity.get_status_display }} · {{ activity.period_label }}</span></span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="activity"></i><p>No visible activities use this factor yet.</p></div>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

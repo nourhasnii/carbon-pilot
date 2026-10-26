@@ -1,0 +1,33 @@
+{% comment %}
+In-app notification bell for the top bar.
+`nav_notifications` / `nav_unread_count` come from the accounts context processor
+(apps.accounts.context_processors.notifications) and are always scoped to the
+signed-in user, so notifications can never leak across tenants.
+{% endcomment %}
+<details class="cp-notif">
+  <summary aria-label="Notifications" title="Notifications">
+    <i data-lucide="bell"></i>
+    {% if nav_unread_count %}<span class="cp-notif-count">{{ nav_unread_count }}</span>{% endif %}
+  </summary>
+  <div class="cp-notif-panel">
+    <div class="cp-notif-head">
+      <strong>Notifications</strong>
+      {% if nav_unread_count %}
+        <form method="post" action="{% url 'accounts:notifications_mark_read' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="cp-notif-mark" type="submit">Mark all read</button>
+        </form>
+      {% endif %}
+    </div>
+    {% for note in nav_notifications %}
+      <a class="cp-notif-item{% if not note.is_read %} is-unread{% endif %}" href="{{ note.url|default:'#' }}">
+        <span class="cp-notif-title">{{ note.title }}</span>
+        {% if note.message %}<span class="cp-notif-msg">{{ note.message }}</span>{% endif %}
+        <span class="cp-notif-time">{{ note.created_at|date:"M j, H:i" }}</span>
+      </a>
+    {% empty %}
+      <p class="cp-notif-empty">No notifications yet.</p>
+    {% endfor %}
+  </div>
+</details>

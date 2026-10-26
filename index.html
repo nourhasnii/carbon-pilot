@@ -1,0 +1,1803 @@
+{% load static %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CarbonPilot | AI-Powered ESG Intelligence</title>
+    <meta
+      name="description"
+      content="CarbonPilot helps organizations centralize carbon data, predict ESG performance, manage risk, and turn sustainability insights into strategic action."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --bg-strong: #eef4f6;
+        --panel: #ffffff;
+        --panel-soft: #f8fafc;
+        --panel-alt: #f1f5f9;
+        --navy: #0f172a;
+        --navy-soft: #1e293b;
+        --text: #0f172a;
+        --muted: #64748b;
+        --muted-soft: #94a3b8;
+        --border: #e2e8f0;
+        --emerald: #10b981;
+        --emerald-deep: #047857;
+        --blue: #2563eb;
+        --cyan: #06b6d4;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --shadow-soft: 0 18px 38px rgba(15, 23, 42, 0.06);
+        --shadow-strong: 0 30px 70px rgba(15, 23, 42, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      a { text-decoration: none; color: inherit; }
+      img { max-width: 100%; display: block; }
+      button { font: inherit; cursor: pointer; }
+      .container {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+      .section { padding: 90px 0; }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--emerald-deep);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border-radius: 14px;
+        padding: 14px 22px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .btn:hover { transform: translateY(-1px); }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--emerald), var(--emerald-deep));
+        color: white;
+        box-shadow: 0 18px 28px rgba(16, 185, 129, 0.2);
+      }
+      .btn-secondary {
+        background: rgba(255,255,255,0.8);
+        border-color: rgba(148,163,184,0.25);
+        color: var(--navy);
+        box-shadow: var(--shadow-soft);
+      }
+      .btn-ghost {
+        background: transparent;
+        border-color: rgba(148,163,184,0.25);
+        color: var(--navy);
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(18px);
+        background: rgba(248, 250, 252, 0.8);
+        border-bottom: 1px solid rgba(148,163,184,0.2);
+      }
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 80px;
+        gap: 24px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 900;
+        letter-spacing: -0.07em;
+        font-size: clamp(1.7rem, 2vw, 2.5rem);
+      }
+      .brand-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, var(--emerald), var(--emerald-deep));
+        color: white;
+        box-shadow: 0 14px 24px rgba(16,185,129,0.22);
+      }
+      .brand-mark svg { width: 18px; height: 18px; }
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .nav a {
+        position: relative;
+        transition: color 0.2s ease;
+      }
+      .nav a:hover { color: var(--navy); }
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .nav-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        padding: 11px 16px;
+        font-weight: 700;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.25);
+        background: rgba(255,255,255,0.75);
+        color: var(--navy);
+      }
+      .nav-btn.primary {
+        background: linear-gradient(135deg, var(--emerald), var(--emerald-deep));
+        color: white;
+        border-color: transparent;
+      }
+      .mobile-toggle { display: none; }
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 76px 0 52px;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 32%),
+          radial-gradient(circle at right center, rgba(37,99,235,0.08), transparent 32%);
+      }
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 50px;
+        align-items: center;
+      }
+      .hero-copy h1 {
+        margin: 20px 0 18px;
+        font-size: clamp(2.8rem, 6vw, 5rem);
+        line-height: 0.96;
+        letter-spacing: -0.07em;
+      }
+      .highlight {
+        background: linear-gradient(135deg, var(--emerald), var(--blue));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .hero-copy p {
+        max-width: 620px;
+        font-size: 1.08rem;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+      }
+      .checks {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 28px;
+        color: var(--navy);
+        font-weight: 600;
+      }
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--navy-soft);
+      }
+      .check .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--emerald), var(--blue));
+        display: inline-block;
+      }
+      .hero-visual {
+        position: relative;
+        display: flex;
+        justify-content: center;
+      }
+      .mockup-shell {
+        position: relative;
+        width: min(540px, 100%);
+        padding: 20px;
+        border-radius: 28px;
+        background: rgba(255,255,255,0.72);
+        border: 1px solid rgba(148,163,184,0.25);
+        box-shadow: var(--shadow-strong);
+      }
+      .mockup-window {
+        background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.95));
+        border-radius: 20px;
+        padding: 16px 16px 14px;
+        overflow: hidden;
+        position: relative;
+      }
+      .mockup-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        color: rgba(255,255,255,0.85);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .traffic {
+        display: flex;
+        gap: 7px;
+      }
+      .traffic span {
+        width: 10px;
+        height: 10px;
+        display: inline-block;
+        border-radius: 50%;
+      }
+      .traffic span:nth-child(1) { background: #ef4444; }
+      .traffic span:nth-child(2) { background: #f59e0b; }
+      .traffic span:nth-child(3) { background: #10b981; }
+      .mockup-content {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        gap: 14px;
+      }
+      .data-card, .mini-card {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(148,163,184,0.14);
+        border-radius: 16px;
+        padding: 14px;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .metric-card {
+        border-radius: 14px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(148,163,184,0.12);
+        padding: 12px;
+      }
+      .metric-card .kicker {
+        color: rgba(255,255,255,0.7);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .metric-card strong {
+        display: block;
+        margin-top: 8px;
+        color: white;
+        font-size: clamp(1.1rem, 2vw, 2rem);
+        letter-spacing: -0.06em;
+      }
+      .metric-card small {
+        display: block;
+        margin-top: 8px;
+        color: rgba(255,255,255,0.7);
+      }
+      .chart-box {
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(148,163,184,0.12);
+        padding: 12px;
+        margin-top: 12px;
+        height: 150px;
+      }
+      .chart-box canvas { max-height: 120px; }
+      .ai-card {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .ai-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(37,99,235,0.12));
+        color: var(--emerald);
+        display: grid;
+        place-items: center;
+      }
+      .ai-card h4, .mini-card h4 { margin: 0; color: white; }
+      .ai-card p, .mini-card p {
+        margin: 8px 0 0;
+        color: rgba(255,255,255,0.75);
+        line-height: 1.5;
+      }
+      .mini-card {
+        margin-top: 12px;
+      }
+      .badge-float {
+        position: absolute;
+        right: -18px;
+        top: 56px;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 16px;
+        box-shadow: var(--shadow-soft);
+        padding: 12px 14px;
+        min-width: 170px;
+      }
+      .badge-float strong { display: block; }
+      .features-head, .report-head, .about-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 24px;
+        flex-wrap: wrap;
+        margin-bottom: 28px;
+      }
+      .section h2 {
+        margin: 16px 0 0;
+        font-size: clamp(2.2rem, 4vw, 3.2rem);
+        letter-spacing: -0.06em;
+        line-height: 1.07;
+      }
+      .subtext {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+        max-width: 640px;
+        font-size: 1.05rem;
+      }
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .feature-card {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 20px;
+        padding: 24px 18px 20px;
+        box-shadow: var(--shadow-soft);
+      }
+      .feature-icon {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(37,99,235,0.1));
+        color: var(--emerald-deep);
+        margin-bottom: 18px;
+      }
+      .feature-card h3 {
+        margin: 0 0 10px;
+        font-size: 1.12rem;
+      }
+      .feature-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .analytics-wrap {
+        display: grid;
+        grid-template-columns: 0.95fr 1.05fr;
+        gap: 24px;
+        align-items: stretch;
+      }
+      .analytics-panel, .report-panel {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 24px;
+        box-shadow: var(--shadow-soft);
+      }
+      .analytics-panel {
+        padding: 28px 22px;
+      }
+      .analytics-list {
+        display: grid;
+        gap: 14px;
+        margin-top: 24px;
+      }
+      .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid rgba(148,163,184,0.18);
+      }
+      .label { font-weight: 700; color: var(--navy); }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .pill.emerald { background: rgba(16,185,129,0.08); color: var(--emerald-deep); }
+      .pill.blue { background: rgba(37,99,235,0.08); color: var(--blue); }
+      .pill.navy { background: rgba(15,23,42,0.08); color: var(--navy); }
+      .predictive-chart {
+        padding: 22px;
+        min-height: 320px;
+      }
+      .predictive-chart canvas {
+        max-height: 260px;
+      }
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 22px;
+        position: relative;
+        margin-top: 28px;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        top: 46px;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(16,185,129,0.3), rgba(37,99,235,0.4));
+      }
+      .step {
+        position: relative;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 20px;
+        padding: 28px 20px 20px;
+        box-shadow: var(--shadow-soft);
+        z-index: 1;
+      }
+      .step-number {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, var(--emerald), var(--blue));
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 800;
+        margin-bottom: 18px;
+      }
+      .step-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: rgba(16,185,129,0.09);
+        color: var(--emerald-deep);
+        margin-bottom: 14px;
+      }
+      .step h3 { margin: 0 0 10px; }
+      .step p { margin: 0; color: var(--muted); line-height: 1.6; }
+      .report-wrap {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 30px;
+        align-items: center;
+      }
+      .report-preview {
+        position: relative;
+        background: linear-gradient(180deg, #ffffff, #eff6ff);
+        border: 1px solid rgba(148,163,184,0.22);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: var(--shadow-strong);
+        min-height: 440px;
+      }
+      .report-page {
+        background: #fff;
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 18px;
+        height: 100%;
+        box-shadow: inset 0 0 0 1px rgba(15,23,42,0.03);
+        padding: 18px 18px 0;
+      }
+      .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(148,163,184,0.18);
+        padding-bottom: 12px;
+      }
+      .tiny-brand { font-weight: 800; letter-spacing: -0.05em; }
+      .report-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .mini-kpi {
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid rgba(148,163,184,0.15);
+        padding: 12px;
+      }
+      .mini-kpi strong {
+        display: block;
+        font-size: 1.1rem;
+        margin-top: 8px;
+      }
+      .report-checks {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .report-check { display: flex; align-items: center; gap: 12px; }
+      .report-check .tick {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: rgba(16,185,129,0.1);
+        color: var(--emerald-deep);
+      }
+      .usecases-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0,1fr));
+        gap: 18px;
+      }
+      .usecase-card {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 22px;
+        padding: 22px 18px;
+        box-shadow: var(--shadow-soft);
+      }
+      .usecase-card .icon-box {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(37,99,235,0.1));
+        color: var(--blue);
+        margin-bottom: 18px;
+      }
+      .usecase-card h3 { margin: 0 0 8px; }
+      .usecase-card p { margin: 0; color: var(--muted); line-height: 1.6; }
+      .metric-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .metric-badges span {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 9px;
+        border-radius: 999px;
+        background: rgba(15,23,42,0.04);
+        color: var(--navy);
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+      .about-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 20px;
+      }
+      .about-panel {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 24px;
+        box-shadow: var(--shadow-soft);
+        padding: 26px;
+      }
+      .values {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0,1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+      .value {
+        background: rgba(15,23,42,0.02);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 18px;
+        padding: 20px 16px;
+      }
+      .value .icon-box {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(37,99,235,0.1));
+        border-radius: 12px;
+        color: var(--emerald-deep);
+        margin-bottom: 12px;
+      }
+      .cta {
+        background: linear-gradient(135deg, var(--navy), var(--emerald-deep));
+        color: white;
+        border-radius: 26px;
+        padding: 42px 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        box-shadow: var(--shadow-strong);
+      }
+      .cta h3 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 3vw, 3.1rem);
+        letter-spacing: -0.06em;
+      }
+      .cta p { margin: 0; color: rgba(255,255,255,0.82); }
+      footer {
+        padding: 28px 0 48px;
+        background: #edf3f7;
+        border-top: 1px solid rgba(148,163,184,0.16);
+      }
+      .footer-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+        gap: 28px;
+      }
+      .footer-brand { max-width: 280px; }
+      .footer-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; color: var(--muted); }
+      .footer-list a:hover { color: var(--navy); }
+      .footer-title {
+        margin: 0 0 14px;
+        color: var(--navy);
+        font-weight: 800;
+      }
+      .socials {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .socials a {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: rgba(15,23,42,0.05);
+        color: var(--navy);
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15,23,42,0.42);
+        z-index: 200;
+      }
+      .modal.open { display: flex; }
+      .modal-card {
+        width: min(520px, 100%);
+        background: white;
+        border-radius: 22px;
+        padding: 26px;
+        box-shadow: var(--shadow-strong);
+      }
+      .modal-card h3 {
+        margin: 0 0 18px;
+        font-size: 2rem;
+        letter-spacing: -0.06em;
+      }
+      .field { display: grid; gap: 8px; margin-bottom: 16px; }
+      .field label { font-weight: 700; color: var(--navy); }
+      .field input, .field textarea {
+        width: 100%;
+        border: 1px solid rgba(148,163,184,0.25);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font: inherit;
+      }
+      @media (max-width: 980px) {
+        .nav { display: none; }
+        .mobile-toggle { display: inline-flex; }
+        .hero-inner,
+        .analytics-wrap,
+        .report-wrap,
+        .about-grid,
+        .footer-grid {
+          grid-template-columns: 1fr;
+        }
+        .cards-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+        .usecases-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+        .timeline { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      }
+      @media (max-width: 640px) {
+        .cards-grid,
+        .usecases-grid,
+        .timeline,
+        .values { grid-template-columns: 1fr; }
+        .hero { padding-top: 42px; }
+        .hero-actions { flex-direction: column; align-items: stretch; }
+        .btn { width: 100%; }
+        .cta { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a href="/" class="brand" aria-label="CarbonPilot home">
+          <span class="brand-mark"><i data-lucide="bar-chart-3"></i></span>
+          <span>CarbonPilot</span>
+        </a>
+
+        <nav class="nav" aria-label="Main navigation">
+          <a href="#platform">Platform</a>
+          <a href="#features">Features</a>
+          <a href="#analytics">Analytics</a>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#reporting">ESG Reporting</a>
+          <a href="#about">About Us</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a class="nav-btn" href="/login/">Log in</a>
+          <button class="nav-btn primary" type="button" data-open-demo>Request a Demo</button>
+          <button class="nav-btn mobile-toggle" type="button" aria-label="Toggle menu" id="menuToggle">
+            <i data-lucide="menu"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <span class="eyebrow">AI-Powered ESG Intelligence</span>
+            <h1>
+              Turn Carbon Data Into<br />
+              <span class="highlight">Predictive ESG Intelligence.</span>
+            </h1>
+            <p>
+              Centralize emissions, predict sustainability performance, manage ESG risks and turn environmental data into strategic decisions.
+            </p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" type="button" data-open-demo>Request a Demo</button>
+              <a class="btn btn-secondary" href="#platform">Explore Platform</a>
+            </div>
+            <div class="checks">
+              <span class="check"><span class="dot"></span> Carbon Management</span>
+              <span class="check"><span class="dot"></span> AI Analytics</span>
+              <span class="check"><span class="dot"></span> ESG Reporting</span>
+            </div>
+          </div>
+
+          <div class="hero-visual" id="platform">
+            <div class="mockup-shell">
+              <div class="badge-float">
+                <span style="color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;">Risk Score</span>
+                <strong style="font-size: 1.7rem; letter-spacing: -0.06em;">32 / 100</strong>
+              </div>
+
+              <div class="mockup-window">
+                <div class="mockup-topbar">
+                  <div class="traffic">
+                    <span></span><span></span><span></span>
+                  </div>
+                  <span>CarbonPilot</span>
+                </div>
+
+                <div class="mockup-content">
+                  <div>
+                    <div class="metric-grid">
+                      <div class="metric-card">
+                        <div class="kicker">Objective</div>
+                        <strong>78%</strong>
+                        <small>Achievement</small>
+                      </div>
+                      <div class="metric-card">
+                        <div class="kicker">AI recs</div>
+                        <strong>24</strong>
+                        <small>Actions</small>
+                      </div>
+                    </div>
+
+                    <div class="chart-box">
+                      <canvas id="miniChart" height="120"></canvas>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="data-card">
+                      <div class="ai-card">
+                        <div class="ai-icon"><i data-lucide="sparkles"></i></div>
+                        <div>
+                          <h4>AI Recommendation</h4>
+                          <p>Reduce logistics emissions by 12% before Q3.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mini-card">
+                      <h4>ESG Risk</h4>
+                      <p>Moderate risk detected in upstream suppliers.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="container">
+          <div class="features-head">
+            <div>
+              <span class="eyebrow">Platform</span>
+              <h2>One platform. Complete ESG intelligence.</h2>
+            </div>
+            <p class="subtext">From carbon accounting to strategic forecasting, CarbonPilot brings operational data, AI insights and reporting into a single workspace.</p>
+          </div>
+
+          <div class="cards-grid">
+            <article class="feature-card">
+              <div class="feature-icon"><i data-lucide="leaf"></i></div>
+              <h3>Carbon Management</h3>
+              <p>Scope 1 / 2 / 3 tracking with department-level emission analytics.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon"><i data-lucide="building-2"></i></div>
+              <h3>Enterprise Management</h3>
+              <p>Companies, departments, roles and permissions in a unified structure.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon"><i data-lucide="bell-ring"></i></div>
+              <h3>Objectives &amp; Alerts</h3>
+              <p>Reduction objectives, progress monitoring and intelligent alerts.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon"><i data-lucide="file-bar-chart-2"></i></div>
+              <h3>ESG Reporting</h3>
+              <p>Board-ready dashboards, risk assessment and exportable PDF reports.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon"><i data-lucide="brain-circuit"></i></div>
+              <h3>Predictive Analytics</h3>
+              <p>AI anomaly detection, objective prediction, recommendations and risk scoring.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="analytics">
+        <div class="container">
+          <div class="features-head">
+            <div>
+              <span class="eyebrow">Predictive analytics</span>
+              <h2>Don't just measure.<br />Predict what's next.</h2>
+            </div>
+            <p class="subtext">Spot anomalies before they become issues and prioritize the actions that drive meaningful reduction outcomes.</p>
+          </div>
+
+          <div class="analytics-wrap">
+            <div class="analytics-panel">
+              <div class="analytics-list">
+                <div class="list-item">
+                  <span class="label">Anomaly Detection</span>
+                  <span class="pill emerald">+14.2%</span>
+                </div>
+                <div class="list-item">
+                  <span class="label">Prediction Probability</span>
+                  <span class="pill blue">88%</span>
+                </div>
+                <div class="list-item">
+                  <span class="label">Risk Score</span>
+                  <span class="pill navy">32 / 100</span>
+                </div>
+                <div class="list-item">
+                  <span class="label">AI Recommendation</span>
+                  <span class="pill emerald">24 actions</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="analytics-panel predictive-chart">
+              <canvas id="predictiveChart" height="260"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="how-it-works">
+        <div class="container">
+          <div class="features-head">
+            <div>
+              <span class="eyebrow">How it works</span>
+              <h2>From data collection to action.</h2>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <div class="step">
+              <div class="step-number">01</div>
+              <div class="step-icon"><i data-lucide="database"></i></div>
+              <h3>Collect</h3>
+              <p>Aggregate emissions and operating data from teams, sites, and departments.</p>
+            </div>
+            <div class="step">
+              <div class="step-number">02</div>
+              <div class="step-icon"><i data-lucide="activity"></i></div>
+              <h3>Analyze</h3>
+              <p>Normalize data and benchmark performance across your organization.</p>
+            </div>
+            <div class="step">
+              <div class="step-number">03</div>
+              <div class="step-icon"><i data-lucide="brain-circuit"></i></div>
+              <h3>Predict</h3>
+              <p>Use AI to identify anomalies, forecast emissions and estimate risk.</p>
+            </div>
+            <div class="step">
+              <div class="step-number">04</div>
+              <div class="step-icon"><i data-lucide="rocket"></i></div>
+              <h3>Act</h3>
+              <p>Prioritize actions, align teams and track strategic sustainability outcomes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="reporting">
+        <div class="container report-wrap">
+          <div class="report-preview">
+            <div class="report-page">
+              <div class="report-header">
+                <div class="tiny-brand">CarbonPilot</div>
+                <span style="color: var(--muted); font-size: 0.8rem;">Q1 2026</span>
+              </div>
+              <div class="report-metrics">
+                <div class="mini-kpi">
+                  <span style="color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;">Emissions</span>
+                  <strong>12,480 tCO₂e</strong>
+                </div>
+                <div class="mini-kpi">
+                  <span style="color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;">Objective</span>
+                  <strong>78%</strong>
+                </div>
+              </div>
+              <div class="report-checks">
+                <div class="report-check"><span class="tick"><i data-lucide="check"></i></span> Emission performance</div>
+                <div class="report-check"><span class="tick"><i data-lucide="check"></i></span> Objectives</div>
+                <div class="report-check"><span class="tick"><i data-lucide="check"></i></span> AI predictions</div>
+                <div class="report-check"><span class="tick"><i data-lucide="check"></i></span> Risk assessment</div>
+                <div class="report-check"><span class="tick"><i data-lucide="check"></i></span> Recommendations</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-head">
+            <div>
+              <span class="eyebrow">ESG Reporting</span>
+              <h2>From raw data to board-ready ESG reporting.</h2>
+            </div>
+            <p class="subtext">Bring together operational metrics, strategic goals and risk insights for comprehensive, decision-ready reporting that boards and investors can trust.</p>
+            <div style="margin-top: 18px;"><a class="btn btn-primary" href="#about">Explore ESG Reporting</a></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="usecases">
+        <div class="container">
+          <div class="features-head">
+            <div>
+              <span class="eyebrow">Use cases</span>
+              <h2>Built for modern organizations</h2>
+            </div>
+          </div>
+
+          <div class="usecases-grid">
+            <article class="usecase-card">
+              <div class="icon-box"><i data-lucide="factory"></i></div>
+              <h3>Manufacturing</h3>
+              <p>Monitor process emissions, optimize energy and reduce operational risk.</p>
+              <div class="metric-badges"><span>-16.4%</span><span>Scope 1</span></div>
+            </article>
+            <article class="usecase-card">
+              <div class="icon-box"><i data-lucide="shopping-bag"></i></div>
+              <h3>Retail</h3>
+              <p>Track vendor, logistics and footprint performance across every location.</p>
+              <div class="metric-badges"><span>-9.1%</span><span>Warehousing</span></div>
+            </article>
+            <article class="usecase-card">
+              <div class="icon-box"><i data-lucide="cpu"></i></div>
+              <h3>Technology</h3>
+              <p>Align digital operations, cloud intensity and ESG reporting at scale.</p>
+              <div class="metric-badges"><span>+18% AI</span><span>Efficiency</span></div>
+            </article>
+            <article class="usecase-card">
+              <div class="icon-box"><i data-lucide="landmark"></i></div>
+              <h3>Finance</h3>
+              <p>Track portfolio footprint and benchmark sustainability exposure.</p>
+              <div class="metric-badges"><span>Risk 32</span><span>Portfolio</span></div>
+            </article>
+            <article class="usecase-card">
+              <div class="icon-box"><i data-lucide="truck"></i></div>
+              <h3>Logistics</h3>
+              <p>Forecast transport intensity, optimize routes and prioritize interventions.</p>
+              <div class="metric-badges"><span>-12.8%</span><span>Fleet</span></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="about">
+        <div class="container about-grid">
+          <div class="about-panel">
+            <span class="eyebrow">About us</span>
+            <h2>Built for the next generation of sustainable businesses.</h2>
+            <p class="subtext" style="margin-top: 16px;">CarbonPilot helps organizations turn sustainability from a reporting obligation into a strategic advantage. We combine operational carbon data, AI-driven forecasts and enterprise workflows in one platform.</p>
+          </div>
+
+          <div class="about-panel">
+            <div class="values">
+              <div class="value">
+                <div class="icon-box"><i data-lucide="database"></i></div>
+                <h3>Data-driven</h3>
+              </div>
+              <div class="value">
+                <div class="icon-box"><i data-lucide="sparkles"></i></div>
+                <h3>AI-powered</h3>
+              </div>
+              <div class="value">
+                <div class="icon-box"><i data-lucide="shield-check"></i></div>
+                <h3>ESG-ready</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="cta">
+            <div>
+              <span class="eyebrow" style="background: rgba(255,255,255,0.1); color: white;">Ready to act</span>
+              <h3>Ready to turn sustainability data into strategic action?</h3>
+            </div>
+            <button class="btn btn-primary" type="button" data-open-demo style="background: linear-gradient(135deg, var(--emerald), var(--cyan)); color: white;">Request a Demo</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand" style="font-size: 2.1rem; margin-bottom: 14px;">
+            <span class="brand-mark"><i data-lucide="bar-chart-3"></i></span>
+            <span>CarbonPilot</span>
+          </div>
+          <p style="color: var(--muted); line-height: 1.7;">Turn carbon data into predictive ESG intelligence for modern, responsible organizations.</p>
+          <div class="socials">
+            <a href="#" aria-label="LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="#" aria-label="Twitter"><i data-lucide="twitter"></i></a>
+            <a href="#" aria-label="GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="footer-title">Platform</h4>
+          <ul class="footer-list">
+            <li><a href="#platform">Overview</a></li>
+            <li><a href="#analytics">Analytics</a></li>
+            <li><a href="#analytics">Predictions</a></li>
+            <li><a href="#reporting">Risk Assessment</a></li>
+            <li><a href="#reporting">ESG Reports</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-title">Company</h4>
+          <ul class="footer-list">
+            <li><a href="#about">About</a></li>
+            <li><a href="#">Contact</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-title">Resources</h4>
+          <ul class="footer-list">
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">API</a></li>
+            <li><a href="#">Guides</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-title">Legal</h4>
+          <ul class="footer-list">
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <div class="modal" id="demoModal" aria-hidden="true">
+      <div class="modal-card">
+        <h3>Request a demo</h3>
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" type="text" placeholder="Your name" />
+        </div>
+        <div class="field">
+          <label for="email">Work email</label>
+          <input id="email" type="email" placeholder="you@company.com" />
+        </div>
+        <div class="field">
+          <label for="company">Company</label>
+          <input id="company" type="text" placeholder="Your company" />
+        </div>
+        <div class="field">
+          <label for="message">What do you want to measure?</label>
+          <textarea id="message" rows="3" placeholder="We want to improve emissions reporting and predictive ESG insights."></textarea>
+        </div>
+        <button class="btn btn-primary" type="button" style="width: 100%;">Book a demo</button>
+      </div>
+    </div>
+
+    <script>
+      const miniChart = document.getElementById('miniChart');
+      const predictiveChart = document.getElementById('predictiveChart');
+
+      if (miniChart) {
+        new Chart(miniChart, {
+          type: 'line',
+          data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+              label: 'Emissions',
+              data: [72, 68, 66, 56, 49, 42],
+              borderColor: '#10B981',
+              backgroundColor: 'rgba(16,185,129,0.12)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointRadius: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false }
+            }
+          }
+        });
+      }
+
+      if (predictiveChart) {
+        new Chart(predictiveChart, {
+          type: 'line',
+          data: {
+            labels: ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6'],
+            datasets: [{
+              label: 'Prediction',
+              data: [68, 72, 70, 62, 54, 46],
+              borderColor: '#2563EB',
+              backgroundColor: 'rgba(37,99,235,0.12)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointRadius: 0
+            }, {
+              label: 'Goal',
+              data: [75, 72, 66, 60, 55, 50],
+              borderColor: '#10B981',
+              borderDash: [8, 6],
+              borderWidth: 2,
+              fill: false,
+              pointRadius: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: true } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: 'rgba(148,163,184,0.12)' } }
+            }
+          }
+        });
+      }
+
+      const modal = document.getElementById('demoModal');
+      document.querySelectorAll('[data-open-demo]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          if (modal) {
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+          }
+        });
+      });
+
+      if (modal) {
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+          }
+        });
+      }
+
+      const menuToggle = document.getElementById('menuToggle');
+      if (menuToggle) {
+        menuToggle.addEventListener('click', function () {
+          const nav = document.querySelector('.nav');
+          if (nav) {
+            nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+            nav.style.position = 'absolute';
+            nav.style.top = '80px';
+            nav.style.left = '16px';
+            nav.style.right = '16px';
+            nav.style.flexDirection = 'column';
+            nav.style.background = 'rgba(255,255,255,0.95)';
+            nav.style.border = '1px solid rgba(148,163,184,0.2)';
+            nav.style.borderRadius = '16px';
+            nav.style.padding = '14px 16px';
+            nav.style.boxShadow = '0 20px 40px rgba(15,23,42,0.08)';
+          }
+        });
+      }
+
+      if (window.lucide) lucide.createIcons();
+    </script>
+  </body>
+</html>
+
+        <div class="quick-actions">
+          <button class="action-button" type="button">
+            <span class="action-icon"><i data-lucide="plus"></i></span>
+            <span>Add Emission</span>
+          </button>
+          <button class="action-button" type="button">
+            <span class="action-icon"><i data-lucide="target"></i></span>
+            <span>Create Objective</span>
+          </button>
+          <button class="action-button" type="button">
+            <span class="action-icon"><i data-lucide="brain-circuit"></i></span>
+            <span>Run Prediction</span>
+          </button>
+          <button class="action-button" type="button">
+            <span class="action-icon"><i data-lucide="file-text"></i></span>
+            <span>Generate ESG Report</span>
+          </button>
+        </div>
+
+        <section class="kpi-grid" aria-label="KPI overview">
+          <div class="kpi-card skeleton-card" data-card="kpi">
+            <div class="kpi-top">
+              <div class="kpi-label-group">
+                <span class="kpi-muted">Total Emissions</span>
+                <h3>12,480 tCO₂e</h3>
+              </div>
+              <span class="icon-badge green"><i data-lucide="leaf"></i></span>
+            </div>
+            <div class="kpi-trend negative">
+              <span class="trend-icon"><i data-lucide="arrow-down-right"></i></span>
+              <span>8.4%</span>
+              <small>vs previous period</small>
+            </div>
+          </div>
+
+          <div class="kpi-card skeleton-card" data-card="kpi">
+            <div class="kpi-top">
+              <div class="kpi-label-group">
+                <span class="kpi-muted">Objective Achievement</span>
+                <h3>78%</h3>
+              </div>
+              <span class="icon-badge blue"><i data-lucide="target"></i></span>
+            </div>
+            <div class="kpi-trend positive">
+              <span class="trend-icon"><i data-lucide="arrow-up-right"></i></span>
+              <span>6.2%</span>
+              <small>Target: 80%</small>
+            </div>
+          </div>
+
+          <div class="kpi-card skeleton-card" data-card="kpi">
+            <div class="kpi-top">
+              <div class="kpi-label-group">
+                <span class="kpi-muted">ESG Risk Score</span>
+                <h3>32 / 100</h3>
+              </div>
+              <span class="icon-badge amber"><i data-lucide="shield-check"></i></span>
+            </div>
+            <div class="kpi-trend negative risk-trend">
+              <span class="trend-icon"><i data-lucide="arrow-down-right"></i></span>
+              <span>12%</span>
+              <small>Low Risk</small>
+            </div>
+          </div>
+
+          <div class="kpi-card skeleton-card" data-card="kpi">
+            <div class="kpi-top">
+              <div class="kpi-label-group">
+                <span class="kpi-muted">AI Recommendations</span>
+                <h3>24</h3>
+              </div>
+              <span class="icon-badge cyan"><i data-lucide="sparkles"></i></span>
+            </div>
+            <div class="kpi-trend positive">
+              <span class="trend-icon"><i data-lucide="lightbulb"></i></span>
+              <span>8 applied</span>
+              <small>Priority queue</small>
+            </div>
+          </div>
+        </section>
+
+        <div class="analytics-layout">
+          <section class="panel analytics-card skeleton-card" data-card="chart">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">Emissions Performance</span>
+                <h3>Actual emissions vs reduction target</h3>
+              </div>
+              <div class="segment-group" aria-label="Time range selector">
+                <button class="segment active" type="button">12 months</button>
+                <button class="segment" type="button">6 months</button>
+                <button class="segment" type="button">3 months</button>
+              </div>
+            </div>
+
+            <div class="legend-row">
+              <span class="legend-item"><i class="swatch green"></i> Actual Emissions</span>
+              <span class="legend-item"><i class="swatch blue"></i> Target</span>
+            </div>
+
+            <div class="chart-container chart-primary">
+              <canvas id="emissionsChart"></canvas>
+            </div>
+          </section>
+
+          <aside class="panel ai-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row compact-header">
+              <div>
+                <span class="panel-kicker">AI Intelligence</span>
+                <h3>Live analysis</h3>
+              </div>
+              <span class="live-badge">LIVE ANALYSIS</span>
+            </div>
+
+            <div class="ai-list">
+              <div class="ai-item">
+                <span class="ai-icon orange"><i data-lucide="shield-alert"></i></span>
+                <div class="ai-copy">
+                  <strong>Anomaly Detection</strong>
+                  <p>3 anomalies detected</p>
+                </div>
+                <span class="ai-status warning">Watch</span>
+              </div>
+
+              <div class="ai-item">
+                <span class="ai-icon green"><i data-lucide="target"></i></span>
+                <div class="ai-copy">
+                  <strong>Prediction</strong>
+                  <p>78% probability of reaching objective</p>
+                </div>
+                <span class="ai-status success">Strong</span>
+              </div>
+
+              <div class="ai-item">
+                <span class="ai-icon blue"><i data-lucide="shield-check"></i></span>
+                <div class="ai-copy">
+                  <strong>Risk</strong>
+                  <p>Low risk</p>
+                </div>
+                <span class="ai-status success">Low</span>
+              </div>
+
+              <div class="ai-item">
+                <span class="ai-icon cyan"><i data-lucide="lightbulb"></i></span>
+                <div class="ai-copy">
+                  <strong>Recommendation</strong>
+                  <p>4 actions recommended</p>
+                </div>
+                <span class="ai-status info">Ready</span>
+              </div>
+            </div>
+
+            <button class="secondary-btn wide-btn" type="button">View AI Insights <span>→</span></button>
+          </aside>
+        </div>
+
+        <section class="panel objectives-panel skeleton-card" data-card="panel">
+          <div class="panel-header-row">
+            <div>
+              <span class="panel-kicker">Objectives</span>
+              <h3>Target delivery performance</h3>
+            </div>
+            <button class="text-button" type="button">View all objectives</button>
+          </div>
+
+          <div class="objective-grid">
+            <article class="objective-card objective-positive">
+              <div class="objective-head">
+                <div>
+                  <span class="goal-meta">Reduce Scope 1 emissions</span>
+                  <strong>Target: -20%</strong>
+                </div>
+                <span class="status-badge success">On track</span>
+              </div>
+              <div class="progress-bar-row">
+                <div class="meter">
+                  <span style="width:68%"></span>
+                </div>
+                <strong>68%</strong>
+              </div>
+            </article>
+
+            <article class="objective-card objective-warning">
+              <div class="objective-head">
+                <div>
+                  <span class="goal-meta">Reduce electricity consumption</span>
+                  <strong>Target: -12%</strong>
+                </div>
+                <span class="status-badge warning">Needs attention</span>
+              </div>
+              <div class="progress-bar-row">
+                <div class="meter">
+                  <span style="width:54%"></span>
+                </div>
+                <strong>54%</strong>
+              </div>
+            </article>
+
+            <article class="objective-card objective-positive">
+              <div class="objective-head">
+                <div>
+                  <span class="goal-meta">Improve Scope 3 reporting</span>
+                  <strong>Target: 90%</strong>
+                </div>
+                <span class="status-badge success">On track</span>
+              </div>
+              <div class="progress-bar-row">
+                <div class="meter">
+                  <span style="width:82%"></span>
+                </div>
+                <strong>82%</strong>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <div class="lower-grid">
+          <section class="panel risk-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">Risk Assessment</span>
+                <h3>Portfolio exposure</h3>
+              </div>
+              <button class="text-button" type="button">View Risk Assessment</button>
+            </div>
+
+            <div class="risk-content">
+              <div class="risk-score-wrap">
+                <div class="risk-ring">
+                  <div class="risk-ring-inner">
+                    <div class="risk-ring-value">32</div>
+                    <div class="risk-ring-meta">/100</div>
+                    <div class="risk-label">Low Risk</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="risk-factors">
+                <div class="factor-row">
+                  <div class="factor-head">
+                    <span>Emission anomalies</span>
+                    <strong>24%</strong>
+                  </div>
+                  <div class="factor-bar low"><span style="width:24%"></span></div>
+                </div>
+                <div class="factor-row">
+                  <div class="factor-head">
+                    <span>Objective gap</span>
+                    <strong>41%</strong>
+                  </div>
+                  <div class="factor-bar medium"><span style="width:41%"></span></div>
+                </div>
+                <div class="factor-row">
+                  <div class="factor-head">
+                    <span>Reporting delays</span>
+                    <strong>18%</strong>
+                  </div>
+                  <div class="factor-bar low"><span style="width:18%"></span></div>
+                </div>
+                <div class="factor-row">
+                  <div class="factor-head">
+                    <span>Historical trend</span>
+                    <strong>33%</strong>
+                  </div>
+                  <div class="factor-bar medium"><span style="width:33%"></span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel recommendations-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">AI Recommendations</span>
+                <h3>Recommended actions based on current performance.</h3>
+              </div>
+            </div>
+
+            <div class="recommendation-list">
+              <article class="recommendation-item">
+                <div class="rec-icon-wrap green"><i data-lucide="zap"></i></div>
+                <div class="rec-copy">
+                  <div class="rec-head">
+                    <strong>Optimize electricity consumption</strong>
+                    <span class="priority-badge high">High</span>
+                  </div>
+                  <p>Department: Production</p>
+                  <div class="impact-row">
+                    <span>Potential impact</span>
+                    <strong>-8% emissions</strong>
+                  </div>
+                </div>
+                <button class="ghost-btn small-ghost" type="button">Review</button>
+              </article>
+
+              <article class="recommendation-item">
+                <div class="rec-icon-wrap blue"><i data-lucide="truck"></i></div>
+                <div class="rec-copy">
+                  <div class="rec-head">
+                    <strong>Improve transport efficiency</strong>
+                    <span class="priority-badge medium">Medium</span>
+                  </div>
+                  <p>Department: Logistics</p>
+                  <div class="impact-row">
+                    <span>Potential impact</span>
+                    <strong>-5%</strong>
+                  </div>
+                </div>
+                <button class="ghost-btn small-ghost" type="button">Review</button>
+              </article>
+
+              <article class="recommendation-item">
+                <div class="rec-icon-wrap amber"><i data-lucide="shopping-cart"></i></div>
+                <div class="rec-copy">
+                  <div class="rec-head">
+                    <strong>Review Scope 3 supplier data</strong>
+                    <span class="priority-badge medium">Medium</span>
+                  </div>
+                  <p>Department: Procurement</p>
+                  <div class="impact-row">
+                    <span>Potential impact</span>
+                    <strong>Better reporting accuracy</strong>
+                  </div>
+                </div>
+                <button class="ghost-btn small-ghost" type="button">Review</button>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <div class="bottom-grid">
+          <section class="panel reports-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">Recent ESG Reports</span>
+                <h3>Latest publications</h3>
+              </div>
+              <button class="text-button" type="button">View all reports <span>→</span></button>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Report</th>
+                    <th>Company</th>
+                    <th>Period</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>ESG Performance Report</td>
+                    <td>Acme Corporation</td>
+                    <td>Q1 2026</td>
+                    <td><span class="risk-pill low">Low</span></td>
+                    <td><span class="status-pill published">Published</span></td>
+                    <td><button class="table-action">View</button></td>
+                  </tr>
+                  <tr>
+                    <td>Operational Carbon Review</td>
+                    <td>Acme Corporation</td>
+                    <td>Q1 2026</td>
+                    <td><span class="risk-pill medium">Medium</span></td>
+                    <td><span class="status-pill draft">Draft</span></td>
+                    <td><button class="table-action">Download</button></td>
+                  </tr>
+                  <tr>
+                    <td>Supplier Screening Summary</td>
+                    <td>Northwind Group</td>
+                    <td>Q4 2025</td>
+                    <td><span class="risk-pill low">Low</span></td>
+                    <td><span class="status-pill published">Published</span></td>
+                    <td><button class="table-action">View</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="panel activity-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">Recent Activity</span>
+                <h3>Timeline</h3>
+              </div>
+            </div>
+
+            <div class="activity-list">
+              <div class="activity-item">
+                <span class="activity-dot success"></span>
+                <div>
+                  <strong>AI model completed a prediction</strong>
+                  <p>2 min ago</p>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot warning"></span>
+                <div>
+                  <strong>Risk assessment updated</strong>
+                  <p>18 min ago</p>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot info"></span>
+                <div>
+                  <strong>ESG Report generated</strong>
+                  <p>1 hour ago</p>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot success"></span>
+                <div>
+                  <strong>Recommendation marked as applied</strong>
+                  <p>2 hours ago</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="model-grid">
+          <section class="panel model-panel skeleton-card" data-card="panel">
+            <div class="panel-header-row">
+              <div>
+                <span class="panel-kicker">AI Model Performance</span>
+                <h3>Model accuracy overview</h3>
+              </div>
+            </div>
+
+            <div class="model-stack">
+              <div class="model-item">
+                <div class="model-title-row">
+                  <strong>Isolation Forest</strong>
+                  <span class="model-tag">Anomaly Detection</span>
+                </div>
+                <div class="model-metric-row">
+                  <span>Precision</span>
+                  <strong>91%</strong>
+                </div>
+                <div class="mini-meter"><span style="width:91%"></span></div>
+              </div>
+
+              <div class="model-item">
+                <div class="model-title-row">
+                  <strong>Logistic Regression</strong>
+                  <span class="model-tag">Objective Prediction</span>
+                </div>
+                <div class="model-metric-row">
+                  <span>Precision</span>
+                  <strong>87%</strong>
+                </div>
+                <div class="mini-meter"><span style="width:87%"></span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel empty-state-panel skeleton-card" data-card="panel">
+            <div class="state-icon"><i data-lucide="brain-circuit"></i></div>
+            <h3>No predictions yet</h3>
+            <p>Run your first analysis to generate predictive insights.</p>
+            <button class="primary-btn small-btn" type="button">Run Prediction</button>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="quick-action-title">
+        <button class="modal-close" type="button" aria-label="Close action modal">
+          <i data-lucide="x"></i>
+        </button>
+        <div class="modal-header-block">
+          <span class="panel-kicker">Quick action</span>
+          <h3 id="quick-action-title">Create a new ESG action</h3>
+        </div>
+        <form class="modal-form" id="quickActionForm">
+          <div class="form-row">
+            <label for="actionName">Action name</label>
+            <input id="actionName" type="text" value="Optimize electricity consumption" />
+          </div>
+          <div class="form-row two-column">
+            <div>
+              <label for="departmentSelect">Department</label>
+              <select id="departmentSelect">
+                <option>Production</option>
+                <option>Logistics</option>
+                <option>Procurement</option>
+              </select>
+            </div>
+            <div>
+              <label for="prioritySelect">Priority</label>
+              <select id="prioritySelect">
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+              </select>
+            </div>
+          </div>
+          <button class="primary-btn full-width" type="submit">Save action</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{% static 'js/landing.js' %}"></script>
+  </body>
+</html>

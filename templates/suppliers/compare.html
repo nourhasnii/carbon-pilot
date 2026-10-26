@@ -1,0 +1,84 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Compare suppliers{% endblock %}
+{% block eyebrow %}Supplier sustainability{% endblock %}
+{% block heading %}Compare suppliers{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'suppliers:supplier_list' %}"><i data-lucide="arrow-left"></i> All suppliers</a>
+{% endblock %}
+
+{% block content %}
+  <section class="cp-card">
+    <h2 class="cp-card-title cp-mt-0">Select suppliers to compare</h2>
+    <p class="cp-card-sub">Choose up to {{ compare_limit }} suppliers and compare their ESG status, documentation and linked Scope 3 emissions.</p>
+    {% if all_suppliers %}
+      <form method="get">
+        <div class="cp-field-grid">
+          {% for supplier in all_suppliers %}
+            <label class="cp-field" style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" name="ids" value="{{ supplier.pk }}" {% if supplier.pk in selected_ids %}checked{% endif %}>
+              <span>{{ supplier.name }} <span class="cp-muted">· {{ supplier.country }}</span></span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="cp-actions">
+          <span class="cp-spacer"></span>
+          <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="git-compare"></i> Compare selected</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="truck"></i><p>No suppliers to compare yet.</p></div>
+    {% endif %}
+  </section>
+
+  {% if rows %}
+    <section class="cp-card" style="margin-top:20px">
+      <h2 class="cp-card-title cp-mt-0">Comparison</h2>
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Supplier comparison</caption>
+          <thead>
+            <tr>
+              <th scope="col">Supplier</th><th scope="col">Country</th><th scope="col">Category</th><th scope="col">ESG status</th>
+              <th scope="col" class="cp-num">Docs</th><th scope="col">Missing required</th><th scope="col">Risk</th>
+              <th scope="col" class="cp-num">Scope 3</th><th scope="col">Active</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'suppliers:supplier_detail' row.supplier.pk %}">{{ row.supplier.name }}</a></td>
+                <td>{{ row.supplier.country }}</td>
+                <td>{{ row.supplier.category }}</td>
+                <td>{% include "suppliers/_esg_status.html" with status=row.supplier.esg_status label=row.supplier.get_esg_status_display %}</td>
+                <td class="cp-num">{{ row.document_count }}</td>
+                <td>
+                  {% if row.missing_types %}
+                    <span class="cp-muted" style="font-size:0.8rem">{{ row.missing_types|join:", " }}</span>
+                  {% else %}
+                    <span class="cp-badge cp-badge-approved">Complete</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.supplier.risk_level %}
+                    {% include "risk/_level.html" with level=row.supplier.risk_level label=row.supplier.get_risk_level_display %}
+                  {% else %}<span class="cp-muted">Not rated</span>{% endif %}
+                </td>
+                <td class="cp-num">{{ row.scope3_tonnes|floatformat:2 }} t</td>
+                <td>
+                  {% if row.supplier.is_active %}<span class="cp-badge cp-badge-approved">Active</span>
+                  {% else %}<span class="cp-badge cp-badge-neutral">Inactive</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% elif all_suppliers %}
+    <div class="cp-callout" style="margin-top:20px">
+      <i data-lucide="info"></i>
+      <span>Select at least one supplier above to see the comparison.</span>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,250 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Company intelligence{% endblock %}
+{% block eyebrow %}Company workspace{% endblock %}
+{% block heading %}Company intelligence{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'accounts:dashboard' %}?section=company">
+    <i data-lucide="building-2"></i> My Company
+  </a>
+{% endblock %}
+
+{% block content %}
+  {# ---------- Header: summary + reporting year ---------- #}
+  <section class="cp-card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div style="min-width:260px;flex:1 1 420px">
+      <h2 class="cp-card-title cp-mt-0">{{ company.name }} · {{ intelligence.period_year }}</h2>
+      <p class="cp-card-sub cp-mt-0">{{ intelligence.summary }}</p>
+      <p class="cp-muted" style="margin:8px 0 0;font-size:0.78rem">
+        Built from your company's own approved data. Last refreshed {{ intelligence.generated_at|date:"Y-m-d H:i" }}.
+      </p>
+    </div>
+    <form method="get" style="display:flex;align-items:flex-end;gap:10px">
+      <div class="cp-field">
+        <label for="intel-year">Reporting year</label>
+        <select class="field-input" id="intel-year" name="year" onchange="this.form.submit()">
+          {% for year in intelligence.years %}
+            <option value="{{ year }}" {% if year == intelligence.period_year %}selected{% endif %}>{{ year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <noscript><button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">Apply</button></noscript>
+    </form>
+  </section>
+
+  {# ---------- 1) Carbon performance snapshot ---------- #}
+  <div class="cp-kpi-grid" style="margin-top:20px">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total emissions</div>
+      <div class="cp-kpi-value">{{ intelligence.emissions.total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">{{ intelligence.emissions.approved_activities }} approved activit{{ intelligence.emissions.approved_activities|pluralize:"y,ies" }} · {{ intelligence.period_year }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Data quality</div>
+      <div class="cp-kpi-value">{{ intelligence.quality.average }}%</div>
+      <div class="cp-kpi-sub">Evidence on {{ intelligence.quality.evidence_coverage }}% of activities</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Objectives at risk</div>
+      <div class="cp-kpi-value">{{ intelligence.objectives.items|length }}</div>
+      <div class="cp-kpi-sub">of {{ intelligence.objectives.total }} tracked · {{ intelligence.objectives.achieved }} achieved</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Risk level</div>
+      <div class="cp-kpi-value" style="font-size:1.2rem">
+        {% if intelligence.risk %}{{ intelligence.risk.level_label }}{% else %}Not assessed{% endif %}
+      </div>
+      <div class="cp-kpi-sub">
+        {% if intelligence.risk %}Score {{ intelligence.risk.score|floatformat:2 }}/100{% else %}No assessment yet{% endif %}
+      </div>
+    </article>
+  </div>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by scope</h2>
+      <p class="cp-card-sub">Approved activities only · {{ intelligence.period_year }}</p>
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Emissions by scope for {{ intelligence.period_year }}</caption>
+          <thead><tr><th scope="col">Scope</th><th scope="col" class="cp-num">tCO2e</th><th scope="col" class="cp-num">Share</th></tr></thead>
+          <tbody>
+            {% for scope in intelligence.emissions.scopes %}
+              <tr>
+                <td>{% include "carbon/_scope.html" with scope=scope.key scope_label=scope.label %}</td>
+                <td class="cp-num">{{ scope.tonnes|floatformat:2 }}</td>
+                <td class="cp-num">{{ scope.percent }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Signals</h2>
+      <p class="cp-card-sub">Open anomalies and corrective actions</p>
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Open anomalies</div>
+          <div class="cp-kpi-value">{{ intelligence.anomalies.total }}</div>
+          <div class="cp-kpi-sub">{{ intelligence.anomalies.high }} high · {{ intelligence.anomalies.medium }} medium</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Open recommendations</div>
+          <div class="cp-kpi-value">{{ intelligence.recommendations.open }}</div>
+          <div class="cp-kpi-sub">{{ intelligence.recommendations.high }} high priority</div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  {# ---------- 2) Top emitting departments ---------- #}
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Top emitting departments</h2>
+      <p class="cp-card-sub">Where your footprint concentrates · {{ intelligence.period_year }}</p>
+      {% if intelligence.emissions.top_departments %}
+        <div class="cp-hbars">
+          {% for row in intelligence.emissions.top_departments %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="building-2"></i><p>No department data for {{ intelligence.period_year }}.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Top emitting categories</h2>
+      <p class="cp-card-sub">Activity categories with the highest emissions</p>
+      {% if intelligence.emissions.top_categories %}
+        <div class="cp-hbars">
+          {% for row in intelligence.emissions.top_categories %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="layers"></i><p>No category data for {{ intelligence.period_year }}.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ---------- 3) ESG data completeness ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">ESG data completeness</h2>
+    <p class="cp-card-sub">How complete and evidenced your approved activities are</p>
+    <div class="cp-quality-head">
+      <div class="cp-quality-score">{{ intelligence.quality.average }}%</div>
+      <div class="cp-quality-track"><i style="width: {{ intelligence.quality.average }}%"></i></div>
+    </div>
+    <ul class="cp-quality-list">
+      <li class="{% if intelligence.quality.average >= 80 %}ok{% else %}warn{% endif %}">
+        <i data-lucide="{% if intelligence.quality.average >= 80 %}check-circle-2{% else %}alert-triangle{% endif %}"></i>
+        <span>{% if intelligence.quality.average >= 80 %}High confidence{% elif intelligence.quality.average >= 50 %}Medium confidence{% else %}Low confidence{% endif %}
+          <span class="cp-quality-detail">· {{ intelligence.quality.scored }} approved activit{{ intelligence.quality.scored|pluralize:"y,ies" }} scored</span>
+        </span>
+      </li>
+      <li class="{% if intelligence.quality.missing_evidence == 0 %}ok{% else %}warn{% endif %}">
+        <i data-lucide="{% if intelligence.quality.missing_evidence == 0 %}check-circle-2{% else %}alert-triangle{% endif %}"></i>
+        <span>{{ intelligence.quality.evidence_coverage }}% evidence coverage
+          <span class="cp-quality-detail">· {{ intelligence.quality.missing_evidence }} activit{{ intelligence.quality.missing_evidence|pluralize:"y,ies" }} without evidence</span>
+        </span>
+      </li>
+    </ul>
+    {% if intelligence.quality.missing_evidence %}
+      <div class="cp-callout is-warning" style="margin-top:16px">
+        <i data-lucide="paperclip"></i>
+        <span>{{ intelligence.quality.missing_evidence }} approved activit{{ intelligence.quality.missing_evidence|pluralize:"y,ies" }} lack supporting evidence, which weakens assurance readiness.</span>
+      </div>
+    {% else %}
+      <div class="cp-callout" style="margin-top:16px">
+        <i data-lucide="shield-check"></i>
+        <span>Every approved activity has supporting evidence attached.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- 4) Objectives at risk ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Objectives at risk</h2>
+    <p class="cp-card-sub">
+      Missed objectives and those the prediction model flags as at risk
+      · {{ intelligence.objectives.missed }} missed · {{ intelligence.objectives.at_risk }} predicted at risk
+    </p>
+    {% if intelligence.objectives.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Objectives at risk</caption>
+          <thead>
+            <tr><th scope="col">Objective</th><th scope="col">Scope</th><th scope="col" class="cp-num">Current / target</th><th scope="col">Progress</th><th scope="col">Status</th><th scope="col">Latest prediction</th></tr>
+          </thead>
+          <tbody>
+            {% for item in intelligence.objectives.items %}
+              <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.scope }}</td>
+                <td class="cp-num">{{ item.current_tonnes|floatformat:2 }} / {{ item.target_tonnes|floatformat:2 }}</td>
+                <td style="min-width:130px">
+                  <div class="cp-hbar-head"><strong>{{ item.progress_percent }}%</strong></div>
+                  <div class="cp-hbar-track"><span class="cp-hbar-fill {% if item.status == 'ACHIEVED' %}is-achieved{% elif item.status == 'MISSED' %}is-missed{% endif %}" style="width: {{ item.progress_percent }}%"></span></div>
+                </td>
+                <td><span class="cp-badge {% if item.status == 'ACHIEVED' %}cp-badge-approved{% elif item.status == 'MISSED' %}cp-badge-rejected{% else %}cp-badge-neutral{% endif %}">{{ item.status_label }}</span></td>
+                <td>
+                  {% if item.prediction %}
+                    {{ item.prediction.probability|floatformat:1 }}%
+                    {% include "risk/_level.html" with level=item.prediction.risk_level label=item.prediction.risk_label %}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="target"></i>
+        <p>No objectives are at risk in {{ intelligence.period_year }}.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- 5) Priority actions ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Priority actions</h2>
+    <p class="cp-card-sub">Ranked risk drivers and open corrective recommendations</p>
+    {% if intelligence.priority_actions %}
+      <ol style="margin:0;padding-left:18px;display:grid;gap:14px">
+        {% for action in intelligence.priority_actions %}
+          <li>
+            <strong>{{ action.title }}</strong>
+            {% if action.kind == "risk_driver" %}
+              <span class="cp-badge cp-badge-neutral">{{ action.points|floatformat:2 }} / {{ action.max_points }} pts</span>
+            {% else %}
+              <span class="cp-badge cp-badge-sev-{% if action.severity == 'high' %}high{% elif action.severity == 'medium' %}medium{% else %}low{% endif %}">{{ action.priority_label }}</span>
+              <span class="cp-badge cp-badge-neutral">{{ action.status_label }}</span>
+            {% endif %}
+            <p class="cp-muted" style="margin:6px 0 0;font-size:0.82rem">{{ action.detail }}</p>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="shield-check"></i>
+        <span>No open risk drivers or recommendations. Run a risk assessment or generate recommendations to populate this list.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Company Intelligence is a management view assembled from your own approved data. It is
+    <strong>not a legal CSRD certification</strong> and has not been independently assured.
+  </p>
+{% endblock %}

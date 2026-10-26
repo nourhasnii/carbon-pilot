@@ -1,0 +1,10 @@
+{% extends "errors/base.html" %}
+
+{# Rejected cross-site request (expired or missing CSRF token). #}
+{% block title %}Session expired{% endblock %}
+{% block tone %}tone-warning{% endblock %}
+{% block icon %}shield-x{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}This form has expired{% endblock %}
+{% block message %}For your security, the page was open for too long or your session was refreshed. Reload the page and submit the form again.{% endblock %}
+{% block footnote %}No changes were saved. Reload the page before retrying.{% endblock %}

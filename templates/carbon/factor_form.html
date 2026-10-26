@@ -1,0 +1,40 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}Emission Factor Library{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if factor %}{% url 'carbon:factor_detail' factor.pk %}{% else %}{% url 'carbon:factor_library' %}{% endif %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <section class="cp-card">
+    {% if is_override %}
+      <p class="cp-card-sub">Set the values <strong>your company</strong> uses for this shared library factor. Other companies keep the centrally maintained values. Name, category and scope stay unchanged.</p>
+      <div class="cp-callout" style="margin-bottom:18px"><i data-lucide="share-2"></i><span><strong>Platform values:</strong> {{ platform_values.value|floatformat:6 }} kg CO2e / {{ platform_values.unit }}{% if platform_values.region %} · {{ platform_values.region }}{% endif %}{% if platform_values.year %} · {{ platform_values.year }}{% endif %}</span></div>
+    {% else %}
+      <p class="cp-card-sub">Enter the factor and its traceable source. Values are stored as kg CO2e per factor unit. Do not enter an unverified value as an official factor.</p>
+    {% endif %}
+    {% include "carbon/_form_error_summary.html" %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="cp-field-grid">
+        {% for field in form %}
+          <div class="cp-field {% if field.name == 'methodology' %}cp-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="cp-hint">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="cp-callout" style="margin-top:18px"><i data-lucide="clock-3"></i><span>Editing a factor does not overwrite the stored value, source, year, or result of activities that already used it.</span></div>
+      <div class="cp-actions">
+        <a class="cp-btn cp-btn-outline" href="{% if factor %}{% url 'carbon:factor_detail' factor.pk %}{% else %}{% url 'carbon:factor_library' %}{% endif %}">Cancel</a>
+        <span class="cp-spacer"></span>
+        <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if is_override %}Save for my company{% else %}Save factor{% endif %}</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Policies{% endblock %}
+{% block eyebrow %}Governance{% endblock %}
+{% block heading %}Corporate policies{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'governance:policy_ai_analysis' %}" data-ai-action data-ai-label="Analyzing…">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">
+        <i data-lucide="sparkles"></i> Run AI Governance Analysis
+      </button>
+    </form>
+  {% endif %}
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'governance:policy_create' %}"><i data-lucide="plus"></i> New policy</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Policies</div>
+      <div class="cp-kpi-value">{{ total_count }}</div>
+      <div class="cp-kpi-sub">All policies on record</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Approved</div>
+      <div class="cp-kpi-value">{{ approved_count }}</div>
+      <div class="cp-kpi-sub">Currently in force</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">In review</div>
+      <div class="cp-kpi-value">{{ in_review_count }}</div>
+      <div class="cp-kpi-sub">Awaiting approval</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Due for review</div>
+      <div class="cp-kpi-value">{{ due_count }}</div>
+      <div class="cp-kpi-sub">Periodic review overdue</div>
+    </article>
+  </div>
+
+  {% include "governance/_ai_analysis.html" %}
+
+  {% include "partials/list_filters.html" %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} polic{{ pagination.total|pluralize:"y,ies" }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Policies</caption>
+          <thead>
+            <tr>
+              <th scope="col">Policy</th><th scope="col">Category</th><th scope="col">Version</th>
+              <th scope="col">Owners</th><th scope="col">Status</th><th scope="col">Next review</th><th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for policy in pagination.items %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'governance:policy_detail' policy.pk %}">{{ policy.title }}</a>
+                  <div class="cp-muted" style="font-size:0.76rem">{{ policy.reference }}</div>
+                </td>
+                <td>{{ policy.get_category_display }}</td>
+                <td>{% if policy.current_version %}v{{ policy.current_version.version_number }}{% else %}—{% endif %}</td>
+                <td>{{ policy.owners.count }}</td>
+                <td>{% include "governance/_status.html" with policy=policy %}</td>
+                <td>{% if policy.next_review_date %}{{ policy.next_review_date|date:"d M Y" }}{% else %}<span class="cp-muted">—</span>{% endif %}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'governance:policy_detail' policy.pk %}"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage and policy.is_editable %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'governance:policy_edit' policy.pk %}" title="Edit policy"><i data-lucide="pencil"></i> Edit</a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% if policy.is_due_for_review %}
+                <tr>
+                  <td colspan="7" style="padding-top:0">{% include "governance/_due.html" with policy=policy %}</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}scroll-text{% endif %}"></i>
+        {% if has_filters %}
+          <p>No policies match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No policies yet.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'governance:policy_create' %}"><i data-lucide="plus"></i> Create a policy</a>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Policies follow the workflow <strong>Draft &rarr; In review &rarr; Approved &rarr; Archived</strong>.
+    An approved policy whose review date has passed is flagged <strong>due for review</strong>.
+  </p>
+{% endblock %}

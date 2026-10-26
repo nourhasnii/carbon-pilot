@@ -1,0 +1,1 @@
+<span class="cp-badge {% if plan.status == 'DONE' %}cp-badge-approved{% elif plan.status == 'IN_PROGRESS' %}cp-badge-submitted{% elif plan.status == 'CANCELLED' %}cp-badge-neutral{% else %}cp-badge-draft{% endif %}">{{ plan.get_status_display }}</span>

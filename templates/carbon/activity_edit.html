@@ -1,0 +1,91 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Edit activity{% endblock %}
+{% block eyebrow %}Carbon activity{% endblock %}
+{% block heading %}Correct activity{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_detail' activity.pk %}"><i data-lucide="arrow-left"></i> Back to activity</a>
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout" style="margin-bottom:20px">
+    <i data-lucide="calculator"></i>
+    <span>CO2e is always recalculated on save as <strong>quantity × emission factor</strong>. The figure can never be entered by hand.</span>
+  </div>
+
+  <section class="cp-card">
+    <h2 class="cp-card-title cp-mt-0">Activity details</h2>
+    <p class="cp-card-sub">Editing a {{ activity.get_status_display|lower }} activity.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% include "carbon/_form_error_summary.html" %}
+
+      <div class="cp-field-grid">
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.name.id_for_label }}">Activity name</label>
+          {{ form.name }}
+          {% if form.name.errors %}<span class="cp-error">{{ form.name.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+          {{ form.quantity }}
+          {% if form.quantity.errors %}<span class="cp-error">{{ form.quantity.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.unit.id_for_label }}">Unit</label>
+          {{ form.unit }}
+          <span class="cp-hint">Must match the factor's dimension, e.g. MWh converts to kWh.</span>
+          {% if form.unit.errors %}<span class="cp-error">{{ form.unit.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.period_start.id_for_label }}">Period start</label>
+          {{ form.period_start }}
+          {% if form.period_start.errors %}<span class="cp-error">{{ form.period_start.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.period_end.id_for_label }}">Period end</label>
+          {{ form.period_end }}
+          {% if form.period_end.errors %}<span class="cp-error">{{ form.period_end.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.department.id_for_label }}">Department</label>
+          {{ form.department }}
+          {% if form.department.errors %}<span class="cp-error">{{ form.department.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.emission_factor.id_for_label }}">Emission factor</label>
+          {{ form.emission_factor }}
+          {% if form.emission_factor.errors %}<span class="cp-error">{{ form.emission_factor.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.data_source.id_for_label }}">Data source</label>
+          {{ form.data_source }}
+          {% if form.data_source.errors %}<span class="cp-error">{{ form.data_source.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.evidence.id_for_label }}">Evidence</label>
+          <div class="cp-dropzone">
+            {{ form.evidence }}
+            <span class="cp-hint">Replacing the file updates the record; leaving it empty keeps the current document.</span>
+            {% if activity.evidence %}
+              <div class="cp-evidence-current"><i data-lucide="paperclip"></i> Current: <a href="{% url 'carbon:activity_evidence' activity.pk %}">download attached file</a></div>
+            {% endif %}
+          </div>
+          {% if form.evidence.errors %}<span class="cp-error">{{ form.evidence.errors.0 }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="cp-actions">
+        <a class="cp-btn cp-btn-ghost" href="{% url 'carbon:activity_detail' activity.pk %}">Cancel</a>
+        <div class="cp-spacer"></div>
+        <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> Save and recalculate</button>
+      </div>
+    </form>
+  </section>
+
+  <datalist id="unit-options">
+    {% for unit in unit_options %}<option value="{{ unit }}"></option>{% endfor %}
+  </datalist>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% comment %}Status badge for one IndicatorValue (verification lifecycle).{% endcomment %}
+{% if value.status == 'VERIFIED' %}<span class="cp-badge cp-badge-verified">Verified</span>
+{% elif value.status == 'REPORTED' %}<span class="cp-badge cp-badge-submitted">Reported</span>
+{% else %}<span class="cp-badge cp-badge-draft">Draft</span>{% endif %}

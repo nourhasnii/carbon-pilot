@@ -1,0 +1,186 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Anomalies{% endblock %}
+{% block eyebrow %}Carbon analytics · Machine learning{% endblock %}
+{% block heading %}Anomaly detection{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_run %}
+    <form method="post" action="{% url 'carbon:anomaly_run' %}" data-ai-action data-ai-label="Analyzing…">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout" style="margin-bottom:20px">
+    <i data-lucide="cpu"></i>
+    <span>
+      CarbonPilot uses scikit-learn <strong>IsolationForest</strong> to identify unusual carbon
+      emission patterns from historical <strong>approved</strong> activities. Findings are
+      statistical flags only — a reviewer must confirm each one.
+    </span>
+  </div>
+
+  {# ---------- KPI row ---------- #}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total anomalies</div>
+      <div class="cp-kpi-value">{{ counts.total }}</div>
+      <div class="cp-kpi-sub">{{ counts.new }} new · awaiting review</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">High severity</div>
+      <div class="cp-kpi-value">{{ counts.high }}</div>
+      <div class="cp-kpi-sub">Review first</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Medium severity</div>
+      <div class="cp-kpi-value">{{ counts.medium }}</div>
+      <div class="cp-kpi-sub">Worth a look</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Low severity</div>
+      <div class="cp-kpi-value">{{ counts.low }}</div>
+      <div class="cp-kpi-sub">Minor deviation</div>
+    </article>
+  </div>
+
+  {# ---------- AI model metrics ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI model metrics</h2>
+        <p class="cp-card-sub cp-mt-0">What the IsolationForest saw on its most recent run</p>
+      </div>
+      <span class="cp-badge cp-badge-approved"><i data-lucide="cpu"></i> AI · ML</span>
+    </div>
+
+    {% if model_metrics %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Approved activities</div>
+          <div class="cp-kpi-value">{{ model_metrics.activities_analyzed }}</div>
+          <div class="cp-kpi-sub">Read on this run</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Groups analysed</div>
+          <div class="cp-kpi-value">{{ model_metrics.groups_analyzed }}</div>
+          <div class="cp-kpi-sub">Department · category · year</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Groups skipped</div>
+          <div class="cp-kpi-value">{{ model_metrics.groups_skipped }}</div>
+          <div class="cp-kpi-sub">Fewer than {{ model_metrics.params.min_observations }} observations</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Anomalies found</div>
+          <div class="cp-kpi-value">{{ model_metrics.anomalies_found }}</div>
+          <div class="cp-kpi-sub">Flagged for review</div>
+        </article>
+      </div>
+      <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+        {{ model_metrics.model_name }} v{{ model_metrics.model_version }} ·
+        contamination = {{ model_metrics.params.contamination }} ·
+        min observations = {{ model_metrics.params.min_observations }} ·
+        n_estimators = {{ model_metrics.params.n_estimators }} ·
+        random_state = {{ model_metrics.params.random_state }} ·
+        last run {{ model_metrics.created_at|date:"d M Y H:i" }}.
+      </p>
+      {% if model_metrics.insufficient_data %}
+        <div class="cp-callout is-warning" style="margin-top:14px">
+          <i data-lucide="alert-circle"></i>
+          <span>{{ model_metrics.note }} No score is shown for this run rather than a misleading one.</span>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="cpu"></i>
+        <span>
+          No detection run recorded for this company yet, so there are no model metrics to show.
+          Run detection to analyse approved activities — groups with fewer than
+          {{ model_params.min_observations }} approved observations are skipped rather than scored
+          on thin data.
+        </span>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- Filters ---------- #}
+  <div style="margin-top:20px">
+    {% include "partials/list_filters.html" with reset_url=request.path %}
+  </div>
+
+  {# ---------- Anomaly table ---------- #}
+  <section class="cp-card">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} anomal{{ pagination.total|pluralize:"y,ies" }}</h2>
+      <div class="cp-row" style="gap:8px;align-items:center">
+        <span class="cp-badge cp-badge-approved"><i data-lucide="cpu"></i> AI · ML</span>
+        <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+      </div>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Detected anomalies</caption>
+          <thead>
+            <tr>
+              <th scope="col">Severity</th><th scope="col">Type</th><th scope="col">Activity / category</th><th scope="col">Department</th>
+              <th scope="col" class="cp-num">CO2e</th><th scope="col">Period</th><th scope="col">Detected</th><th scope="col">Status</th>
+              <th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for anomaly in pagination.items %}
+              <tr>
+                <td>{% include "carbon/_anomaly_severity.html" with anomaly=anomaly %}</td>
+                <td>{{ anomaly.get_anomaly_type_display }}</td>
+                <td>
+                  {% if anomaly.activity %}
+                    <a class="cp-cell-link" href="{% url 'carbon:anomaly_detail' anomaly.pk %}">{{ anomaly.activity.display_name }}</a>
+                    <div class="cp-muted" style="font-size:0.78rem">{{ anomaly.activity.get_category_display }}</div>
+                  {% else %}
+                    <span class="cp-muted">{{ anomaly.activity.get_category_display|default:"—" }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ anomaly.department.name|default:"—" }}</td>
+                <td class="cp-num">{% if anomaly.activity %}{{ anomaly.activity.co2e_kg|floatformat:2 }} kg{% else %}—{% endif %}</td>
+                <td>{{ anomaly.period_start|date:"M Y"|default:"—" }}</td>
+                <td>{{ anomaly.detected_at|date:"Y-m-d" }}</td>
+                <td>{% include "carbon/_anomaly_status.html" with anomaly=anomaly %}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'carbon:anomaly_detail' anomaly.pk %}" title="View details"><i data-lucide="eye"></i> Details</a>
+                    {% if anomaly.activity %}
+                      <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_detail' anomaly.activity.pk %}" title="View the linked activity"><i data-lucide="arrow-up-right"></i> Activity</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}shield-check{% endif %}"></i>
+        {% if has_filters %}
+          <p>No anomalies match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No anomalies detected yet. Run detection to analyse your approved activities.</p>
+          {% if can_run %}
+            <form method="post" action="{% url 'carbon:anomaly_run' %}" data-ai-action data-ai-label="Analyzing…">
+              {% csrf_token %}
+              <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

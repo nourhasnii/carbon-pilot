@@ -1,0 +1,8 @@
+{% if policy.is_due_for_review %}
+  <span class="cp-badge cp-badge-sev-high" title="Review was due on {{ policy.next_review_date|date:'d M Y' }}">
+    <i data-lucide="alarm-clock"></i>
+    Due for review{% if policy.days_until_review %} · {{ policy.days_until_review|cut:"-" }}d overdue{% endif %}
+  </span>
+{% elif policy.next_review_date and policy.status == 'APPROVED' %}
+  <span class="cp-badge cp-badge-neutral" title="Next review on {{ policy.next_review_date|date:'d M Y' }}">Review {{ policy.next_review_date|date:"d M Y" }}</span>
+{% endif %}

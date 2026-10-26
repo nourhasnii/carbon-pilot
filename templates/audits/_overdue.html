@@ -1,0 +1,7 @@
+{% if finding.is_overdue %}
+  <span class="cp-badge cp-badge-sev-high" title="Was due on {{ finding.due_date|date:'d M Y' }}">
+    <i data-lucide="alarm-clock"></i> Escalated · {{ finding.days_overdue }}d overdue
+  </span>
+{% elif finding.due_date and not finding.is_closed %}
+  <span class="cp-badge cp-badge-neutral" title="Due on {{ finding.due_date|date:'d M Y' }}">Due {{ finding.due_date|date:"d M Y" }}</span>
+{% endif %}

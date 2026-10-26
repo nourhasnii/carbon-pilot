@@ -1,0 +1,133 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}ESG reports{% endblock %}
+{% block eyebrow %}ESG management{% endblock %}
+{% block heading %}ESG reports{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Reports</div>
+      <div class="cp-kpi-value">{{ pagination.total }}</div>
+      <div class="cp-kpi-sub">For {{ company.name }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Last generated</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">
+        {% if latest.is_generated %}{{ latest.created_at|date:"Y-m-d" }}{% else %}—{% endif %}
+      </div>
+      <div class="cp-kpi-sub">{% if latest %}{{ latest.period_year }}{% else %}No report yet{% endif %}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Latest level</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">
+        {% if latest.metrics.risk %}{{ latest.metrics.risk.level_label }}{% else %}Not assessed{% endif %}
+      </div>
+      <div class="cp-kpi-sub">Risk snapshot</div>
+    </article>
+  </div>
+
+  {# ---------- Generate a new report ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Generate a report</h2>
+    <p class="cp-card-sub">
+      Builds the report from your company's own approved activities, objectives,
+      anomalies, recommendations and latest risk assessment. Nothing is invented.
+    </p>
+    {% if can_manage %}
+      <form method="post" action="{% url 'reports:report_create' %}">
+        {% csrf_token %}
+        <div class="cp-field-grid">
+          <div class="cp-field">
+            <label for="report-year">Reporting year</label>
+            <input class="field-input" type="number" id="report-year" name="period_year"
+                   min="1900" max="2100" value="{{ current_year }}" required>
+            <span class="cp-hint">Only approved activities of this year are counted.</span>
+          </div>
+          <div class="cp-field">
+            <label for="report-title">Report title <span class="cp-hint">(optional)</span></label>
+            <input class="field-input" type="text" id="report-title" name="title"
+                   placeholder="ESG &amp; Carbon Report {{ current_year }}" maxlength="255">
+          </div>
+        </div>
+        <div class="cp-actions" style="margin-top:18px">
+          <span class="cp-spacer"></span>
+          <button class="cp-btn cp-btn-primary" type="submit">
+            <i data-lucide="file-plus-2"></i> Build report preview
+          </button>
+        </div>
+      </form>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="lock"></i>
+        <span>A company owner or ESG reporting manager can generate reports. You can still preview and download existing ones.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- Filter bar ---------- #}
+  <div style="margin-top:20px">
+    {% include "partials/list_filters.html" with reset_url=request.path %}
+  </div>
+
+  {# ---------- Report history ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Report history</h2>
+        <p class="cp-card-sub cp-mt-0">Previous reports for {{ company.name }}</p>
+      </div>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Report history</caption>
+          <thead>
+            <tr>
+              <th scope="col">Report</th><th scope="col">Year</th><th scope="col">Status</th>
+              <th scope="col" class="cp-num">Emissions (tCO2e)</th><th scope="col">Created</th>
+              <th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in pagination.items %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'reports:report_detail' report.pk %}">{{ report.title }}</a></td>
+                <td>{{ report.period_year }}</td>
+                <td>{% include "reports/_status.html" with report=report %}</td>
+                <td class="cp-num">{{ report.metrics.emissions.total_tonnes|floatformat:2 }}</td>
+                <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'reports:report_detail' report.pk %}"><i data-lucide="eye"></i> Preview</a>
+                    {% if report.is_generated %}
+                      <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'reports:report_download' report.pk %}"><i data-lucide="download"></i> PDF</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% elif has_filters %}
+      <div class="cp-empty">
+        <i data-lucide="filter"></i>
+        <p>No reports match these filters.</p>
+        <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="file-text"></i>
+        <p>No ESG report has been built for your company yet.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Reports are built from <strong>approved</strong> activities only and are a management
+    document — <strong>not a legal CSRD certification</strong>.
+  </p>
+{% endblock %}

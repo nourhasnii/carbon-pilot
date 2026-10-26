@@ -1,0 +1,95 @@
+{% comment %}
+AI audit analysis cards. Qwen decides each finding's theme and explains the
+delay risk; Django only supplies the company's own findings and the
+deterministic risk it already computed. Shown on the audit dashboard and on an
+audit detail page after an analysis has been run.
+{% endcomment %}
+{% if ai_analysis %}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI audit analysis</h2>
+        <p class="cp-card-sub cp-mt-0">
+          Model {{ ai_analysis.model|default:"qwen2.5:7b" }}
+          {% if ai_analysis.generated_at_display %}· {{ ai_analysis.generated_at_display }}{% endif %}
+        </p>
+      </div>
+      <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · QWEN</span>
+    </div>
+
+    {% if not ai_analysis.ai_available %}
+      <div class="cp-callout is-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>{{ ai_analysis.message }}</span>
+      </div>
+    {% else %}
+      {% if ai_analysis.message %}<p class="cp-muted" style="font-size:0.84rem">{{ ai_analysis.message }}</p>{% endif %}
+
+      <div class="cp-grid cp-grid-2" style="margin-top:12px">
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.95rem">
+            Finding themes
+            <span class="cp-badge cp-badge-neutral">{{ ai_analysis.classifications|length }}</span>
+          </h3>
+          {% if ai_analysis.classifications %}
+            <div class="cp-table-wrap" style="margin-top:10px">
+              <table class="cp-table">
+                <caption class="cp-sr-only">AI finding themes and confidence</caption>
+                <thead><tr><th scope="col">Finding</th><th scope="col">Theme</th><th scope="col">Confidence</th></tr></thead>
+                <tbody>
+                  {% for row in ai_analysis.classifications %}
+                    <tr>
+                      <td>
+                        <a class="cp-cell-link" href="{% url 'audits:finding_detail' row.finding_id %}">{{ row.finding_title }}</a>
+                        <div class="cp-muted" style="font-size:0.76rem">{{ row.reason }}</div>
+                      </td>
+                      <td><span class="cp-badge cp-badge-neutral">{{ row.theme_label }}</span></td>
+                      <td>
+                        <span class="cp-badge {% if row.confidence == 'HIGH' %}cp-badge-approved{% elif row.confidence == 'MEDIUM' %}cp-badge-draft{% else %}cp-badge-neutral{% endif %}">{{ row.confidence }}</span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="cp-empty" style="margin-top:10px">
+              <i data-lucide="file-text"></i>
+              <p>The model returned no theme classification for the supplied findings.</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.95rem">
+            Delay risk · open findings
+            <span class="cp-badge cp-badge-neutral">{{ ai_analysis.delay_risk|length }}</span>
+          </h3>
+          {% if ai_analysis.delay_risk %}
+            <div style="display:grid;gap:12px;margin-top:10px">
+              {% for row in ai_analysis.delay_risk %}
+                <article class="cp-callout" style="display:block">
+                  <div class="cp-row" style="align-items:center;gap:8px;flex-wrap:wrap">
+                    <a class="cp-cell-link" href="{% url 'audits:finding_detail' row.finding_id %}">{{ row.finding_title }}</a>
+                    {% include "audits/_delay_risk.html" with risk=row %}
+                  </div>
+                  {% if row.reasons %}
+                    <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:4px">
+                      {% for reason in row.reasons %}<li class="cp-muted" style="font-size:0.8rem">{{ reason }}</li>{% endfor %}
+                    </ul>
+                  {% endif %}
+                  <div class="cp-muted" style="margin-top:6px;font-size:0.72rem">Method: {{ row.method_label|default:row.method }}</div>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="cp-empty" style="margin-top:10px">
+              <i data-lucide="check-circle-2"></i>
+              <p>No open finding is currently at delay risk.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}

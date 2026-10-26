@@ -1,0 +1,130 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Review queue{% endblock %}
+{% block eyebrow %}Validation workflow{% endblock %}
+{% block heading %}Review queue{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Awaiting review</div>
+      <div class="cp-kpi-value">{{ open_count }}</div>
+      <div class="cp-kpi-sub">Across your company scope</div>
+    </article>
+    <article class="cp-kpi cp-kpi-scope2">
+      <div class="cp-kpi-label">Submitted</div>
+      <div class="cp-kpi-value">{{ submitted|length }}</div>
+      <div class="cp-kpi-sub">Not yet opened</div>
+    </article>
+    <article class="cp-kpi cp-kpi-scope3">
+      <div class="cp-kpi-label">Under review</div>
+      <div class="cp-kpi-value">{{ under_review|length }}</div>
+      <div class="cp-kpi-sub">In progress</div>
+    </article>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Submitted activities</h2>
+    <p class="cp-card-sub">Employee submissions waiting for a first review.</p>
+    {% if submitted %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Submitted carbon activities awaiting first review</caption>
+          <thead>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Submitted by</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Scope</th><th scope="col" class="cp-num">Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for activity in submitted %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a></td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td>{% if activity.created_by %}{{ activity.created_by.get_full_name|default:activity.created_by.email }}{% else %}—{% endif %}</td>
+                <td class="cp-num">{{ activity.co2e_kg|floatformat:2 }} kg</td>
+                <td>{% include "carbon/_scope.html" with scope=activity.scope scope_label=activity.get_scope_display %}</td>
+                <td>
+                  <div class="cp-row-actions">
+                    <form method="post" action="{% url 'carbon:activity_action' activity.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="approve">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i>Approve</button>
+                    </form>
+                    <details class="cp-reject">
+                      <summary class="cp-btn cp-btn-danger cp-btn-sm"><i data-lucide="x"></i>Reject</summary>
+                      <form method="post" action="{% url 'carbon:activity_action' activity.pk %}" class="cp-reject-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <label for="reject-{{ activity.pk }}">Reason (sent to the reporter)</label>
+                        <textarea id="reject-{{ activity.pk }}" name="comment" rows="3" required></textarea>
+                        <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Confirm rejection</button>
+                      </form>
+                    </details>
+                    <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_detail' activity.pk %}">Open</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="check-circle-2"></i><p>Nothing awaiting a first review.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Under review</h2>
+    <p class="cp-card-sub">Activities already opened by a reviewer, ready for approval.</p>
+    {% if under_review %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Carbon activities under review</caption>
+          <thead>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Reviewer</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Scope</th><th scope="col" class="cp-num">Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for activity in under_review %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a></td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td>{% if activity.reviewed_by %}{{ activity.reviewed_by.get_full_name|default:activity.reviewed_by.email }}{% else %}—{% endif %}</td>
+                <td class="cp-num">{{ activity.co2e_kg|floatformat:2 }} kg</td>
+                <td>{% include "carbon/_scope.html" with scope=activity.scope scope_label=activity.get_scope_display %}</td>
+                <td>
+                  <div class="cp-row-actions">
+                    <form method="post" action="{% url 'carbon:activity_action' activity.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="approve">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i>Approve</button>
+                    </form>
+                    <details class="cp-reject">
+                      <summary class="cp-btn cp-btn-danger cp-btn-sm"><i data-lucide="x"></i>Reject</summary>
+                      <form method="post" action="{% url 'carbon:activity_action' activity.pk %}" class="cp-reject-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <label for="reject-{{ activity.pk }}">Reason (sent to the reporter)</label>
+                        <textarea id="reject-{{ activity.pk }}" name="comment" rows="3" required></textarea>
+                        <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Confirm rejection</button>
+                      </form>
+                    </details>
+                    <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:activity_detail' activity.pk %}">Open</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="inbox"></i><p>No activities currently in review.</p></div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Approve or reject directly from the queue — a rejection reason is sent to the reporter.
+    Approved activities immediately count in the official carbon KPIs. Every action is validated server-side.
+  </p>
+{% endblock %}

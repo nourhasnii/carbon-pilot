@@ -1,0 +1,225 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ audit.title }}{% endblock %}
+{% block eyebrow %}Internal audit{% endblock %}
+{% block heading %}{{ audit.title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'audits:audit_list' %}"><i data-lucide="arrow-left"></i> All audits</a>
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'audits:audit_ai_analysis' %}" data-ai-action data-ai-label="Analyzing…">
+      {% csrf_token %}
+      <input type="hidden" name="next_audit" value="{{ audit.pk }}">
+      <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">
+        <i data-lucide="sparkles"></i> Run AI Audit Analysis
+      </button>
+    </form>
+  {% endif %}
+  {% if can_generate_note %}
+    <form method="post" action="{% url 'audits:audit_closing_note' audit.pk %}" data-ai-action data-ai-label="Drafting note…">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">
+        <i data-lucide="file-text"></i> Generate Closing Note
+      </button>
+    </form>
+  {% endif %}
+  {% if can_manage %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'audits:audit_edit' audit.pk %}"><i data-lucide="pencil"></i> Edit</a>{% endif %}
+  {% if can_manage %}
+    {% for option in next_statuses %}
+      <form method="post" action="{% url 'audits:audit_set_status' audit.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="status" value="{{ option.value }}">
+        <button class="cp-btn {% if option.value == 'COMPLETED' %}cp-btn-primary{% else %}cp-btn-outline{% endif %} cp-btn-sm" type="submit">
+          <i data-lucide="{% if option.value == 'IN_PROGRESS' %}play{% elif option.value == 'COMPLETED' %}check-circle-2{% else %}x-circle{% endif %}"></i>
+          {% if option.value == 'IN_PROGRESS' %}Start audit{% elif option.value == 'COMPLETED' %}Complete audit{% else %}Cancel audit{% endif %}
+        </button>
+      </form>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if overdue_findings %}
+    <div class="cp-callout is-warning">
+      <i data-lucide="alert-triangle"></i>
+      <span><strong>{{ overdue_findings }} escalated finding{{ overdue_findings|pluralize }}</strong> on this audit passed their due date and are still open.</span>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid" style="margin-top:{% if overdue_findings %}20px{% else %}0{% endif %}">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Status</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">{% include "audits/_audit_status.html" with audit=audit %}</div>
+      <div class="cp-kpi-sub">{{ audit.get_audit_type_display }} · {{ audit.reference }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Findings</div>
+      <div class="cp-kpi-value">{{ findings|length }}</div>
+      <div class="cp-kpi-sub">{{ open_findings }} open</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Overdue</div>
+      <div class="cp-kpi-value">{{ overdue_findings }}</div>
+      <div class="cp-kpi-sub">Escalated findings</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Period</div>
+      <div class="cp-kpi-value" style="font-size:1.05rem">{{ audit.start_date|date:"d M Y" }}</div>
+      <div class="cp-kpi-sub">{% if audit.end_date %}Closed {{ audit.end_date|date:"d M Y" }}{% else %}End date not set{% endif %}</div>
+    </article>
+  </div>
+
+  {% include "audits/_closing_note.html" %}
+  {% include "audits/_ai_analysis.html" %}
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Scope</h2>
+          <p class="cp-card-sub cp-mt-0">What this engagement covers</p>
+        </div>
+        {% include "audits/_audit_status.html" with audit=audit %}
+      </div>
+      {% if audit.scope_summary %}
+        <div class="cp-callout" style="display:block;white-space:pre-wrap">{{ audit.scope_summary }}</div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="file-text"></i><p>No scope summary captured for this audit.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Audit details</h2>
+      <p class="cp-card-sub cp-mt-0">Ownership and linkage</p>
+      <dl class="cp-dl">
+        <div><dt>Reference</dt><dd>{{ audit.reference }}</dd></div>
+        <div><dt>Type</dt><dd>{{ audit.get_audit_type_display }}</dd></div>
+        <div><dt>Department</dt><dd>{{ audit.department.name|default:"—" }}</dd></div>
+        <div><dt>Related policy</dt><dd>{% if audit.related_policy %}<a class="cp-cell-link" href="{% url 'governance:policy_detail' audit.related_policy.pk %}">{{ audit.related_policy.title }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Lead auditor</dt><dd>{% firstof audit.lead_auditor.get_full_name audit.lead_auditor.email "—" %}</dd></div>
+        <div><dt>Created by</dt><dd>{% firstof audit.created_by.get_full_name audit.created_by.email "—" %}</dd></div>
+        <div><dt>Created</dt><dd>{{ audit.created_at|date:"d M Y" }}</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Findings</h2>
+        <p class="cp-card-sub cp-mt-0">{{ findings|length }} observation{{ findings|length|pluralize }} raised by this audit</p>
+      </div>
+      {% if can_manage_findings %}
+        <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'audits:finding_create' audit.pk %}"><i data-lucide="plus"></i> Add finding</a>
+      {% endif %}
+    </div>
+
+    {% if findings %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Audit findings</caption>
+          <thead>
+            <tr><th scope="col">Finding</th><th scope="col">Severity</th><th scope="col">Department</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="cp-actions-col">Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for finding in findings %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'audits:finding_detail' finding.pk %}">{{ finding.title }}</a>
+                  <div class="cp-muted" style="font-size:0.76rem">{{ finding.reference }} · {{ finding.plan_total }} action{{ finding.plan_total|pluralize }}</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+                    {% include "audits/_theme_badge.html" with theme=finding.ai_theme %}
+                    {% include "audits/_delay_risk.html" with risk=finding.delay_risk %}
+                  </div>
+                </td>
+                <td>{% include "audits/_severity.html" with finding=finding %}</td>
+                <td>{{ finding.department.name|default:"—" }}</td>
+                <td>{% firstof finding.owner.get_full_name finding.owner.email "—" %}</td>
+                <td>{% if finding.due_date %}{{ finding.due_date|date:"d M Y" }}{% else %}<span class="cp-muted">—</span>{% endif %}</td>
+                <td>
+                  {% include "audits/_finding_status.html" with finding=finding %}
+                  {% if finding.is_overdue %}<div style="margin-top:4px">{% include "audits/_overdue.html" with finding=finding %}</div>{% endif %}
+                </td>
+                <td>
+                  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'audits:finding_detail' finding.pk %}"><i data-lucide="eye"></i> View</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="shield-alert"></i>
+        <p>No findings recorded for this audit yet.</p>
+        {% if can_manage_findings %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'audits:finding_create' audit.pk %}"><i data-lucide="plus"></i> Add finding</a>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Audit evidence</h2>
+        <p class="cp-card-sub cp-mt-0">Working papers attached to the engagement</p>
+      </div>
+    </div>
+
+    {% if evidence %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Audit evidence documents</caption>
+          <thead><tr><th scope="col">Title</th><th scope="col">File</th><th scope="col">Finding</th><th scope="col">Uploaded by</th><th scope="col">Uploaded</th><th scope="col" class="cp-actions-col">Actions</th></tr></thead>
+          <tbody>
+            {% for item in evidence %}
+              <tr>
+                <td>{{ item.title }}</td>
+                <td><span class="cp-muted">{{ item.filename }}</span></td>
+                <td>{% if item.finding %}<a class="cp-cell-link" href="{% url 'audits:finding_detail' item.finding.pk %}">{{ item.finding.reference }}</a>{% else %}—{% endif %}</td>
+                <td>{% firstof item.uploaded_by.get_full_name item.uploaded_by.email "—" %}</td>
+                <td>{{ item.uploaded_at|date:"d M Y H:i" }}</td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'audits:evidence_download' item.pk %}"><i data-lucide="download"></i> Download</a>
+                    {% if can_manage %}
+                      <form method="post" action="{% url 'audits:evidence_delete' item.pk %}">
+                        {% csrf_token %}
+                        <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit" aria-label="Delete evidence file"><i data-lucide="trash-2" aria-hidden="true"></i></button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="paperclip"></i><p>No evidence attached to this audit yet.</p></div>
+    {% endif %}
+
+    {% if can_manage %}
+      <form method="post" action="{% url 'audits:audit_evidence_upload' audit.pk %}" enctype="multipart/form-data" style="margin-top:18px">
+        {% csrf_token %}
+        <div class="cp-field-grid">
+          <div class="cp-field">
+            <label for="{{ evidence_form.title.id_for_label }}">Evidence title</label>
+            {{ evidence_form.title }}
+            {% if evidence_form.title.errors %}<span class="cp-error">{{ evidence_form.title.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field">
+            <label for="{{ evidence_form.file.id_for_label }}">File</label>
+            {{ evidence_form.file }}
+            {% if evidence_form.file.errors %}<span class="cp-error">{{ evidence_form.file.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field">
+            <label aria-hidden="true">&nbsp;</label>
+            <div class="cp-row">
+              <button class="cp-btn cp-btn-outline" type="submit"><i data-lucide="upload"></i> Upload evidence</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

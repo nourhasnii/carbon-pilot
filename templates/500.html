@@ -1,0 +1,10 @@
+{% extends "errors/base.html" %}
+
+{# 500 — rendered without a request context. Never expose tracebacks or internals. #}
+{% block title %}Something went wrong{% endblock %}
+{% block tone %}tone-danger{% endblock %}
+{% block icon %}alert-octagon{% endblock %}
+{% block code %}500{% endblock %}
+{% block heading %}Something went wrong on our side{% endblock %}
+{% block message %}We hit an unexpected problem and couldn't finish loading this page. Your saved data is safe — nothing was changed.{% endblock %}
+{% block footnote %}Try again in a moment. If it keeps happening, contact your workspace administrator and mention when the error occurred.{% endblock %}

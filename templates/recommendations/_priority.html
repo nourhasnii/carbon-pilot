@@ -1,0 +1,2 @@
+{% comment %}Priority badge. Expects `priority` (value) and `label`.{% endcomment %}
+<span class="cp-badge cp-badge-sev-{% if priority == 'HIGH' %}high{% elif priority == 'MEDIUM' %}medium{% else %}low{% endif %}">{{ label }}</span>
