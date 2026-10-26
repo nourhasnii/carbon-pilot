@@ -52,14 +52,50 @@ class CompanyForm(forms.ModelForm):
 
 
 class DepartmentForm(forms.ModelForm):
-	class Meta:
-		model = Department
-		fields = ("name", "code", "description")
-		widgets = {
-			"name": forms.TextInput(attrs={"class": "form-control", "required": "required"}),
-			"code": forms.TextInput(attrs={"class": "form-control"}),
-			"description": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
-		}
+    class Meta:
+        model = Department
+        fields = ("name", "code", "description")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control", "required": "required"}),
+            "code": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+        }
+
+    def __init__(self, *args, company=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.company = company
+        self.fields["name"].error_messages["required"] = "Give the department a name."
+        self.fields["code"].required = False
+        self.fields["code"].error_messages["required"] = "Enter the department code, or leave it blank."
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise ValidationError("Give the department a name.")
+        if self.company is not None:
+            queryset = Department.objects.filter(company=self.company, name__iexact=name)
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise ValidationError("Your company already has a department with this name.")
+        return name
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip()
+        if code and self.company is not None:
+            queryset = Department.objects.filter(company=self.company, code__iexact=code)
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise ValidationError("Another department of your company already uses this code.")
+        return code
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # ``clean_name`` and ``clean_code`` already report duplicates with
+        # friendlier, field-level messages.
+        self._validate_unique = False
+        return cleaned_data
 
 
 class CompanyInviteForm(forms.Form):

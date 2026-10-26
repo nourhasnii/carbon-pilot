@@ -1,0 +1,177 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Ask CarbonPilot{% endblock %}
+{% block eyebrow %}AI assistant{% endblock %}
+{% block heading %}Ask CarbonPilot{% endblock %}
+
+{% block topbar_actions %}
+  {% if history %}
+    <form method="post" action="{% url 'assistant:assistant_clear' %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit">
+        <i data-lucide="eraser"></i> Clear conversation
+      </button>
+    </form>
+  {% endif %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'carbon:dashboard' %}">
+    <i data-lucide="gauge"></i> Carbon overview
+  </a>
+{% endblock %}
+
+{% block content %}
+  {# ---------- Intro + ask form ---------- #}
+  <section class="cp-card">
+    <h2 class="cp-card-title cp-mt-0">Ask a question about {{ company.name }}</h2>
+    <p class="cp-card-sub">
+      Answers are built only from your company's own recorded ESG and carbon data.
+      The assistant never invents figures: when the data cannot answer, it says so.
+    </p>
+
+    <form method="post" action="{% url 'assistant:assistant_ask' %}" style="margin-top:14px" data-ai-action data-ai-label="Thinking…">
+      {% csrf_token %}
+      <div class="cp-field">
+        <label for="assistant-question">Your question</label>
+        <textarea class="field-input" id="assistant-question" name="question" rows="3"
+                  maxlength="500" required
+                  placeholder="e.g. What are my total approved emissions this year, and which departments emit the most?"></textarea>
+        <p class="cp-hint">
+          Runs against a local Qwen 2.5:7b model (Ollama). Your data never leaves the machine.
+          Generation can take a little while on CPU.
+        </p>
+      </div>
+      <div class="cp-actions">
+        <button class="cp-btn cp-btn-primary" type="submit">
+          <i data-lucide="send"></i> Ask
+        </button>
+      </div>
+    </form>
+
+    <div class="cp-toolbar" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+      <form method="post" action="{% url 'assistant:assistant_ask' %}" data-ai-action data-ai-label="Thinking…">
+        {% csrf_token %}
+        <input type="hidden" name="question" value="What are my total approved emissions this year?" />
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">Total emissions this year</button>
+      </form>
+      <form method="post" action="{% url 'assistant:assistant_ask' %}" data-ai-action data-ai-label="Thinking…">
+        {% csrf_token %}
+        <input type="hidden" name="question" value="Which departments emit the most?" />
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">Top emitting departments</button>
+      </form>
+      <form method="post" action="{% url 'assistant:assistant_ask' %}" data-ai-action data-ai-label="Thinking…">
+        {% csrf_token %}
+        <input type="hidden" name="question" value="Which objectives are at risk?" />
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">Objectives at risk</button>
+      </form>
+      <form method="post" action="{% url 'assistant:assistant_ask' %}" data-ai-action data-ai-label="Thinking…">
+        {% csrf_token %}
+        <input type="hidden" name="question" value="How complete is my ESG data?" />
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">ESG data completeness</button>
+      </form>
+      <form method="post" action="{% url 'assistant:assistant_ask' %}" data-ai-action data-ai-label="Thinking…">
+        {% csrf_token %}
+        <input type="hidden" name="question" value="Do I have high-risk suppliers?" />
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">Supplier risk</button>
+      </form>
+    </div>
+  </section>
+
+  {# ---------- Latest answer ---------- #}
+  {% if latest %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-section-head">
+        <h2 class="cp-card-title cp-mt-0">Answer</h2>
+        {% if latest.method == 'AI' %}
+          <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI answer</span>
+        {% else %}
+          <span class="cp-badge cp-badge-demo">Rule-based summary</span>
+        {% endif %}
+      </div>
+      <p class="cp-muted" style="margin:6px 0 0;font-size:0.8rem">
+        <strong>You asked:</strong> {{ latest.question }}
+      </p>
+      <p style="margin:10px 0 0;line-height:1.6">{{ latest.answer|linebreaksbr }}</p>
+
+      {% if latest.ai_unavailable %}
+        <div class="cp-callout is-warning" style="margin-top:14px">
+          <i data-lucide="wifi-off"></i>
+          <span>The AI assistant is temporarily unavailable, so this is a factual summary of your data rather than an AI answer.</span>
+        </div>
+      {% elif latest.insufficient_data %}
+        <div class="cp-callout is-warning" style="margin-top:14px">
+          <i data-lucide="alert-circle"></i>
+          <span>The available data does not contain a complete answer to this question.</span>
+        </div>
+      {% endif %}
+
+      <div style="margin-top:14px">
+        <p class="cp-muted" style="margin:0 0 6px;font-size:0.78rem">Sources used</p>
+        {% if latest.sources %}
+          {% for source in latest.sources %}
+            <span class="cp-badge cp-badge-neutral">{{ source }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="cp-muted" style="font-size:0.82rem">No source data was used.</span>
+        {% endif %}
+      </div>
+      <p class="cp-muted" style="margin:12px 0 0;font-size:0.74rem">Asked {{ latest.asked_at }}</p>
+    </section>
+  {% else %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-empty">
+        <i data-lucide="message-square-text"></i>
+        <p>No question asked yet. Ask about emissions, objectives, anomalies, risk, data quality or suppliers.</p>
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px;align-items:start">
+    {# ---------- History ---------- #}
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Conversation</h2>
+      <p class="cp-card-sub">The last few questions for this session</p>
+      {% if history %}
+        <ol style="margin:0;padding-left:18px;display:grid;gap:16px">
+          {% for entry in history %}
+            <li>
+              <p style="margin:0;font-weight:600">{{ entry.question }}</p>
+              <p class="cp-muted" style="margin:4px 0 0;font-size:0.84rem">{{ entry.answer|linebreaksbr }}</p>
+              <p style="margin:6px 0 0">
+                {% if entry.method == 'AI' %}
+                  <span class="cp-badge cp-badge-approved">AI answer</span>
+                {% else %}
+                  <span class="cp-badge cp-badge-demo">Rule-based summary</span>
+                {% endif %}
+                {% for source in entry.sources %}
+                  <span class="cp-badge cp-badge-neutral">{{ source }}</span>
+                {% endfor %}
+                <span class="cp-muted" style="font-size:0.72rem">{{ entry.asked_at }}</span>
+              </p>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="cp-muted" style="font-size:0.84rem">Nothing asked yet.</p>
+      {% endif %}
+    </section>
+
+    {# ---------- What the assistant can read ---------- #}
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">What the assistant can read</h2>
+      <p class="cp-card-sub">Only your own company's approved data — never another tenant's</p>
+      <ul class="cp-quality-list">
+        {% for label, detail in source_legend %}
+          <li class="ok">
+            <i data-lucide="database"></i>
+            <span><strong>{{ label }}</strong>
+              <span class="cp-quality-detail">· {{ detail }}</span>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="cp-callout" style="margin-top:14px">
+        <i data-lucide="shield-check"></i>
+        <span>Answers are decision support only — not a legal CSRD certification and not independently assured.</span>
+      </div>
+    </section>
+  </div>
+{% endblock %}

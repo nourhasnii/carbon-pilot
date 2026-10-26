@@ -1,0 +1,41 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}Supplier sustainability{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if supplier %}{% url 'suppliers:supplier_detail' supplier.pk %}{% else %}{% url 'suppliers:supplier_list' %}{% endif %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <datalist id="country-options">
+    {% for value in country_options %}<option value="{{ value }}"></option>{% endfor %}
+  </datalist>
+  <datalist id="category-options">
+    {% for value in category_options %}<option value="{{ value }}"></option>{% endfor %}
+  </datalist>
+
+  <section class="cp-card">
+    <p class="cp-card-sub">Record the supplier's identity and contacts. ESG completeness is derived automatically from the documents you upload on the supplier page.</p>
+    {% if form.non_field_errors %}<div class="cp-nonfield-error">{{ form.non_field_errors|striptags }}</div>{% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="cp-field-grid">
+        {% for field in form %}
+          <div class="cp-field {% if field.name == 'notes' %}cp-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="cp-hint">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="cp-actions">
+        <a class="cp-btn cp-btn-outline" href="{% if supplier %}{% url 'suppliers:supplier_detail' supplier.pk %}{% else %}{% url 'suppliers:supplier_list' %}{% endif %}">Cancel</a>
+        <span class="cp-spacer"></span>
+        <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if is_edit %}Save changes{% else %}Add supplier{% endif %}</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -135,3 +135,53 @@ class SignupForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+class UserFilterForm(forms.Form):
+    """Filter bar for the platform user list (Super Admin).
+
+    All fields are optional. The department choices are derived from the
+    values already present on the queryset the list view is showing, so the
+    dropdown never invents a department that no account belongs to.
+    """
+
+    q = forms.CharField(
+        required=False,
+        label="Search",
+        widget=forms.TextInput(
+            attrs={"class": "field-input", "placeholder": "Name or email…"}
+        ),
+    )
+    role = forms.ChoiceField(
+        required=False,
+        label="Role",
+        choices=[("", "All roles"), *User.Role.choices],
+        widget=forms.Select(attrs={"class": "field-input"}),
+    )
+    status = forms.ChoiceField(
+        required=False,
+        label="Status",
+        choices=[("", "All statuses"), *User.Status.choices],
+        widget=forms.Select(attrs={"class": "field-input"}),
+    )
+    department = forms.ChoiceField(
+        required=False,
+        label="Department",
+        choices=[("", "All departments")],
+        widget=forms.Select(attrs={"class": "field-input"}),
+    )
+
+    def __init__(self, *args, queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        departments = (
+            queryset.exclude(department="")
+            .order_by("department")
+            .values_list("department", flat=True)
+            .distinct()
+            if queryset is not None
+            else []
+        )
+        self.fields["department"].choices = [
+            ("", "All departments"),
+            *((value, value) for value in departments),
+        ]

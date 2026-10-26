@@ -1,0 +1,77 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}ESG measurement{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% url 'esg:indicator_detail' indicator.pk %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout">
+    <i data-lucide="info"></i>
+    <span>
+      Recording <strong>{{ indicator.name }}</strong> ({{ indicator.reference }}) — unit <strong>{{ indicator.unit }}</strong>.
+      One measurement per reporting period. Leave the value blank when the data is <strong>missing</strong>:
+      a blank value is never treated as a measured zero.
+    </span>
+  </div>
+
+  <form method="post" novalidate style="margin-top:20px">
+    {% csrf_token %}
+    {% include "carbon/_form_error_summary.html" %}
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Measurement</h2>
+      <p class="cp-card-sub cp-mt-0">Only reported and verified measurements count towards ESG completeness.</p>
+      <div class="cp-field-grid">
+        <div class="cp-field">
+          <label for="{{ form.period_year.id_for_label }}">Reporting year <span aria-hidden="true">*</span></label>
+          {{ form.period_year }}
+          {% if form.period_year.errors %}<span class="cp-error">{{ form.period_year.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.value.id_for_label }}">Value</label>
+          {{ form.value }}
+          <span class="cp-hint">Leave blank if unknown — this records a missing measurement, not a zero.</span>
+          {% if form.value.errors %}<span class="cp-error">{{ form.value.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.unit.id_for_label }}">Unit</label>
+          {{ form.unit }}
+          {% if form.unit.errors %}<span class="cp-error">{{ form.unit.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.evidence_reference.id_for_label }}">Evidence reference</label>
+          {{ form.evidence_reference }}
+          <span class="cp-hint">Where the figure comes from — invoice, meter report, HR export…</span>
+          {% if form.evidence_reference.errors %}<span class="cp-error">{{ form.evidence_reference.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.note.id_for_label }}">Note</label>
+          {{ form.note }}
+          {% if form.note.errors %}<span class="cp-error">{{ form.note.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field cp-span-2">
+          <label>Reporting state</label>
+          {{ form.status }}
+          <span class="cp-hint">{{ form.status.help_text }}</span>
+          {% if form.status.errors %}<span class="cp-error">{{ form.status.errors|striptags }}</span>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="cp-actions" style="margin-top:20px">
+      <a class="cp-btn cp-btn-outline" href="{% url 'esg:indicator_detail' indicator.pk %}">Cancel</a>
+      <span class="cp-spacer"></span>
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if value %}Save measurement{% else %}Save measurement{% endif %}</button>
+    </div>
+  </form>
+
+  {% if value and value.is_verified %}
+    <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+      Verified measurements must be returned to draft before they can be edited.
+    </p>
+  {% endif %}
+{% endblock %}

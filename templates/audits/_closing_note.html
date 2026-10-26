@@ -1,0 +1,51 @@
+{% comment %}
+AI closing note for one engagement. Qwen writes the narrative from the audit's
+real counts only; nothing is invented. Shown on the audit detail page after the
+note has been generated.
+{% endcomment %}
+{% if closing_note %}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Audit closing note</h2>
+        <p class="cp-card-sub cp-mt-0">
+          Model {{ closing_note.model|default:"qwen2.5:7b" }}
+          {% if closing_note.generated_at_display %}· {{ closing_note.generated_at_display }}{% endif %}
+        </p>
+      </div>
+      <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · QWEN</span>
+    </div>
+
+    {% if not closing_note.ai_available %}
+      <div class="cp-callout is-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>{{ closing_note.message }}</span>
+      </div>
+    {% else %}
+      {% if closing_note.note.closing_note_title %}<h3 class="cp-card-title" style="font-size:1rem">{{ closing_note.note.closing_note_title }}</h3>{% endif %}
+      {% if closing_note.note.executive_summary %}
+        <div class="cp-callout" style="display:block;white-space:pre-wrap">{{ closing_note.note.executive_summary }}</div>
+      {% endif %}
+
+      {% if closing_note.note.key_findings %}
+        <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Key findings</h4>
+        <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:6px">{% for entry in closing_note.note.key_findings %}<li>{{ entry }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% if closing_note.note.remediation_status %}
+        <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Remediation status</h4>
+        <div style="white-space:pre-wrap">{{ closing_note.note.remediation_status }}</div>
+      {% endif %}
+
+      {% if closing_note.note.residual_risks %}
+        <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Residual risks</h4>
+        <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:6px">{% for entry in closing_note.note.residual_risks %}<li>{{ entry }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% if closing_note.note.conclusion %}
+        <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Conclusion</h4>
+        <div style="white-space:pre-wrap">{{ closing_note.note.conclusion }}</div>
+      {% endif %}
+    {% endif %}
+  </section>
+{% endif %}

@@ -1,0 +1,83 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}Governance{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if policy %}{% url 'governance:policy_detail' policy.pk %}{% else %}{% url 'governance:policy_list' %}{% endif %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "carbon/_form_error_summary.html" %}
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Policy details</h2>
+      <p class="cp-card-sub cp-mt-0">A policy belongs to your company and follows the review workflow — only drafts are freely editable.</p>
+      <div class="cp-field-grid">
+        {% for field in form %}
+          <div class="cp-field {% if field.name == 'title' or field.name == 'description' %}cp-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="cp-hint">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if version_form %}
+      <section class="cp-card" style="margin-top:20px">
+        <h2 class="cp-card-title cp-mt-0">{% if policy %}Current version (v{{ policy.current_version.version_number }}){% else %}First version{% endif %}</h2>
+        <p class="cp-card-sub cp-mt-0">The policy text is versioned. Each change becomes a new version once the policy is approved.</p>
+        {% include "carbon/_form_error_summary.html" with form=version_form %}
+        <div class="cp-field-grid">
+          {% for field in version_form %}
+            <div class="cp-field {% if field.name != 'effective_from' %}cp-span-2{% endif %}">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="cp-card" style="margin-top:20px">
+      <h2 class="cp-card-title cp-mt-0">Responsibility matrix</h2>
+      <p class="cp-card-sub cp-mt-0">Name the owners, reviewers and contributors. A reviewer is asked to approve the policy when it is submitted.</p>
+      {{ formset.management_form }}
+      {% if formset.non_form_errors %}<div class="cp-nonfield-error">{{ formset.non_form_errors|striptags }}</div>{% endif %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Responsibility matrix</caption>
+          <thead>
+            <tr><th scope="col">Responsibility</th><th scope="col">Department</th><th scope="col">User</th><th scope="col" class="cp-actions-col">Remove</th></tr>
+          </thead>
+          <tbody>
+            {% for owner_form in formset %}
+              <tr>
+                <td>{{ owner_form.responsibility_role }}{% if owner_form.responsibility_role.errors %}<span class="cp-error">{{ owner_form.responsibility_role.errors|striptags }}</span>{% endif %}</td>
+                <td>{{ owner_form.department }}{% if owner_form.department.errors %}<span class="cp-error">{{ owner_form.department.errors|striptags }}</span>{% endif %}</td>
+                <td>{{ owner_form.user }}{% if owner_form.user.errors %}<span class="cp-error">{{ owner_form.user.errors|striptags }}</span>{% endif %}</td>
+                <td>{% if owner_form.DELETE %}{{ owner_form.DELETE }}{% endif %}</td>
+              </tr>
+              {% if owner_form.non_field_errors %}
+                <tr><td colspan="4"><span class="cp-error">{{ owner_form.non_field_errors|striptags }}</span></td></tr>
+              {% endif %}
+              {% for hidden in owner_form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% for hidden in formset.hidden_fields %}{{ hidden }}{% endfor %}
+    </section>
+
+    <div class="cp-actions" style="margin-top:20px">
+      <a class="cp-btn cp-btn-outline" href="{% if policy %}{% url 'governance:policy_detail' policy.pk %}{% else %}{% url 'governance:policy_list' %}{% endif %}">Cancel</a>
+      <span class="cp-spacer"></span>
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if policy %}Save policy{% else %}Create policy{% endif %}</button>
+    </div>
+  </form>
+{% endblock %}

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
 from django.views.decorators.http import require_POST, require_http_methods
 
-from .forms import CreateUserForm, SignupForm, UserLoginForm
+from .forms import CreateUserForm, SignupForm, UserFilterForm, UserLoginForm
 from .models import AdminActivity, User
 from .permissions import role_required
 from .services.account_workflow import (
@@ -24,6 +24,7 @@ from .services.email_service import build_account_activation_url, send_company_i
 from .services import notifications as notification_service
 from apps.carbon.services import analytics as carbon_analytics
 from apps.carbon.services.tenancy import company_for_user, visible_activities
+from apps.common.listing import paginate
 from apps.enterprise.forms import CompanyForm, CompanyInviteForm, DepartmentForm
 from apps.enterprise.models import Company, Department
 
@@ -47,9 +48,12 @@ ROLE_SIDEBAR = {
         {"label": "Users", "icon": "users", "key": "users", "href": "/dashboard/?section=users", "requires_company": True},
         {"label": "Departments", "icon": "network", "key": "departments", "href": "/dashboard/?section=departments", "requires_company": True},
         {"label": "Carbon Management", "icon": "leaf", "url_name": "carbon:dashboard", "requires_company": True},
-        {"label": "ESG", "icon": "chart-no-axes-column-increasing", "note": "Soon", "unavailable": True},
-        {"label": "Audits", "icon": "clipboard-check", "note": "Soon", "unavailable": True},
-        {"label": "Suppliers", "icon": "truck", "note": "Soon", "unavailable": True},
+        {"label": "Policies", "icon": "scroll-text", "url_name": "governance:policy_list", "requires_company": True},
+        {"label": "Company intelligence", "icon": "brain-circuit", "key": "intelligence", "url_name": "enterprise:company_intelligence", "requires_company": True},
+        {"label": "Ask CarbonPilot", "icon": "message-square-text", "url_name": "assistant:assistant_page", "requires_company": True},
+        {"label": "ESG", "icon": "chart-no-axes-column-increasing", "url_name": "esg:dashboard", "requires_company": True},
+        {"label": "Audits", "icon": "clipboard-check", "url_name": "audits:audit_list", "requires_company": True},
+        {"label": "Suppliers", "icon": "truck", "url_name": "suppliers:supplier_list", "requires_company": True},
         {"label": "Profile", "icon": "user-round", "note": "Soon", "unavailable": True},
         {"label": "Settings", "icon": "settings-2", "note": "Soon", "unavailable": True},
     ),
@@ -59,6 +63,9 @@ ROLE_SIDEBAR = {
         {"label": "Review queue", "icon": "clipboard-check", "url_name": "carbon:review_queue"},
         {"label": "Emissions", "icon": "cloud", "url_name": "carbon:footprint"},
         {"label": "Objectives", "icon": "target", "url_name": "objectives:objective_list"},
+        {"label": "Suppliers", "icon": "truck", "url_name": "suppliers:supplier_list"},
+        {"label": "Internal audit", "icon": "clipboard-check", "url_name": "audits:audit_list"},
+        {"label": "ESG intelligence", "icon": "chart-no-axes-column-increasing", "url_name": "esg:dashboard"},
         {"label": "Profile", "icon": "user-round", "url_name": "accounts:profile"},
     ),
     User.Role.SUPPLIER: (
@@ -70,12 +77,20 @@ ROLE_SIDEBAR = {
         {"label": "Dashboard", "icon": "layout-dashboard", "url_name": "accounts:dashboard", "key": "overview"},
         {"label": "Reports", "icon": "file-chart-column-increasing", "url_name": "accounts:auditor_reports"},
         {"label": "Audits", "icon": "clipboard-check", "url_name": "accounts:auditor_audit_risk"},
+        {"label": "Suppliers", "icon": "truck", "url_name": "suppliers:supplier_list"},
+        {"label": "ESG intelligence", "icon": "chart-no-axes-column-increasing", "url_name": "esg:dashboard"},
+        {"label": "Ask CarbonPilot", "icon": "message-square-text", "url_name": "assistant:assistant_page"},
     ),
     User.Role.ESG_REPORTING_MANAGER: (
         {"label": "Dashboard", "icon": "layout-dashboard", "url_name": "accounts:dashboard", "key": "overview"},
-        {"label": "ESG reports", "icon": "file-chart-column-increasing", "url_name": "accounts:esg_reports"},
-        {"label": "Indicators", "icon": "chart-no-axes-combined", "url_name": "accounts:esg_indicators"},
+        {"label": "ESG intelligence", "icon": "chart-no-axes-column-increasing", "url_name": "esg:dashboard"},
+        {"label": "ESG reports", "icon": "file-chart-column-increasing", "url_name": "reports:report_list"},
+        {"label": "Indicators", "icon": "chart-no-axes-combined", "url_name": "esg:indicator_list"},
         {"label": "Carbon", "icon": "leaf", "url_name": "carbon:dashboard"},
+        {"label": "Policies", "icon": "scroll-text", "url_name": "governance:policy_list"},
+        {"label": "Internal audit", "icon": "clipboard-check", "url_name": "audits:audit_list"},
+        {"label": "Suppliers", "icon": "truck", "url_name": "suppliers:supplier_list"},
+        {"label": "Ask CarbonPilot", "icon": "message-square-text", "url_name": "assistant:assistant_page"},
     ),
 }
 
@@ -130,6 +145,7 @@ def dashboard_view(request):
     users_section = role == User.Role.COMPANY_OWNER and request.GET.get("section") == "users"
     companies_section = role == User.Role.SUPER_ADMIN and request.GET.get("section") == "companies"
     department_form = None
+    department_detail = None
     invite_form = None
     company_departments = Department.objects.none()
     company_admin_detail = None
@@ -259,15 +275,55 @@ def dashboard_view(request):
                 return redirect(f"{reverse('accounts:dashboard')}?section=users")
         if department_section and company:
             editing_id = request.GET.get("edit")
+            viewing_id = request.GET.get("view")
             department = get_object_or_404(Department, company=company, pk=editing_id) if editing_id else None
+            if request.method == "POST" and request.POST.get("action") in (
+                "deactivate_department",
+                "activate_department",
+            ):
+                if request.POST.get("confirm_department_status") != "yes":
+                    raise PermissionDenied
+                target = get_object_or_404(
+                    Department,
+                    company=company,
+                    pk=request.POST.get("department_id"),
+                )
+                if request.POST.get("action") == "deactivate_department":
+                    members = User.objects.filter(
+                        company_membership=company,
+                        department__iexact=target.name,
+                        status=User.Status.ACTIVE,
+                    )
+                    if members.exists():
+                        messages.error(
+                            request,
+                            f"{target.name} still has {members.count()} active "
+                            f"member{'' if members.count() == 1 else 's'}. "
+                            "Reassign them to another department before deactivating it.",
+                        )
+                        return redirect(f"{reverse('accounts:dashboard')}?section=departments&view={target.pk}")
+                    target.is_active = False
+                    target.save(update_fields=("is_active",))
+                    messages.success(request, f"{target.name} was deactivated.")
+                else:
+                    target.is_active = True
+                    target.save(update_fields=("is_active",))
+                    messages.success(request, f"{target.name} was reactivated.")
+                return redirect(f"{reverse('accounts:dashboard')}?section=departments")
             if request.method == "POST" or request.GET.get("action") == "create" or editing_id:
-                department_form = DepartmentForm(request.POST or None, instance=department)
+                department_form = DepartmentForm(request.POST or None, instance=department, company=company)
             if request.method == "POST" and department_form.is_valid():
                 department = department_form.save(commit=False)
                 department.company = company
                 department.save()
                 messages.success(request, "Department saved.")
                 return redirect(f"{reverse('accounts:dashboard')}?section=departments")
+            if viewing_id:
+                department_detail = get_object_or_404(Department, company=company, pk=viewing_id)
+                department_detail.members = User.objects.filter(
+                    company_membership=company,
+                    department__iexact=department_detail.name,
+                ).order_by("last_name", "first_name", "email")
         if company_section and (request.method == "POST" or company is None or request.GET.get("edit") == "1"):
             company_form = CompanyForm(
                 request.POST or None,
@@ -318,6 +374,7 @@ def dashboard_view(request):
         "company_form": company_form,
         "department_section": department_section,
         "department_form": department_form,
+        "department_detail": department_detail,
         "company_departments": company_departments,
         "users_section": users_section,
         "invite_form": invite_form,
@@ -461,17 +518,49 @@ def _company_carbon_summary(user, company):
     }
 
 
+def _apply_user_filters(queryset, form):
+    """Narrow the platform user list by the shared filter bar.
+
+    An invalid form (unknown role/status/department) leaves the queryset
+    untouched so bad GET values are ignored rather than erroring.
+    """
+    if not form.is_valid():
+        return queryset
+    data = form.cleaned_data
+    if data.get("q"):
+        term = data["q"].strip()
+        queryset = queryset.filter(
+            Q(email__icontains=term)
+            | Q(first_name__icontains=term)
+            | Q(last_name__icontains=term)
+        )
+    if data.get("role"):
+        queryset = queryset.filter(role=data["role"])
+    if data.get("status"):
+        queryset = queryset.filter(status=data["status"])
+    if data.get("department"):
+        queryset = queryset.filter(department=data["department"])
+    return queryset
+
+
 @login_required
 @role_required(User.Role.SUPER_ADMIN)
 def user_management(request):
     users = User.objects.exclude(role=User.Role.SUPER_ADMIN)
+    form = UserFilterForm(request.GET or None, queryset=users)
+    pagination = paginate(request, _apply_user_filters(users, form))
     role_choices = [
         (role, label) for role, label in User.Role.choices
         if role != User.Role.SUPER_ADMIN
     ]
     return render(request, "accounts/user_management.html", {
-        "users": users,
+        "users": pagination["items"],
         "role_choices": role_choices,
+        "filter_form": form,
+        "pagination": pagination,
+        "has_filters": any(
+            request.GET.get(key) for key in ("q", "role", "status", "department")
+        ),
     })
 
 

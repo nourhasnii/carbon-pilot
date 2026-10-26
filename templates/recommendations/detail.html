@@ -105,9 +105,9 @@
     </div>
     {% if evidence_items %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Evidence behind this recommendation</caption>
           <thead>
-            <tr><th>Metric</th><th>Value</th><th>Source</th></tr>
+            <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">Source</th></tr>
           </thead>
           <tbody>
             {% for item in evidence_items %}

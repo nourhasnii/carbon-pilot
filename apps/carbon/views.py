@@ -11,6 +11,7 @@ import os
 
 from apps.accounts.models import User
 from apps.accounts.permissions import role_required
+from apps.analytics.models import ModelKind, ModelMetrics
 
 from .constants import default_scope_for
 from .forms import (
@@ -47,6 +48,11 @@ from .services.recommendation import factors_for_company
 from .services.units import COMMON_UNITS
 from apps.objectives.services import dashboard_objectives
 from apps.recommendations.services import summary as recommendation_summary
+from apps.risk.services.risk_assessment import latest_assessment as latest_risk_assessment
+from apps.reports.models import ESGReport
+from apps.reports.permissions import MANAGE_ROLES as REPORT_MANAGE_ROLES
+from apps.common.listing import base_query as build_base_query
+from apps.common.listing import paginate as paginate_queryset
 
 # Everyone in a company may look at its carbon data (auditors read-only).
 CARBON_VIEWER_ROLES = (
@@ -68,12 +74,6 @@ CARBON_CREATOR_ROLES = (
 # Members who may open the review queue.
 CARBON_REVIEW_ROLES = workflow.REVIEWER_ROLES
 FACTOR_MANAGER_ROLES = (User.Role.COMPANY_OWNER, User.Role.ESG_REPORTING_MANAGER)
-INVESTMENTS_VIEWER_ROLES = (
-	User.Role.COMPANY_OWNER,
-	User.Role.ESG_REPORTING_MANAGER,
-	User.Role.AUDITOR,
-	User.Role.DEPARTMENT_MANAGER,
-)
 
 # Members who may run anomaly detection / triage anomaly logs.
 ANOMALY_MANAGE_ROLES = (User.Role.COMPANY_OWNER, User.Role.ESG_REPORTING_MANAGER)
@@ -99,13 +99,14 @@ def _sidebar(active, user):
 	items += [
 		{"label": "Footprint analysis", "icon": "bar-chart-3", "url_name": "carbon:footprint"},
 		{"label": "Anomalies", "icon": "shield-alert", "url_name": "carbon:anomaly_list"},
+		{"label": "Risk assessment", "icon": "shield-check", "url_name": "risk:risk_assessment"},
+		{"label": "ESG reports", "icon": "file-text", "url_name": "reports:report_list"},
+		{"label": "ESG intelligence", "icon": "chart-no-axes-column-increasing", "url_name": "esg:dashboard"},
 		{"label": "Objectives", "icon": "target", "url_name": "objectives:objective_list"},
+		{"label": "Policies", "icon": "scroll-text", "url_name": "governance:policy_list"},
+		{"label": "Internal audit", "icon": "clipboard-check", "url_name": "audits:audit_list"},
 		{"label": "Recommendations", "icon": "sparkles", "url_name": "recommendations:recommendation_list"},
-	]
-	if user.role == User.Role.SUPER_ADMIN or user.role in INVESTMENTS_VIEWER_ROLES:
-		items.append({"label": "Investments", "icon": "landmark", "url_name": "investments:project_list"})
-		items.append({"label": "Portfolio AI", "icon": "brain-circuit", "url_name": "portfolio_ai:run_create"})
-	items += [
+		{"label": "Ask CarbonPilot", "icon": "message-square-text", "url_name": "assistant:assistant_page"},
 		{"label": "Emission factors", "icon": "beaker", "url_name": "carbon:factor_library"},
 	]
 	for item in items:
@@ -182,6 +183,8 @@ def _apply_filters(queryset, form):
 	if not form.is_valid():
 		return queryset
 	data = form.cleaned_data
+	if data.get("q"):
+		queryset = queryset.filter(name__icontains=data["q"].strip())
 	if data.get("year"):
 		queryset = queryset.filter(period_start__year=data["year"])
 	if data.get("scope"):
@@ -213,22 +216,14 @@ def _apply_anomaly_filters(queryset, form):
 	return queryset
 
 
-def _paginate(request, queryset, per_page=20):
-	page = max(_as_int(request.GET.get("page")) or 1, 1)
-	total = queryset.count()
-	pages = max((total + per_page - 1) // per_page, 1)
-	page = min(page, pages)
-	start = (page - 1) * per_page
-	return {
-		"items": list(queryset[start:start + per_page]),
-		"page": page,
-		"pages": pages,
-		"total": total,
-		"has_previous": page > 1,
-		"has_next": page < pages,
-		"previous_page": page - 1,
-		"next_page": page + 1,
-	}
+def _paginate(request, queryset, per_page=None):
+	"""Paginate a company-scoped queryset through the shared list helper.
+
+	Kept as a thin wrapper so the carbon templates and tests keep their
+	existing ``pagination`` dict shape while the page size, invalid-page and
+	filter-preservation behaviour is shared with every other module.
+	"""
+	return paginate_queryset(request, queryset, per_page=per_page)
 
 
 # --------------------------------------------------------------------------- #
@@ -421,6 +416,12 @@ def carbon_dashboard(request):
 			tenancy.visible_anomalies(request.user, company)
 		),
 		"recommendations": recommendation_summary.summary(request.user, company),
+		"risk_assessment": latest_risk_assessment(company),
+		"can_run_risk": request.user.role == User.Role.SUPER_ADMIN
+		or request.user.role in ANOMALY_MANAGE_ROLES,
+		"esg_report": ESGReport.objects.filter(company=company).latest_first().first(),
+		"can_manage_reports": request.user.role == User.Role.SUPER_ADMIN
+		or request.user.role in REPORT_MANAGE_ROLES,
 	})
 	return render(request, "carbon/dashboard.html", context)
 
@@ -478,9 +479,6 @@ def activity_list(request):
 	form = ActivityFilterForm(request.GET or None, company=company, years=years)
 	filtered = _apply_filters(working, form)
 
-	base_params = request.GET.copy()
-	base_params.pop("page", None)
-
 	pagination = _paginate(request, filtered.order_by("-period_start", "-created_at"))
 	for activity in pagination["items"]:
 		# Per-row authorization so the template only shows usable actions.
@@ -493,7 +491,8 @@ def activity_list(request):
 	context.update({
 		"filter_form": form,
 		"pagination": pagination,
-		"base_query": base_params.urlencode(),
+		"filter_hidden": [("archived", "1")] if show_archived else [],
+		"base_query": build_base_query(request),
 		"show_archived": show_archived,
 		"can_create": request.user.role in CARBON_CREATOR_ROLES,
 	})
@@ -567,6 +566,7 @@ def activity_edit(request, pk):
 		activity.period_start = data["period_start"]
 		activity.period_end = data["period_end"]
 		activity.department = data["department"]
+		activity.supplier = data["supplier"]
 		activity.emission_factor = data["emission_factor"]
 		activity.data_source = data["data_source"].strip()
 		if data.get("evidence"):
@@ -968,8 +968,6 @@ def anomaly_list(request):
 	form = AnomalyFilterForm(request.GET or None, company=company, years=years)
 	filtered = _apply_anomaly_filters(visible, form)
 	counts = anomaly_detection.anomaly_counts(filtered)
-	base_params = request.GET.copy()
-	base_params.pop("page", None)
 	page_data = _paginate(
 		request,
 		filtered.order_by("-detected_at", "-id").select_related(
@@ -982,9 +980,14 @@ def anomaly_list(request):
 		"filter_form": form,
 		"pagination": page_data,
 		"counts": counts,
-		"base_query": base_params.urlencode(),
+		"base_query": build_base_query(request),
+		"has_filters": any(
+			request.GET.get(key) for key in ("severity", "status", "category", "department", "year")
+		),
 		"can_run": request.user.role == User.Role.SUPER_ADMIN
 		or request.user.role in ANOMALY_MANAGE_ROLES,
+		"model_metrics": ModelMetrics.latest(company, ModelKind.ANOMALY_DETECTION),
+		"model_params": anomaly_detection.model_params(),
 	})
 	return render(request, "carbon/anomaly_list.html", context)
 

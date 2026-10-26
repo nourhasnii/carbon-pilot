@@ -1,0 +1,1 @@
+<span class="cp-badge {% if policy.status == 'APPROVED' %}cp-badge-approved{% elif policy.status == 'IN_REVIEW' %}cp-badge-submitted{% elif policy.status == 'ARCHIVED' %}cp-badge-neutral{% else %}cp-badge-draft{% endif %}">{{ policy.get_status_display }}</span>

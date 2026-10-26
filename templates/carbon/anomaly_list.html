@@ -6,7 +6,7 @@
 
 {% block topbar_actions %}
   {% if can_run %}
-    <form method="post" action="{% url 'carbon:anomaly_run' %}">
+    <form method="post" action="{% url 'carbon:anomaly_run' %}" data-ai-action data-ai-label="Analyzing…">
       {% csrf_token %}
       <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
     </form>
@@ -47,49 +47,89 @@
     </article>
   </div>
 
+  {# ---------- AI model metrics ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI model metrics</h2>
+        <p class="cp-card-sub cp-mt-0">What the IsolationForest saw on its most recent run</p>
+      </div>
+      <span class="cp-badge cp-badge-approved"><i data-lucide="cpu"></i> AI · ML</span>
+    </div>
+
+    {% if model_metrics %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Approved activities</div>
+          <div class="cp-kpi-value">{{ model_metrics.activities_analyzed }}</div>
+          <div class="cp-kpi-sub">Read on this run</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Groups analysed</div>
+          <div class="cp-kpi-value">{{ model_metrics.groups_analyzed }}</div>
+          <div class="cp-kpi-sub">Department · category · year</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Groups skipped</div>
+          <div class="cp-kpi-value">{{ model_metrics.groups_skipped }}</div>
+          <div class="cp-kpi-sub">Fewer than {{ model_metrics.params.min_observations }} observations</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Anomalies found</div>
+          <div class="cp-kpi-value">{{ model_metrics.anomalies_found }}</div>
+          <div class="cp-kpi-sub">Flagged for review</div>
+        </article>
+      </div>
+      <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+        {{ model_metrics.model_name }} v{{ model_metrics.model_version }} ·
+        contamination = {{ model_metrics.params.contamination }} ·
+        min observations = {{ model_metrics.params.min_observations }} ·
+        n_estimators = {{ model_metrics.params.n_estimators }} ·
+        random_state = {{ model_metrics.params.random_state }} ·
+        last run {{ model_metrics.created_at|date:"d M Y H:i" }}.
+      </p>
+      {% if model_metrics.insufficient_data %}
+        <div class="cp-callout is-warning" style="margin-top:14px">
+          <i data-lucide="alert-circle"></i>
+          <span>{{ model_metrics.note }} No score is shown for this run rather than a misleading one.</span>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="cpu"></i>
+        <span>
+          No detection run recorded for this company yet, so there are no model metrics to show.
+          Run detection to analyse approved activities — groups with fewer than
+          {{ model_params.min_observations }} approved observations are skipped rather than scored
+          on thin data.
+        </span>
+      </div>
+    {% endif %}
+  </section>
+
   {# ---------- Filters ---------- #}
-  <form class="cp-toolbar" method="get" role="search" style="margin-top:20px">
-    <div class="cp-field">
-      <label for="{{ filter_form.severity.id_for_label }}">Severity</label>
-      {{ filter_form.severity }}
-    </div>
-    <div class="cp-field">
-      <label for="{{ filter_form.status.id_for_label }}">Status</label>
-      {{ filter_form.status }}
-    </div>
-    <div class="cp-field">
-      <label for="{{ filter_form.department.id_for_label }}">Department</label>
-      {{ filter_form.department }}
-    </div>
-    <div class="cp-field">
-      <label for="{{ filter_form.category.id_for_label }}">Category</label>
-      {{ filter_form.category }}
-    </div>
-    <div class="cp-field">
-      <label for="{{ filter_form.year.id_for_label }}">Period</label>
-      {{ filter_form.year }}
-    </div>
-    <div class="cp-row">
-      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="filter"></i> Apply</button>
-      <a class="cp-btn cp-btn-ghost" href="{% url 'carbon:anomaly_list' %}">Reset</a>
-    </div>
-  </form>
+  <div style="margin-top:20px">
+    {% include "partials/list_filters.html" with reset_url=request.path %}
+  </div>
 
   {# ---------- Anomaly table ---------- #}
   <section class="cp-card">
     <div class="cp-section-head">
       <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} anomal{{ pagination.total|pluralize:"y,ies" }}</h2>
-      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+      <div class="cp-row" style="gap:8px;align-items:center">
+        <span class="cp-badge cp-badge-approved"><i data-lucide="cpu"></i> AI · ML</span>
+        <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+      </div>
     </div>
 
     {% if pagination.items %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Detected anomalies</caption>
           <thead>
             <tr>
-              <th>Severity</th><th>Type</th><th>Activity / category</th><th>Department</th>
-              <th class="cp-num">CO2e</th><th>Period</th><th>Detected</th><th>Status</th>
-              <th class="cp-actions-col">Actions</th>
+              <th scope="col">Severity</th><th scope="col">Type</th><th scope="col">Activity / category</th><th scope="col">Department</th>
+              <th scope="col" class="cp-num">CO2e</th><th scope="col">Period</th><th scope="col">Detected</th><th scope="col">Status</th>
+              <th scope="col" class="cp-actions-col">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -124,28 +164,21 @@
         </table>
       </div>
 
-      {% if pagination.pages > 1 %}
-        <nav class="cp-pagination" aria-label="Pagination">
-          <span class="cp-muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
-          <div class="cp-row">
-            {% if pagination.has_previous %}
-              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.previous_page }}"><i data-lucide="arrow-left"></i> Previous</a>
-            {% endif %}
-            {% if pagination.has_next %}
-              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.next_page }}">Next <i data-lucide="arrow-right"></i></a>
-            {% endif %}
-          </div>
-        </nav>
-      {% endif %}
+      {% include "partials/pagination.html" %}
     {% else %}
       <div class="cp-empty">
-        <i data-lucide="shield-check"></i>
-        <p>No anomalies detected yet. Run detection to analyse your approved activities.</p>
-        {% if can_run %}
-          <form method="post" action="{% url 'carbon:anomaly_run' %}">
-            {% csrf_token %}
-            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
-          </form>
+        <i data-lucide="{% if has_filters %}filter{% else %}shield-check{% endif %}"></i>
+        {% if has_filters %}
+          <p>No anomalies match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No anomalies detected yet. Run detection to analyse your approved activities.</p>
+          {% if can_run %}
+            <form method="post" action="{% url 'carbon:anomaly_run' %}" data-ai-action data-ai-label="Analyzing…">
+              {% csrf_token %}
+              <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="play"></i> Run anomaly detection</button>
+            </form>
+          {% endif %}
         {% endif %}
       </div>
     {% endif %}

@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from decimal import Decimal
 from unittest import mock
@@ -5,11 +6,14 @@ from unittest import mock
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.analytics.models import ModelKind, ModelMetrics
 from apps.carbon.models import ActivityCategory, ActivityStatus, CarbonActivity, EmissionFactor, Scope
 from apps.enterprise.models import Company, Department
 
+from .forms import YEAR_MAX_OFFSET, YEAR_MIN_OFFSET, ObjectiveForm
 from .models import (
 	ExpectedOutcome,
 	Objective,
@@ -394,6 +398,53 @@ class PredictionServiceTests(ObjectivePredictionTestCase):
 		self.assertEqual(run.model_name, "RandomForestClassifier")
 		self.assertEqual(run.model_version, objective_prediction.MODEL_VERSION)
 
+	def test_training_run_stores_model_metrics(self):
+		self._seed_history(achieved=4, missed=4)
+		target = self._target_objective(tonnes=70)
+
+		objective_prediction.predict_objective(target)
+
+		metrics = ModelMetrics.latest(self.company, ModelKind.OBJECTIVE_PREDICTION)
+		self.assertIsNotNone(metrics)
+		self.assertFalse(metrics.insufficient_data)
+		self.assertEqual(metrics.model_name, objective_prediction.MODEL_NAME)
+		self.assertEqual(metrics.training_size, 8)
+		self.assertEqual(metrics.class_balance, {"achieved": 4, "missed": 4})
+		self.assertEqual(
+			metrics.params["n_estimators"], objective_prediction.FOREST_ESTIMATORS
+		)
+		self.assertIsNotNone(metrics.created_at)
+		# Real scikit-learn metrics, stored as 0–100 percentages.
+		for value in (metrics.accuracy, metrics.precision, metrics.recall, metrics.f1):
+			self.assertIsNotNone(value)
+			self.assertGreaterEqual(float(value), 0.0)
+			self.assertLessEqual(float(value), 100.0)
+
+	def test_insufficient_history_records_an_honest_snapshot(self):
+		# No resolved history at all → the run must record why, not a metric.
+		target = self._target_objective()
+
+		result = objective_prediction.predict_objective(target)
+
+		self.assertTrue(result.insufficient)
+		metrics = ModelMetrics.latest(self.company, ModelKind.OBJECTIVE_PREDICTION)
+		self.assertIsNotNone(metrics)
+		self.assertTrue(metrics.insufficient_data)
+		self.assertEqual(metrics.training_size, 0)
+		self.assertIsNone(metrics.accuracy)
+		self.assertIsNone(metrics.f1)
+		self.assertEqual(metrics.note, objective_prediction.INSUFFICIENT_DATA_MESSAGE)
+
+	def test_model_metrics_never_leak_across_tenants(self):
+		self._seed_history(achieved=4, missed=4)
+		target = self._target_objective(tonnes=70)
+
+		objective_prediction.predict_objective(target)
+
+		self.assertIsNone(
+			ModelMetrics.latest(self.other_company, ModelKind.OBJECTIVE_PREDICTION)
+		)
+
 	def test_probability_is_a_percentage_between_0_and_100(self):
 		self._seed_history()
 		target = self._target_objective(tonnes=70)
@@ -533,6 +584,11 @@ class PredictionViewTests(ObjectivePredictionTestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(PredictionRun.objects.filter(objective=target).count(), 1)
 		self.assertContains(response, "AI prediction")
+		# The evaluation panel shows the stored RandomForest metrics.
+		self.assertContains(response, "Model evaluation")
+		self.assertContains(response, "Accuracy")
+		self.assertContains(response, "F1")
+		self.assertContains(response, "last trained")
 
 	def test_insufficient_data_surfaces_a_warning_message(self):
 		target = self._target_objective()
@@ -595,3 +651,242 @@ class PredictionViewTests(ObjectivePredictionTestCase):
 		)
 		self.assertEqual(response.status_code, 302)
 		self.assertIn("/login", response.url)
+
+
+class ObjectiveListFilterTests(ObjectiveTestCase):
+	"""Shared filter bar + pagination behaviour on the objective list."""
+
+	def _prediction(self, objective, *, probability, risk, outcome):
+		return PredictionRun.objects.create(
+			objective=objective,
+			probability_achievement=Decimal(probability),
+			risk_level=risk,
+			expected_outcome=outcome,
+			current_progress_percent=Decimal("50.00"),
+		)
+
+	def test_search_and_year_filters_narrow_the_result_set(self):
+		self._objective(name="Cut fleet emissions", year=2026)
+		self._objective(name="Reduce office power", year=2025)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("objectives:objective_list"), {"q": "fleet", "year": "2026"}
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Cut fleet emissions")
+		self.assertNotContains(response, "Reduce office power")
+
+	def test_status_filter_narrows_the_result_set(self):
+		self._objective(name="Active objective here")
+		self._objective(name="Archived objective here", status=ObjectiveStatus.ARCHIVED)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("objectives:objective_list"), {"status": ObjectiveStatus.ACTIVE}
+		)
+		self.assertContains(response, "Active objective here")
+		self.assertNotContains(response, "Archived objective here")
+
+	def test_department_filter_narrows_the_result_set(self):
+		self._objective(name="Operations objective here", department=self.operations)
+		self._objective(name="Finance objective here", department=self.finance)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("objectives:objective_list"), {"department": self.operations.pk}
+		)
+		self.assertContains(response, "Operations objective here")
+		self.assertNotContains(response, "Finance objective here")
+
+	def test_at_risk_filter_uses_the_latest_prediction(self):
+		risky = self._objective(name="Risky objective here")
+		safe = self._objective(name="Safe objective here")
+		self._prediction(risky, probability="20.00", risk=RiskLevel.HIGH, outcome=ExpectedOutcome.AT_RISK)
+		self._prediction(safe, probability="90.00", risk=RiskLevel.LOW, outcome=ExpectedOutcome.LIKELY_TO_ACHIEVE)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"), {"at_risk": "1"})
+		self.assertContains(response, "Risky objective here")
+		self.assertNotContains(response, "Safe objective here")
+
+	def test_at_risk_excludes_objectives_without_a_prediction(self):
+		self._objective(name="No prediction objective here")
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"), {"at_risk": "1"})
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "No prediction objective here")
+
+	def test_at_risk_uses_only_the_most_recent_prediction(self):
+		objective = self._objective(name="Recovered objective here")
+		# Older run flagged HIGH, newest run is LOW → the objective is not at risk.
+		self._prediction(objective, probability="15.00", risk=RiskLevel.HIGH, outcome=ExpectedOutcome.AT_RISK)
+		self._prediction(objective, probability="95.00", risk=RiskLevel.LOW, outcome=ExpectedOutcome.LIKELY_TO_ACHIEVE)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"), {"at_risk": "1"})
+		self.assertNotContains(response, "Recovered objective here")
+
+	def test_default_page_size_is_ten(self):
+		for index in range(15):
+			self._objective(name=f"Paged objective {index:02d}")
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(len(response.context["pagination"]["items"]), 10)
+		self.assertEqual(response.context["pagination"]["total"], 15)
+
+	def test_per_page_twenty_shows_more_rows(self):
+		for index in range(15):
+			self._objective(name=f"Paged objective {index:02d}")
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("objectives:objective_list"), {"per_page": "20"}
+		)
+		self.assertEqual(len(response.context["pagination"]["items"]), 15)
+
+	def test_next_page_link_preserves_the_active_filter(self):
+		for index in range(15):
+			self._objective(name=f"Kept objective {index:02d}", year=2026)
+		self._objective(name="Filtered out objective here", year=2025)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"), {"year": "2026"})
+		self.assertTrue(response.context["pagination"]["has_next"])
+		self.assertEqual(response.context["pagination"]["next_page"], 2)
+		match = re.search(r'href="([^"]*)"[^>]*rel="next"', response.content.decode())
+		self.assertIsNotNone(match)
+		href = match.group(1)
+		self.assertIn("year=2026", href)
+		self.assertIn("page=2", href)
+
+	def test_empty_result_set_renders_the_empty_state(self):
+		self._objective(name="Only objective here")
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("objectives:objective_list"), {"q": "does-not-exist"}
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "cp-empty")
+		self.assertContains(response, "No objectives match these filters.")
+
+	def test_other_company_objectives_never_appear(self):
+		self._objective(name="Visible objective here")
+		Objective.objects.create(
+			company=self.other_company,
+			name="Foreign objective here",
+			year=2026,
+			baseline_tco2e=Decimal("100"),
+			target_tco2e=Decimal("80"),
+		)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("objectives:objective_list"))
+		self.assertContains(response, "Visible objective here")
+		self.assertNotContains(response, "Foreign objective here")
+
+
+class ObjectiveFormValidationTests(ObjectiveTestCase):
+	"""Server-side rules for section 1 — every message lands under its field."""
+
+	def _payload(self, **overrides):
+		current_year = timezone.now().year
+		payload = {
+			"name": "Cut emissions 20%",
+			"department": "",
+			"year": str(current_year),
+			"period_type": PeriodType.ANNUAL,
+			"quarter": "",
+			"baseline_tco2e": "100.00",
+			"target_tco2e": "80.00",
+		}
+		payload.update(overrides)
+		return payload
+
+	def _form(self, **overrides):
+		return ObjectiveForm(
+			data=self._payload(**overrides),
+			company=self.company,
+			instance=Objective(company=self.company),
+		)
+
+	def _min_year(self):
+		return timezone.now().year + YEAR_MIN_OFFSET
+
+	def _max_year(self):
+		return timezone.now().year + YEAR_MAX_OFFSET
+
+	def test_valid_objective_is_accepted(self):
+		form = self._form()
+		self.assertTrue(form.is_valid(), form.errors)
+		self.assertEqual(form.cleaned_data["year"], timezone.now().year)
+
+	def test_name_is_required(self):
+		form = self._form(name="")
+		self.assertIn("name", form.errors)
+		self.assertIn("Give the objective a name.", form.errors["name"])
+
+	def test_year_is_required(self):
+		form = self._form(year="")
+		self.assertIn("year", form.errors)
+		self.assertIn("Enter the objective year.", form.errors["year"])
+
+	def test_year_must_be_an_integer(self):
+		form = self._form(year="twenty-twenty-six")
+		self.assertIn("year", form.errors)
+		self.assertIn("Enter the year as a whole number.", form.errors["year"])
+
+	def test_year_below_the_window_is_rejected(self):
+		form = self._form(year=str(self._min_year() - 5))
+		self.assertIn("year", form.errors)
+		self.assertIn(
+			f"Year must be between {self._min_year()} and {self._max_year()}.",
+			form.errors["year"],
+		)
+
+	def test_year_above_the_window_is_rejected(self):
+		form = self._form(year=str(self._max_year() + 5))
+		self.assertIn("year", form.errors)
+		self.assertIn(
+			f"Year must be between {self._min_year()} and {self._max_year()}.",
+			form.errors["year"],
+		)
+
+	def test_baseline_cannot_be_negative(self):
+		form = self._form(baseline_tco2e="-5")
+		self.assertIn("baseline_tco2e", form.errors)
+		self.assertIn("The baseline cannot be negative.", form.errors["baseline_tco2e"])
+
+	def test_target_cannot_be_negative(self):
+		form = self._form(baseline_tco2e="100", target_tco2e="-5")
+		self.assertIn("target_tco2e", form.errors)
+		self.assertIn("The target cannot be negative.", form.errors["target_tco2e"])
+
+	def test_non_numeric_baseline_is_rejected(self):
+		form = self._form(baseline_tco2e="lots")
+		self.assertIn("baseline_tco2e", form.errors)
+		self.assertIn("Enter a valid number for the baseline.", form.errors["baseline_tco2e"])
+
+	def test_target_above_baseline_is_rejected_for_a_reduction(self):
+		form = self._form(baseline_tco2e="80", target_tco2e="100")
+		self.assertIn("target_tco2e", form.errors)
+		self.assertIn(
+			"Target must be lower than baseline for a reduction objective.",
+			form.errors["target_tco2e"],
+		)
+
+	def test_quarter_is_required_for_a_quarterly_objective(self):
+		form = self._form(period_type=PeriodType.QUARTERLY, quarter="")
+		self.assertIn("quarter", form.errors)
+		# The message must appear exactly once (model-only enforcement).
+		self.assertEqual(len(form.errors["quarter"]), 1)
+		self.assertIn("Pick a quarter for a quarterly objective.", form.errors["quarter"])
+
+	def test_valid_quarterly_objective_is_accepted(self):
+		form = self._form(period_type=PeriodType.QUARTERLY, quarter=Quarter.Q1)
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_department_from_another_company_is_rejected(self):
+		foreign_department = Department.objects.create(
+			company=self.other_company, name="Foreign Ops"
+		)
+		form = self._form(department=str(foreign_department.pk))
+		self.assertIn("department", form.errors)
+
+	def test_department_of_the_same_company_is_accepted(self):
+		form = self._form(department=str(self.operations.pk))
+		self.assertTrue(form.is_valid(), form.errors)
+		self.assertEqual(form.cleaned_data["department"], self.operations)

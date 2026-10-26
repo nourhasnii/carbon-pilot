@@ -1,25 +1,10 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Accès refusé | CarbonPilot</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f7f5; color: #12261c; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-    main { max-width: 32rem; margin: 1rem; padding: 2rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); }
-    h1 { margin-top: 0; font-size: 1.6rem; }
-    .code { font-size: 0.95rem; color: #3d5246; }
-    a { display: inline-block; margin-top: 1rem; padding: 0.7rem 1.2rem; background: #1b5e3b; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 600; }
-    a:focus-visible { outline: 3px solid #0b3d91; outline-offset: 3px; }
-  </style>
-</head>
-<body>
-  <header class="code" hidden>CarbonPilot</header>
-  <main id="main">
-    <p class="code">Erreur 403</p>
-    <h1>Accès refusé</h1>
-    <p>Votre rôle ne vous permet pas d'ouvrir cette page. Contactez le propriétaire de votre entreprise si vous pensez qu'il s'agit d'une erreur.</p>
-    <a href="/dashboard/">Retour au tableau de bord</a>
-  </main>
-</body>
-</html>
+{% extends "errors/base.html" %}
+
+{# 403 — the request was understood but the signed-in account is not allowed. #}
+{% block title %}Access denied{% endblock %}
+{% block tone %}tone-warning{% endblock %}
+{% block icon %}shield-alert{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}You don't have access to this page{% endblock %}
+{% block message %}Your account doesn't have permission to view this page. If you think this is a mistake, ask your workspace administrator to review your role and company access.{% endblock %}
+{% block footnote %}Only members of the right company and role can open this area.{% endblock %}

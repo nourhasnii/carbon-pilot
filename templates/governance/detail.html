@@ -1,0 +1,250 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ policy.title }}{% endblock %}
+{% block eyebrow %}Governance policy{% endblock %}
+{% block heading %}{{ policy.title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'governance:policy_list' %}"><i data-lucide="arrow-left"></i> All policies</a>
+  {% if can_manage and policy.is_editable %}
+    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'governance:policy_edit' policy.pk %}"><i data-lucide="pencil"></i> Edit</a>
+  {% endif %}
+  {% if can_manage and policy.status == 'DRAFT' %}
+    <form method="post" action="{% url 'governance:policy_submit_review' policy.pk %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="send"></i> Submit for review</button>
+    </form>
+  {% endif %}
+  {% if can_manage and policy.status == 'APPROVED' %}
+    <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'governance:policy_new_version' policy.pk %}"><i data-lucide="file-plus"></i> New version</a>
+    {% if policy.is_due_for_review %}
+      <form method="post" action="{% url 'governance:policy_record_review' policy.pk %}">
+        {% csrf_token %}
+        <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit"><i data-lucide="calendar-check"></i> Record review</button>
+      </form>
+    {% endif %}
+    <form method="post" action="{% url 'governance:policy_archive' policy.pk %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit"><i data-lucide="archive"></i> Archive</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if policy.is_due_for_review %}
+    <div class="cp-callout is-warning">
+      <i data-lucide="alarm-clock"></i>
+      <span>
+        <strong>Due for review.</strong> This approved policy was due for its periodic review on
+        {{ policy.next_review_date|date:"d M Y" }}{% if policy.days_until_review %} ({{ policy.days_until_review|cut:"-" }} days overdue){% endif %}.
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid" style="margin-top:{% if policy.is_due_for_review %}20px{% else %}0{% endif %}">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Status</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">{% include "governance/_status.html" with policy=policy %}</div>
+      <div class="cp-kpi-sub">{{ policy.get_category_display }} · {{ policy.reference }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Current version</div>
+      <div class="cp-kpi-value">{% if policy.current_version %}v{{ policy.current_version.version_number }}{% else %}—{% endif %}</div>
+      <div class="cp-kpi-sub">{{ policy.versions.count }} version{{ policy.versions.count|pluralize }} on record</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Owners & reviewers</div>
+      <div class="cp-kpi-value">{{ policy.owners.count }}</div>
+      <div class="cp-kpi-sub">{{ policy.responsible_owners.count }} owner{{ policy.responsible_owners.count|pluralize }} · {{ policy.reviewers.count }} reviewer{{ policy.reviewers.count|pluralize }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Next review</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">{% if policy.next_review_date %}{{ policy.next_review_date|date:"d M Y" }}{% else %}Not set{% endif %}</div>
+      <div class="cp-kpi-sub">{% if policy.is_due_for_review %}Overdue{% else %}Periodic review{% endif %}</div>
+    </article>
+  </div>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Current version{% if policy.current_version %} · v{{ policy.current_version.version_number }}{% endif %}</h2>
+          <p class="cp-card-sub cp-mt-0">
+            {% if policy.current_version.effective_from %}Effective from {{ policy.current_version.effective_from|date:"d M Y" }}{% else %}No effective date set{% endif %}
+          </p>
+        </div>
+        {% include "governance/_status.html" with policy=policy %}
+      </div>
+      {% if policy.current_version %}
+        {% if policy.current_version.summary %}<p><strong>{{ policy.current_version.summary }}</strong></p>{% endif %}
+        {% if policy.current_version.content %}
+          <div class="cp-callout" style="display:block;white-space:pre-wrap">{{ policy.current_version.content }}</div>
+        {% else %}
+          <div class="cp-empty"><i data-lucide="file-text"></i><p>No policy text captured for this version yet.</p></div>
+        {% endif %}
+        {% if policy.current_version.change_notes %}
+          <p class="cp-muted" style="margin-top:12px;font-size:0.82rem"><strong>Change notes:</strong> {{ policy.current_version.change_notes }}</p>
+        {% endif %}
+      {% else %}
+        <div class="cp-empty"><i data-lucide="file-text"></i><p>This policy has no version yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Policy details</h2>
+      <p class="cp-card-sub cp-mt-0">Ownership and lifecycle</p>
+      <dl class="cp-dl">
+        <div><dt>Reference</dt><dd>{{ policy.reference }}</dd></div>
+        <div><dt>Category</dt><dd>{{ policy.get_category_display }}</dd></div>
+        <div><dt>Active</dt><dd>{% if policy.is_active %}Yes{% else %}No{% endif %}</dd></div>
+        <div><dt>Created by</dt><dd>{% firstof policy.created_by.get_full_name policy.created_by.email "—" %}</dd></div>
+        <div><dt>Created</dt><dd>{{ policy.created_at|date:"d M Y" }}</dd></div>
+        <div><dt>Last updated</dt><dd>{{ policy.updated_at|date:"d M Y H:i" }}</dd></div>
+      </dl>
+      {% if policy.description %}
+        <p class="cp-muted" style="margin-top:14px;font-size:0.84rem">{{ policy.description }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Approvals</h2>
+        <p class="cp-card-sub cp-mt-0">
+          {% if pending_count %}{{ pending_count }} pending decision{{ pending_count|pluralize }}{% else %}No pending decision{% endif %}
+        </p>
+      </div>
+    </div>
+
+    {% if approvals %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Policy approval decisions</caption>
+          <thead>
+            <tr><th scope="col">Approver</th><th scope="col">Version</th><th scope="col">Decision</th><th scope="col">Comment</th><th scope="col">Decided</th></tr>
+          </thead>
+          <tbody>
+            {% for approval in approvals %}
+              <tr>
+                <td>{% firstof approval.approver.get_full_name approval.approver.email %}</td>
+                <td>{{ approval.policy_version.label }}</td>
+                <td>
+                  <span class="cp-badge {% if approval.decision == 'APPROVED' %}cp-badge-approved{% elif approval.decision == 'REJECTED' %}cp-badge-rejected{% else %}cp-badge-draft{% endif %}">{{ approval.get_decision_display }}</span>
+                </td>
+                <td>{{ approval.comment|default:"—" }}</td>
+                <td>{% if approval.decided_at %}{{ approval.decided_at|date:"d M Y H:i" }}{% else %}<span class="cp-muted">—</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="clipboard-check"></i>
+        <p>No approvers assigned yet. Submitting the policy for review opens a pending approval for each reviewer.</p>
+      </div>
+    {% endif %}
+
+    {% if policy.status == 'IN_REVIEW' and my_approval.is_pending %}
+      <div class="cp-callout" style="margin-top:18px;display:block">
+        <form method="post" action="{% url 'governance:policy_decide' policy.pk %}">
+          {% csrf_token %}
+          <strong>Your decision on v{{ policy.current_version.version_number }}</strong>
+          <div style="margin-top:10px;display:grid;gap:12px">
+            <div class="cp-field">{{ decision_form.decision }}</div>
+            <div class="cp-field"><label for="{{ decision_form.comment.id_for_label }}">Comment</label>{{ decision_form.comment }}</div>
+          </div>
+          <div class="cp-actions" style="margin-top:12px">
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i> Record decision</button>
+          </div>
+        </form>
+      </div>
+    {% elif policy.status == 'IN_REVIEW' and not my_approval and can_approve %}
+      <div class="cp-callout" style="margin-top:18px;display:block">
+        <form method="post" action="{% url 'governance:policy_decide' policy.pk %}">
+          {% csrf_token %}
+          <strong>Record your decision on v{{ policy.current_version.version_number }}</strong>
+          <div style="margin-top:10px;display:grid;gap:12px">
+            <div class="cp-field">{{ decision_form.decision }}</div>
+            <div class="cp-field"><label for="{{ decision_form.comment.id_for_label }}">Comment</label>{{ decision_form.comment }}</div>
+          </div>
+          <div class="cp-actions" style="margin-top:12px">
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check"></i> Record decision</button>
+          </div>
+        </form>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Responsibility matrix</h2>
+      <span class="cp-muted">Owners, reviewers and contributors by department</span>
+    </div>
+    {% if matrix %}
+      {% for group in matrix %}
+        <h3 class="cp-card-title" style="font-size:0.9rem;margin-top:14px">{{ group.label }}</h3>
+        <div class="cp-table-wrap">
+          <table class="cp-table">
+            <caption class="cp-sr-only">{{ group.label }} responsibilities</caption>
+            <thead><tr><th scope="col">Role</th><th scope="col">Department</th><th scope="col">User</th></tr></thead>
+            <tbody>
+              {% for row in group.rows %}
+                <tr>
+                  <td><span class="cp-badge cp-badge-neutral">{{ row.get_responsibility_role_display }}</span></td>
+                  <td>{{ row.department.name|default:"Company-wide" }}</td>
+                  <td>{% firstof row.user.get_full_name row.user.email "—" %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="cp-empty"><i data-lucide="users"></i><p>No responsibility assigned to this policy yet.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Version history</h2>
+      <span class="cp-muted">{{ policy.versions.count }} version{{ policy.versions.count|pluralize }}</span>
+    </div>
+    {% if versions %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Policy version history</caption>
+          <thead>
+            <tr><th scope="col">Version</th><th scope="col">Summary</th><th scope="col">Change notes</th><th scope="col">Effective from</th><th scope="col">Created by</th><th scope="col">Created</th></tr>
+          </thead>
+          <tbody>
+            {% for version in versions %}
+              <tr>
+                <td>
+                  v{{ version.version_number }}
+                  {% if version.is_current %}<span class="cp-badge cp-badge-approved">Current</span>{% endif %}
+                </td>
+                <td>{{ version.summary|default:"—" }}</td>
+                <td>{{ version.change_notes|default:"—" }}</td>
+                <td>{% if version.effective_from %}{{ version.effective_from|date:"d M Y" }}{% else %}<span class="cp-muted">—</span>{% endif %}</td>
+                <td>{% firstof version.created_by.get_full_name version.created_by.email "—" %}</td>
+                <td>{{ version.created_at|date:"d M Y" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="history"></i><p>No versions recorded yet.</p></div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Only draft policies are freely editable. Submitting for review opens a pending approval for each
+    named reviewer; any rejection returns the policy to draft, and once every approval is recorded the
+    policy becomes approved with a scheduled next review.
+  </p>
+{% endblock %}

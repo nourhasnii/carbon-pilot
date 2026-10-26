@@ -1,0 +1,191 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Assessment · {{ snapshot.period_label }}{% endblock %}
+{% block eyebrow %}ESG assessment{% endblock %}
+{% block heading %}Assessment · {{ snapshot.period_label }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'esg:dashboard' %}"><i data-lucide="arrow-left"></i> Dashboard</a>
+  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:coach' %}"><i data-lucide="sparkles"></i> AI coach</a>
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'esg:assessment_run' %}">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ snapshot.period_year|default:'' }}">
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="refresh-cw"></i> Re-run assessment</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout">
+    <i data-lucide="info"></i>
+    <span>
+      A saved, reproducible snapshot of your ESG <strong>data completeness</strong> — not an ESG
+      performance rating. Every point below is computed from your company's own rows.
+    </span>
+  </div>
+
+  <div class="cp-kpi-grid" style="margin-top:20px">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Completeness score</div>
+      <div class="cp-kpi-value">{{ snapshot.overall_score|floatformat:2 }} <small>/ 100</small></div>
+      <div class="cp-kpi-sub">Assessed {{ snapshot.created_at|date:"d M Y H:i" }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Readiness</div>
+      <div class="cp-kpi-value" style="font-size:1.2rem"><span class="cp-badge {{ readiness_badge }}">{{ readiness_label }}</span></div>
+      <div class="cp-kpi-sub">{{ snapshot.period_label }} reporting period</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Change vs previous</div>
+      <div class="cp-kpi-value" style="font-size:1.5rem">
+        {% if snapshot.delta_score is None %}<span class="cp-muted">—</span>
+        {% elif snapshot.delta_direction == 'up' %}<span class="cp-kpi-sub is-down">▲ {{ snapshot.delta_score|floatformat:2 }}</span>
+        {% elif snapshot.delta_direction == 'down' %}<span class="cp-kpi-sub is-up">▼ {{ snapshot.delta_score|floatformat:2 }}</span>
+        {% else %}0.00{% endif %}
+      </div>
+      <div class="cp-kpi-sub">{% if previous %}vs {{ previous.created_at|date:"d M Y H:i" }}{% else %}First assessment for this period{% endif %}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Run by</div>
+      <div class="cp-kpi-value" style="font-size:1.05rem">{% firstof snapshot.created_by.get_full_name snapshot.created_by.email "—" %}</div>
+      <div class="cp-kpi-sub">Deterministic, rule-based</div>
+    </article>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Summary</h2>
+    <p class="cp-card-sub cp-mt-0">{{ snapshot.summary }}</p>
+  </section>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Pillar coverage{% if previous %} and change{% endif %}</h2>
+      <p class="cp-card-sub cp-mt-0">Share of each pillar's required indicators reported for {{ snapshot.period_label }}</p>
+      <div class="cp-hbars">
+        {% for row in pillar_deltas %}
+          <div class="cp-hbar-link" style="cursor:default">
+            <div class="cp-hbar-head">
+              <strong>{{ row.label }}</strong>
+              <span>
+                {% if row.before is not None %}{{ row.before|floatformat:1 }}% → {% endif %}{{ row.after|floatformat:1 }}%
+                {% if row.delta is not None and row.delta > 0 %}<span class="cp-badge cp-badge-approved">+{{ row.delta|floatformat:1 }}</span>
+                {% elif row.delta is not None and row.delta < 0 %}<span class="cp-badge cp-badge-rejected">{{ row.delta|floatformat:1 }}</span>{% endif %}
+              </span>
+            </div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.after|floatformat:0 }}%"></span></div>
+          </div>
+        {% empty %}
+          {% for row in snapshot.pillar_rows %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.score|floatformat:1 }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.score|floatformat:0 }}%"></span></div>
+            </div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Score breakdown</h2>
+      <p class="cp-card-sub cp-mt-0">Every component and its explanation, so the score is reproducible</p>
+      <div class="cp-hbars">
+        {% for item in breakdown %}
+          <div class="cp-hbar-link" style="cursor:default">
+            <div class="cp-hbar-head">
+              <strong>{{ item.label }}</strong>
+              <span>{{ item.points|floatformat:2 }} / {{ item.max_points }} pts</span>
+            </div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {% widthratio item.points item.max_points 100 %}%"></span></div>
+            <p class="cp-muted" style="margin:6px 0 0;font-size:0.78rem">{{ item.detail }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Gaps recorded</h2>
+        <p class="cp-card-sub cp-mt-0">The concrete gaps found when this assessment was run</p>
+      </div>
+    </div>
+    {% if gap_groups %}
+      <div class="cp-grid cp-grid-2" style="gap:16px">
+        {% for group in gap_groups %}
+          <div>
+            <h3 class="cp-card-title" style="font-size:0.9rem">{{ group.label }} <span class="cp-badge cp-badge-neutral">{{ group.items|length }}</span></h3>
+            <ul style="margin:8px 0 0 0;padding:0;list-style:none;display:grid;gap:10px">
+              {% for item in group.items %}
+                <li class="cp-callout" style="display:block">
+                  <div class="cp-row" style="gap:8px">
+                    <strong>{{ item.name }}</strong>
+                    <span class="cp-badge cp-badge-neutral">{{ item.code }}</span>
+                    <span class="cp-badge cp-badge-neutral">{{ item.pillar_label }}</span>
+                  </div>
+                  <p class="cp-muted" style="margin:6px 0 0;font-size:0.8rem">{{ item.detail }}</p>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="check-circle-2"></i><p>No gap was recorded in this assessment.</p></div>
+    {% endif %}
+  </section>
+
+  {% if previous %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Changes since the previous assessment</h2>
+          <p class="cp-card-sub cp-mt-0">Compared with the snapshot of {{ previous.created_at|date:"d M Y H:i" }}</p>
+        </div>
+      </div>
+      <div class="cp-grid cp-grid-2">
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.9rem">
+            <i data-lucide="alert-plus"></i> New gaps
+            <span class="cp-badge cp-badge-rejected">{{ new_gaps|length }}</span>
+          </h3>
+          {% if new_gaps %}
+            <ul style="margin:8px 0 0 0;padding:0;list-style:none;display:grid;gap:8px">
+              {% for item in new_gaps %}
+                <li class="cp-callout is-warning" style="display:block">
+                  <strong>{{ item.name }}</strong> <span class="cp-badge cp-badge-neutral">{{ item.code }}</span>
+                  <p class="cp-muted" style="margin:6px 0 0;font-size:0.8rem">{{ item.detail }}</p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="cp-empty"><i data-lucide="check"></i><p>No new gap appeared.</p></div>
+          {% endif %}
+        </div>
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.9rem">
+            <i data-lucide="check-check"></i> Resolved gaps
+            <span class="cp-badge cp-badge-approved">{{ resolved_gaps|length }}</span>
+          </h3>
+          {% if resolved_gaps %}
+            <ul style="margin:8px 0 0 0;padding:0;list-style:none;display:grid;gap:8px">
+              {% for item in resolved_gaps %}
+                <li class="cp-callout" style="display:block">
+                  <strong>{{ item.name }}</strong> <span class="cp-badge cp-badge-neutral">{{ item.code }}</span>
+                  <p class="cp-muted" style="margin:6px 0 0;font-size:0.8rem">{{ item.detail }}</p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="cp-empty"><i data-lucide="history"></i><p>No gap was resolved since the previous assessment.</p></div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    Snapshots are immutable: re-running an assessment creates a new one, so history is never overwritten.
+  </p>
+{% endblock %}

@@ -6,7 +6,7 @@
 
 {% block topbar_actions %}
   {% if can_generate %}
-    <form method="post" action="{% url 'recommendations:recommendation_generate' %}">
+    <form method="post" action="{% url 'recommendations:recommendation_generate' %}" data-ai-action data-ai-label="Queueing…">
       {% csrf_token %}
       <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">
         <i data-lucide="sparkles"></i> Generate recommendations
@@ -16,6 +16,25 @@
 {% endblock %}
 
 {% block content %}
+  {% if ai_job %}
+    <div class="cp-callout" data-ai-job
+         data-status-url="{% url 'recommendations:ai_job_status' %}"
+         data-job-id="{{ ai_job.pk }}"
+         role="status" aria-live="polite">
+      <span class="cp-spinner" aria-hidden="true" data-ai-job-spinner style="flex:none;margin-top:3px"></span>
+      <div>
+        <strong data-ai-job-title>{{ ai_job.get_status_display }}…</strong>
+        <p class="cp-mt-0" data-ai-job-message style="margin-top:4px">
+          {% if ai_job.status == 'RUNNING' %}
+            The local Qwen model is generating recommendations now. This can take a few minutes.
+          {% else %}
+            Your AI job is queued and will start as soon as a background worker picks it up.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="cp-kpi-grid">
     <article class="cp-kpi">
       <div class="cp-kpi-label">Open</div>
@@ -39,50 +58,17 @@
     </article>
   </div>
 
-  <form method="get" class="cp-card" style="margin-top:20px">
-    <div class="cp-field-grid">
-      <div class="cp-field">
-        <label for="filter-priority">Priority</label>
-        <select class="field-input" id="filter-priority" name="priority">
-          <option value="">All priorities</option>
-          {% for value, label in priority_choices %}<option value="{{ value }}" {% if selected.priority == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="cp-field">
-        <label for="filter-status">Status</label>
-        <select class="field-input" id="filter-status" name="status">
-          <option value="">Open (new + in progress)</option>
-          {% for value, label in status_choices %}<option value="{{ value }}" {% if selected.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="cp-field">
-        <label for="filter-source">Source</label>
-        <select class="field-input" id="filter-source" name="source">
-          <option value="">All sources</option>
-          {% for value, label in source_choices %}<option value="{{ value }}" {% if selected.source == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="cp-field">
-        <label for="filter-department">Department</label>
-        <select class="field-input" id="filter-department" name="department">
-          <option value="">All departments</option>
-          {% for department in departments %}<option value="{{ department.pk }}" {% if selected.department == department.pk|stringformat:"s" %}selected{% endif %}>{{ department.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="cp-field">
-        <label aria-hidden="true">&nbsp;</label>
-        <div class="cp-row">
-          <button class="cp-btn cp-btn-outline" type="submit"><i data-lucide="filter"></i> Apply</button>
-          <a class="cp-btn cp-btn-ghost" href="{% url 'recommendations:recommendation_list' %}">Reset</a>
-        </div>
-      </div>
-    </div>
-  </form>
+  {% include "partials/list_filters.html" with reset_url=request.path %}
 
   <section style="margin-top:20px">
-    {% if recommendations %}
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} recommendation{{ pagination.total|pluralize }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
       <div class="cp-grid cp-grid-2">
-        {% for rec in recommendations %}
+        {% for rec in pagination.items %}
           <article class="cp-card">
             <div class="cp-section-head">
               <div>
@@ -128,15 +114,22 @@
           </article>
         {% endfor %}
       </div>
+
+      {% include "partials/pagination.html" %}
     {% else %}
       <div class="cp-empty">
-        <i data-lucide="sparkles"></i>
-        <p>No recommendations match these filters.</p>
-        {% if can_generate %}
-          <form method="post" action="{% url 'recommendations:recommendation_generate' %}">
-            {% csrf_token %}
-            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Generate recommendations</button>
-          </form>
+        <i data-lucide="{% if has_filters %}filter{% else %}sparkles{% endif %}"></i>
+        {% if has_filters %}
+          <p>No recommendations match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No recommendations yet. Generate recommendations to get AI-backed actions.</p>
+          {% if can_generate %}
+            <form method="post" action="{% url 'recommendations:recommendation_generate' %}" data-ai-action data-ai-label="Queueing…">
+              {% csrf_token %}
+              <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Generate recommendations</button>
+            </form>
+          {% endif %}
         {% endif %}
       </div>
     {% endif %}
@@ -146,4 +139,9 @@
     Recommendations labelled <strong>AI · Qwen</strong> are decided by the local Qwen model from your approved evidence.
     <strong>Rule-based</strong> rows are deterministic fallbacks produced when the AI model is unavailable. All facts come from CarbonPilot's own data.
   </p>
+{% endblock %}
+
+{% block scripts %}
+  {% load static %}
+  <script src="{% static 'js/ai-job-poll.js' %}"></script>
 {% endblock %}

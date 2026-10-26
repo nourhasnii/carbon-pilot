@@ -1,0 +1,37 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}Internal audit{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if audit %}{% url 'audits:audit_detail' audit.pk %}{% else %}{% url 'audits:audit_list' %}{% endif %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "carbon/_form_error_summary.html" %}
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Audit details</h2>
+      <p class="cp-card-sub cp-mt-0">An audit belongs to your company. The status follows the workflow — it is not edited here.</p>
+      <div class="cp-field-grid">
+        {% for field in form %}
+          <div class="cp-field {% if field.name == 'title' or field.name == 'scope_summary' %}cp-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="cp-hint">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="cp-actions" style="margin-top:20px">
+      <a class="cp-btn cp-btn-outline" href="{% if audit %}{% url 'audits:audit_detail' audit.pk %}{% else %}{% url 'audits:audit_list' %}{% endif %}">Cancel</a>
+      <span class="cp-spacer"></span>
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if audit %}Save audit{% else %}Create audit{% endif %}</button>
+    </div>
+  </form>
+{% endblock %}

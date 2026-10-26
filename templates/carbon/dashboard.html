@@ -9,11 +9,11 @@
 {% endblock %}
 
 {% block content %}
-  <div class="cp-tabs" role="tablist" aria-label="Reporting year">
+  <nav class="cp-tabs" aria-label="Reporting year">
     {% for y in years %}
-      <a class="cp-tab {% if y == year %}is-active{% endif %}" href="?year={{ y }}">{{ y }}</a>
+      <a class="cp-tab {% if y == year %}is-active{% endif %}" href="?year={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a>
     {% endfor %}
-  </div>
+  </nav>
 
   {# ---------- KPI row ---------- #}
   <div class="cp-kpi-grid">
@@ -180,6 +180,83 @@
     </div>
   </section>
 
+  {# ---------- Carbon risk assessment (compact widget) ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Carbon risk assessment</h2>
+        <p class="cp-card-sub cp-mt-0">Rule-based ESG risk from anomalies, objectives, data quality and review backlog</p>
+      </div>
+      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'risk:risk_assessment' %}">Open <i data-lucide="arrow-right"></i></a>
+    </div>
+    {% if risk_assessment %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk score</div>
+          <div class="cp-kpi-value">{{ risk_assessment.score|floatformat:2 }} <small>/ 100</small></div>
+          <div class="cp-kpi-sub">{{ risk_assessment.get_method_display }}</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk level</div>
+          <div class="cp-kpi-value">
+            {% include "risk/_level.html" with level=risk_assessment.level label=risk_assessment.get_level_display %}
+          </div>
+          <div class="cp-kpi-sub">Assessed {{ risk_assessment.created_at|date:"Y-m-d" }}</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Top driver</div>
+          <div class="cp-kpi-value" style="font-size:1rem">{% if risk_assessment.drivers %}{{ risk_assessment.drivers.0.label }}{% else %}None{% endif %}</div>
+          <div class="cp-kpi-sub">{% if risk_assessment.drivers %}+{{ risk_assessment.drivers.0.points|floatformat:2 }} pts{% else %}No open drivers{% endif %}</div>
+        </article>
+      </div>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="shield-check"></i>
+        <span>No risk assessment has been run yet.{% if can_run_risk %} <a class="cp-cell-link" href="{% url 'risk:risk_assessment' %}">Run one now</a>.{% endif %}</span>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---------- ESG reports (compact widget) ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">ESG reports</h2>
+        <p class="cp-card-sub cp-mt-0">Exportable yearly report built from your approved data</p>
+      </div>
+      <div class="cp-row cp-row-tight">
+        {% if can_manage_reports %}
+          <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'reports:report_list' %}"><i data-lucide="file-plus-2"></i> New report</a>
+        {% endif %}
+        <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'reports:report_list' %}">Open <i data-lucide="arrow-right"></i></a>
+      </div>
+    </div>
+    {% if esg_report %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Latest report</div>
+          <div class="cp-kpi-value" style="font-size:1.05rem">{{ esg_report.period_year }}</div>
+          <div class="cp-kpi-sub">{{ esg_report.get_status_display }} · {{ esg_report.created_at|date:"Y-m-d" }}</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Emissions</div>
+          <div class="cp-kpi-value">{{ esg_report.metrics.emissions.total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+          <div class="cp-kpi-sub">{{ esg_report.metrics.emissions.approved_activities }} approved activities</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk level</div>
+          <div class="cp-kpi-value" style="font-size:1.05rem">{% if esg_report.metrics.risk %}{{ esg_report.metrics.risk.level_label }}{% else %}Not assessed{% endif %}</div>
+          <div class="cp-kpi-sub">Snapshot at creation</div>
+        </article>
+      </div>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="file-text"></i>
+        <span>No ESG report has been built yet.{% if can_manage_reports %} <a class="cp-cell-link" href="{% url 'reports:report_list' %}">Create one</a>.{% endif %}</span>
+      </div>
+    {% endif %}
+  </section>
+
   {# ---------- AI recommendations ---------- #}
   <section class="cp-card" style="margin-top:20px">
     <div class="cp-section-head">
@@ -227,9 +304,9 @@
     </div>
     {% if recent %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Recent carbon activities</caption>
           <thead>
-            <tr><th>Activity</th><th>Department</th><th>Scope</th><th class="cp-num">Quantity</th><th class="cp-num">CO2e</th><th>Status</th><th>Period</th></tr>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Scope</th><th scope="col" class="cp-num">Quantity</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Status</th><th scope="col">Period</th></tr>
           </thead>
           <tbody>
             {% for activity in recent %}

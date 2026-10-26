@@ -2,10 +2,11 @@ import json
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
+from urllib.parse import urlencode
 
 from django.contrib.auth.tokens import default_token_generator
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -624,3 +625,184 @@ class AccountWorkflowTests(TestCase):
 		log_output = " ".join(logs.output)
 		self.assertIn("Unexpected request failure (RuntimeError)", log_output)
 		self.assertNotIn("test-api-key", log_output)
+
+
+class UserManagementListTests(TestCase):
+	"""Shared filtering, search and pagination on the Super Admin user list."""
+
+	password = "SecureTestPassword2026!"
+
+	def setUp(self):
+		self.admin = User.objects.create_superuser(
+			email="list-admin@carbonpilot.test", password=self.password
+		)
+		self.client.force_login(self.admin)
+
+	def make_user(
+		self,
+		email,
+		role=User.Role.DEPARTMENT_MANAGER,
+		status=User.Status.ACTIVE,
+		first_name="Test",
+		last_name="Person",
+		company="Carbon Works",
+		department="Operations",
+	):
+		return User.objects.create_user(
+			email=email,
+			password=self.password,
+			first_name=first_name,
+			last_name=last_name,
+			role=role,
+			status=status,
+			company=company,
+			department=department,
+		)
+
+	def list_url(self, params=None):
+		url = reverse("accounts:user_management")
+		if params:
+			url = f"{url}?{urlencode(params)}"
+		return url
+
+	def test_filter_combination_narrows_results(self):
+		self.make_user("ops-manager@carbonpilot.test", department="Operations")
+		self.make_user("fin-manager@carbonpilot.test", department="Finance")
+		self.make_user("ops-supplier@carbonpilot.test", role=User.Role.SUPPLIER)
+
+		response = self.client.get(self.list_url({
+			"role": User.Role.DEPARTMENT_MANAGER,
+			"department": "Operations",
+		}))
+		self.assertEqual(response.status_code, 200)
+		emails = [user.email for user in response.context["users"]]
+		self.assertEqual(emails, ["ops-manager@carbonpilot.test"])
+
+	def test_search_matches_name_and_email(self):
+		self.make_user("find-me@carbonpilot.test", first_name="Ada", last_name="Lovelace")
+		self.make_user("grace.hopper@carbonpilot.test", first_name="Grace", last_name="Hopper")
+
+		by_name = self.client.get(self.list_url({"q": "lovelace"}))
+		self.assertEqual(
+			[user.email for user in by_name.context["users"]],
+			["find-me@carbonpilot.test"],
+		)
+		by_email = self.client.get(self.list_url({"q": "hopper@"}))
+		self.assertEqual(
+			[user.email for user in by_email.context["users"]],
+			["grace.hopper@carbonpilot.test"],
+		)
+
+	def test_unknown_filter_value_is_ignored(self):
+		self.make_user("real-user@carbonpilot.test")
+
+		response = self.client.get(self.list_url({"role": "NOT_A_ROLE"}))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(len(response.context["users"]), 1)
+
+	def test_default_page_size_is_ten(self):
+		for index in range(12):
+			self.make_user(f"bulk-{index:02d}@carbonpilot.test")
+
+		response = self.client.get(reverse("accounts:user_management"))
+		self.assertEqual(response.context["pagination"]["per_page"], 10)
+		self.assertEqual(response.context["pagination"]["total"], 12)
+		self.assertEqual(len(response.context["users"]), 10)
+
+	def test_per_page_twenty_shows_up_to_twenty(self):
+		for index in range(25):
+			self.make_user(f"bulk-{index:02d}@carbonpilot.test")
+
+		response = self.client.get(self.list_url({"per_page": "20"}))
+		self.assertEqual(response.context["pagination"]["per_page"], 20)
+		self.assertEqual(len(response.context["users"]), 20)
+
+	def test_next_link_preserves_filter_and_page(self):
+		for index in range(12):
+			self.make_user(f"ops-{index:02d}@carbonpilot.test", department="Operations")
+
+		response = self.client.get(self.list_url({
+			"department": "Operations", "page": "1",
+		}))
+		self.assertEqual(response.context["pagination"]["has_next"], True)
+		content = response.content.decode()
+		self.assertIn("department=Operations", content)
+		self.assertIn("page=2", content)
+
+	def test_filter_matching_nothing_renders_empty_state(self):
+		self.make_user("someone@carbonpilot.test")
+
+		response = self.client.get(self.list_url({"q": "no-such-account"}))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "cp-empty")
+		self.assertContains(response, "No accounts match these filters.")
+
+
+class ErrorPageTests(TestCase):
+	"""Project-wide 403 / 404 / 500 handlers render the shared CarbonPilot error pages.
+
+	The test runner runs with ``DEBUG = False``, which is the same mode the
+	production handlers are active in, so these assertions exercise the real
+	handler wiring declared in ``config/urls.py``.
+	"""
+
+	password = "SecureTestPassword2026!"
+
+	def make_owner(self, email="owner@carbonpilot.test"):
+		return User.objects.create_user(
+			email=email,
+			password=self.password,
+			first_name="Casey",
+			last_name="Owner",
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+			company="Carbon Works",
+		)
+
+	def test_unknown_url_renders_custom_404_page(self):
+		response = self.client.get("/this-page-does-not-exist")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertTemplateUsed(response, "404.html")
+		self.assertContains(response, "We couldn't find that page", status_code=404)
+		self.assertContains(response, "Back to dashboard", status_code=404)
+
+	def test_forbidden_url_renders_custom_403_page(self):
+		self.client.force_login(self.make_owner())
+
+		# ``user_management`` requires SUPER_ADMIN, so an authenticated owner is
+		# rejected with PermissionDenied -> the 403 handler.
+		response = self.client.get(reverse("accounts:user_management"))
+
+		self.assertEqual(response.status_code, 403)
+		self.assertTemplateUsed(response, "403.html")
+		self.assertContains(
+			response, "You don't have access to this page", status_code=403
+		)
+
+	def test_csrf_failure_uses_styled_403_page(self):
+		client = Client(enforce_csrf_checks=True)
+
+		response = client.post(
+			reverse("accounts:login"), {"email": "nobody@carbonpilot.test", "password": "x"}
+		)
+
+		self.assertEqual(response.status_code, 403)
+		self.assertTemplateUsed(response, "403_csrf.html")
+		self.assertContains(response, "This form has expired", status_code=403)
+
+	@override_settings(DEBUG=False, ALLOWED_HOSTS=["*"])
+	def test_server_error_renders_custom_500_page_without_leaking_details(self):
+		client = Client(raise_request_exception=False)
+
+		# Force a view to blow up at request time. ``render`` is looked up in the
+		# view module's globals on each call, so patching it there is enough.
+		with patch("apps.accounts.views.render", side_effect=RuntimeError("secret-detail")):
+			response = client.get("/")
+
+		self.assertEqual(response.status_code, 500)
+		self.assertTemplateUsed(response, "500.html")
+		content = response.content.decode()
+		self.assertIn("Something went wrong on our side", content)
+		self.assertNotIn("secret-detail", content)
+		self.assertNotIn("Traceback", content)

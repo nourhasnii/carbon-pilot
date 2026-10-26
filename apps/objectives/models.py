@@ -250,7 +250,7 @@ class Objective(models.Model):
 			and self.target_tco2e is not None
 			and self.target_tco2e > self.baseline_tco2e
 		):
-			errors["target_tco2e"] = "The target cannot exceed the baseline for a reduction objective."
+			errors["target_tco2e"] = "Target must be lower than baseline for a reduction objective."
 		if errors:
 			raise ValidationError(errors)
 

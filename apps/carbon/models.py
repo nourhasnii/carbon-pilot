@@ -289,6 +289,7 @@ class CarbonActivity(models.Model):
 			models.Index(fields=("company", "scope")),
 			models.Index(fields=("company", "category")),
 			models.Index(fields=("department",)),
+			models.Index(fields=("supplier",)),
 			models.Index(fields=("period_start",)),
 		]
 
@@ -303,6 +304,15 @@ class CarbonActivity(models.Model):
 		blank=True,
 		on_delete=models.SET_NULL,
 		related_name="carbon_activities",
+	)
+	# Optional link to a supplier, typically for Scope 3 purchased goods and
+	# services. The supplier must belong to the same company as the activity.
+	supplier = models.ForeignKey(
+		"suppliers.Supplier",
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name="activities",
 	)
 	name = models.CharField(max_length=255, blank=True)
 	category = models.CharField(max_length=32, choices=ActivityCategory.choices)
@@ -438,9 +448,11 @@ class CarbonActivity(models.Model):
 	def clean(self):
 		errors = {}
 		if self.period_end and self.period_end < self.period_start:
-			errors["period_end"] = "The reporting period end cannot be before its start."
+			errors["period_end"] = "End date must be on or after start date."
 		if self.department_id and self.company_id and self.department.company_id != self.company_id:
 			errors["department"] = "The department must belong to the activity company."
+		if self.supplier_id and self.company_id and self.supplier.company_id != self.company_id:
+			errors["supplier"] = "The supplier must belong to the activity company."
 		if (
 			self.emission_factor_id
 			and self.emission_factor.company_id

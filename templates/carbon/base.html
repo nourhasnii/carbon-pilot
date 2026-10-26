@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{% static 'css/carbon.css' %}" />
-    {% block extra_css %}{% endblock %}
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   </head>
   <body class="cp-carbon">
+    <a class="cp-skip-link" href="#cp-main-content">Skip to main content</a>
     <div class="cp-shell">
       <aside class="cp-sidebar" aria-label="Carbon management navigation">
         <a class="cp-brand" href="{% url 'accounts:dashboard' %}">
@@ -22,7 +22,7 @@
             <small>Carbon management</small>
           </span>
         </a>
-        <nav class="cp-nav">
+        <nav class="cp-nav" aria-label="Main">
           {% for item in sidebar_nav %}
             {% if item.url_name %}
               <a class="cp-nav-item {% if item.active %}is-active{% endif %}" href="{% url item.url_name %}">
@@ -40,17 +40,17 @@
             {% endif %}
           {% endfor %}
         </nav>
-        <div class="cp-sidebar-footer">
+        <footer class="cp-sidebar-footer">
           <span class="cp-tenant">{{ company.name }}</span>
           <span class="cp-tenant-meta">{{ user.get_full_name|default:user.email }} · {{ user.get_role_display }}</span>
           <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
             <button class="cp-btn cp-btn-ghost cp-btn-sm" type="submit"><i data-lucide="log-out"></i> Sign out</button>
           </form>
-        </div>
+        </footer>
       </aside>
 
-      <main class="cp-main">
+      <main class="cp-main" id="cp-main-content" tabindex="-1">
         <header class="cp-topbar">
           <div>
             <p class="cp-eyebrow">{% block eyebrow %}Carbon management{% endblock %}</p>
@@ -74,9 +74,15 @@
         {% endif %}
 
         {% block content %}{% endblock %}
+
+        <footer class="cp-page-footer">
+          <p>{{ company.name }} · CarbonPilot carbon management workspace</p>
+        </footer>
       </main>
     </div>
     <script>window.lucide && window.lucide.createIcons();</script>
+    <script src="{% static 'js/form-a11y.js' %}"></script>
+    <script src="{% static 'js/ai-actions.js' %}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

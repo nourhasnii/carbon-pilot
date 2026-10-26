@@ -1,0 +1,176 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ supplier.name }}{% endblock %}
+{% block eyebrow %}Supplier sustainability{% endblock %}
+{% block heading %}{{ supplier.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'suppliers:supplier_list' %}"><i data-lucide="arrow-left"></i> All suppliers</a>
+  {% if can_manage %}
+    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'suppliers:supplier_edit' supplier.pk %}"><i data-lucide="pencil"></i> Edit</a>
+    <form method="post" action="{% url 'suppliers:supplier_toggle_active' supplier.pk %}" onsubmit="return confirm('{% if supplier.is_active %}Deactivate{% else %}Activate{% endif %} this supplier?');">
+      {% csrf_token %}
+      <button class="cp-btn {% if supplier.is_active %}cp-btn-ghost{% else %}cp-btn-primary{% endif %} cp-btn-sm" type="submit">
+        <i data-lucide="{% if supplier.is_active %}power-off{% else %}power{% endif %}"></i> {% if supplier.is_active %}Deactivate{% else %}Activate{% endif %}
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    {% include "suppliers/_esg_status.html" with status=supplier.esg_status label=supplier.get_esg_status_display %}
+    {% if supplier.risk_level %}
+      {% include "risk/_level.html" with level=supplier.risk_level label=supplier.get_risk_level_display %}
+    {% else %}
+      <span class="cp-badge cp-badge-neutral">Not rated</span>
+    {% endif %}
+    {% if supplier.is_active %}<span class="cp-badge cp-badge-approved">Active</span>{% else %}<span class="cp-badge cp-badge-neutral">Inactive</span>{% endif %}
+    <span class="cp-muted">{{ supplier.location_label|default:"—" }} · {{ supplier.category }}</span>
+  </div>
+
+  <div class="cp-kpi-grid" style="margin-top:20px">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">ESG completeness</div>
+      <div class="cp-kpi-value" style="font-size:1.3rem">{{ supplier.get_esg_status_display }}</div>
+      <div class="cp-kpi-sub">{{ documents|length }} document{{ documents|length|pluralize }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Risk level</div>
+      <div class="cp-kpi-value" style="font-size:1.3rem">{% if supplier.risk_level %}{{ supplier.get_risk_level_display }}{% else %}Not rated{% endif %}</div>
+      <div class="cp-kpi-sub">Manual / derived rating</div>
+    </article>
+    <article class="cp-kpi cp-kpi-scope3">
+      <div class="cp-kpi-label">Scope 3 emissions</div>
+      <div class="cp-kpi-value">{{ scope3_total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">{{ scope3_approved_count }} approved activit{{ scope3_approved_count|pluralize:"y,ies" }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Linked activities</div>
+      <div class="cp-kpi-value">{{ scope3_count }}</div>
+      <div class="cp-kpi-sub">Referencing this supplier</div>
+    </article>
+  </div>
+
+  {% if missing_types %}
+    <div class="cp-callout is-warning" style="margin-top:20px">
+      <i data-lucide="alert-triangle"></i>
+      <span>Missing required documentation: <strong>{{ missing_types|join:", " }}</strong>. The supplier stays
+      {% if supplier.esg_status == 'MISSING' %}MISSING{% else %}PARTIAL{% endif %} until every required document is uploaded.</span>
+    </div>
+  {% endif %}
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Profile</h2>
+      <div class="cp-field-grid">
+        <div class="cp-field"><span class="cp-kpi-label">Legal name</span><span>{{ supplier.legal_name|default:"—" }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Category / sector</span><span>{{ supplier.category }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Country</span><span>{{ supplier.country }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">City</span><span>{{ supplier.city|default:"—" }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Contact</span><span>{{ supplier.contact_name|default:"—" }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Email</span><span>{% if supplier.contact_email %}<a href="mailto:{{ supplier.contact_email }}">{{ supplier.contact_email }}</a>{% else %}—{% endif %}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Phone</span><span>{{ supplier.contact_phone|default:"—" }}</span></div>
+        <div class="cp-field"><span class="cp-kpi-label">Website</span><span>{% if supplier.website %}<a href="{{ supplier.website }}" target="_blank" rel="noopener">{{ supplier.website }}</a>{% else %}—{% endif %}</span></div>
+      </div>
+      {% if supplier.notes %}
+        <h3 class="cp-card-title" style="margin-top:18px">Notes</h3>
+        <p class="cp-card-sub">{{ supplier.notes|linebreaksbr }}</p>
+      {% endif %}
+      <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+        Added {{ supplier.created_at|date:"Y-m-d" }}{% if supplier.created_by %} by {{ supplier.created_by.get_full_name|default:supplier.created_by.email }}{% endif %} ·
+        Last updated {{ supplier.updated_at|date:"Y-m-d H:i" }}
+      </p>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Documents</h2>
+      <p class="cp-card-sub">Policy, certificate and emissions report make a supplier ESG complete.</p>
+
+      {% if documents %}
+        <div class="cp-table-wrap">
+          <table class="cp-table">
+            <caption class="cp-sr-only">Supplier documents</caption>
+            <thead><tr><th scope="col">Title</th><th scope="col">Type</th><th scope="col">Uploaded</th><th scope="col" class="cp-actions-col">Actions</th></tr></thead>
+            <tbody>
+              {% for document in documents %}
+                <tr>
+                  <td>{{ document.title }}</td>
+                  <td><span class="cp-badge cp-badge-neutral">{{ document.get_document_type_display }}</span></td>
+                  <td class="cp-muted" style="font-size:0.78rem">
+                    {{ document.uploaded_at|date:"Y-m-d" }}
+                    {% if document.uploaded_by %}<br>{{ document.uploaded_by.get_full_name|default:document.uploaded_by.email }}{% endif %}
+                  </td>
+                  <td>
+                    <div class="cp-row cp-row-tight">
+                      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'suppliers:supplier_document_download' document.pk %}"><i data-lucide="download"></i> Download</a>
+                      {% if can_manage %}
+                        <form method="post" action="{% url 'suppliers:supplier_document_delete' document.pk %}" onsubmit="return confirm('Delete this document? This cannot be undone.');">
+                          {% csrf_token %}
+                          <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit"><i data-lucide="trash-2"></i> Delete</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="file-text"></i><p>No documents uploaded yet.</p></div>
+      {% endif %}
+
+      {% if can_manage %}
+        <form method="post" action="{% url 'suppliers:supplier_document_upload' supplier.pk %}" enctype="multipart/form-data" style="margin-top:16px">
+          {% csrf_token %}
+          <div class="cp-field-grid">
+            {% for field in document_form %}
+              <div class="cp-field {% if field.name == 'title' %}cp-span-2{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<span class="cp-error">{{ field.errors|striptags }}</span>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="cp-actions">
+            <span class="cp-spacer"></span>
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="upload"></i> Upload document</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Related Scope 3 activities</h2>
+      <span class="cp-muted">{{ scope3_total_tonnes|floatformat:2 }} tCO2e approved</span>
+    </div>
+    {% if scope3_activities %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Related Scope 3 carbon activities</caption>
+          <thead><tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Category</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Status</th><th scope="col">Period</th></tr></thead>
+          <tbody>
+            {% for activity in scope3_activities %}
+              <tr>
+                <td><a class="cp-cell-link" href="{% url 'carbon:activity_detail' activity.pk %}">{{ activity.display_name }}</a></td>
+                <td>{{ activity.department.name|default:"—" }}</td>
+                <td>{{ activity.get_category_display }}</td>
+                <td class="cp-num">{{ activity.co2e_kg|floatformat:2 }} kg</td>
+                <td>{% include "carbon/_status.html" with activity=activity %}</td>
+                <td>{{ activity.period_label }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="link"></i>
+        <span>No carbon activity references this supplier yet. Link a Scope 3 activity to it from the activity edit page to track its footprint.</span>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

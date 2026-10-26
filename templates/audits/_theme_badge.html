@@ -1,0 +1,8 @@
+{% comment %}
+Qwen's theme classification for one finding. Rendered only when the model
+classified that finding during the last AI audit analysis.
+{% endcomment %}
+{% if theme %}
+  <span class="cp-badge cp-badge-neutral" title="AI · QWEN theme"><i data-lucide="sparkles"></i> {{ theme.theme_label }}</span>
+  <span class="cp-badge {% if theme.confidence == 'HIGH' %}cp-badge-approved{% elif theme.confidence == 'MEDIUM' %}cp-badge-draft{% else %}cp-badge-neutral{% endif %}">{{ theme.confidence }} confidence</span>
+{% endif %}

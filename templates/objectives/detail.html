@@ -45,12 +45,15 @@
         <h2 class="cp-card-title cp-mt-0">AI Prediction</h2>
         <p class="cp-card-sub cp-mt-0">RandomForest model trained on your company's resolved objectives</p>
       </div>
-      {% if can_manage %}
-        <form method="post" action="{% url 'objectives:objective_run_prediction' objective.pk %}">
-          {% csrf_token %}
-          <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Run AI Prediction</button>
-        </form>
-      {% endif %}
+      <div class="cp-row" style="gap:10px;align-items:center">
+        <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · ML</span>
+        {% if can_manage %}
+          <form method="post" action="{% url 'objectives:objective_run_prediction' objective.pk %}" data-ai-action data-ai-label="Running prediction…">
+            {% csrf_token %}
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="sparkles"></i> Run AI Prediction</button>
+          </form>
+        {% endif %}
+      </div>
     </div>
 
     {% if prediction %}
@@ -87,6 +90,65 @@
         </span>
       </div>
     {% endif %}
+
+    {# ---------- Model evaluation (RandomForest) ---------- #}
+    <div style="margin-top:22px;border-top:1px solid var(--cp-line);padding-top:18px">
+      <h3 class="cp-card-title cp-mt-0" style="font-size:1rem">Model evaluation</h3>
+      {% if prediction_metrics and not prediction_metrics.insufficient_data %}
+        <p class="cp-card-sub cp-mt-0">
+          Accuracy, precision, recall and F1 for the ACHIEVED class, measured on the resolved
+          objectives the model was trained on.
+        </p>
+        <div class="cp-kpi-grid">
+          <article class="cp-kpi">
+            <div class="cp-kpi-label">Accuracy</div>
+            <div class="cp-kpi-value">{{ prediction_metrics.accuracy|floatformat:1 }}<small>%</small></div>
+          </article>
+          <article class="cp-kpi">
+            <div class="cp-kpi-label">Precision</div>
+            <div class="cp-kpi-value">{{ prediction_metrics.precision|floatformat:1 }}<small>%</small></div>
+          </article>
+          <article class="cp-kpi">
+            <div class="cp-kpi-label">Recall</div>
+            <div class="cp-kpi-value">{{ prediction_metrics.recall|floatformat:1 }}<small>%</small></div>
+          </article>
+          <article class="cp-kpi">
+            <div class="cp-kpi-label">F1</div>
+            <div class="cp-kpi-value">{{ prediction_metrics.f1|floatformat:1 }}<small>%</small></div>
+          </article>
+        </div>
+        <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+          {{ prediction_metrics.model_name }} v{{ prediction_metrics.model_version }} ·
+          trained on {{ prediction_metrics.training_size }} resolved objective{{ prediction_metrics.training_size|pluralize }} ·
+          class balance {{ prediction_metrics.class_balance.achieved }} achieved /
+          {{ prediction_metrics.class_balance.missed }} missed ·
+          last trained {{ prediction_metrics.created_at|date:"d M Y H:i" }}.
+          {{ prediction_metrics.note }} In-sample metrics, not a held-out score.
+        </p>
+      {% elif prediction_metrics %}
+        <div class="cp-callout is-warning">
+          <i data-lucide="alert-circle"></i>
+          <span>
+            The model could not be trained on the most recent attempt, so no metrics are shown.
+            Resolved objectives available: <strong>{{ training_summary.resolved }}</strong>
+            ({{ training_summary.achieved }} achieved / {{ training_summary.missed }} missed).
+            Training needs at least {{ training_summary.min_training }} resolved objectives and
+            {{ training_summary.min_class }} of each outcome.
+          </span>
+        </div>
+      {% else %}
+        <div class="cp-callout">
+          <i data-lucide="sparkles"></i>
+          <span>
+            The model has not been trained yet, so there are no evaluation metrics. Resolved
+            objectives available: <strong>{{ training_summary.resolved }}</strong>
+            ({{ training_summary.achieved }} achieved / {{ training_summary.missed }} missed).
+            Training needs at least {{ training_summary.min_training }} resolved objectives and
+            {{ training_summary.min_class }} of each outcome.
+          </span>
+        </div>
+      {% endif %}
+    </div>
   </section>
 
   <section class="cp-card" style="margin-top:20px">
@@ -166,9 +228,9 @@
     </div>
     {% if activities %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Contributing activities</caption>
           <thead>
-            <tr><th>Activity</th><th>Department</th><th class="cp-num">CO2e</th><th>Period</th></tr>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Period</th></tr>
           </thead>
           <tbody>
             {% for activity in activities %}

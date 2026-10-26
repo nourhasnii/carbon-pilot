@@ -1,0 +1,1 @@
+<span class="cp-badge {% if finding.status == 'CLOSED' %}cp-badge-approved{% elif finding.status == 'IN_PROGRESS' %}cp-badge-submitted{% else %}cp-badge-draft{% endif %}">{{ finding.get_status_display }}</span>

@@ -1,0 +1,238 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ report.title }}{% endblock %}
+{% block eyebrow %}ESG management{% endblock %}
+{% block heading %}{{ report.title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'reports:report_list' %}"><i data-lucide="arrow-left"></i> All reports</a>
+  {% if report.is_generated %}
+    <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'reports:report_download' report.pk %}"><i data-lucide="download"></i> Download PDF</a>
+  {% elif can_manage %}
+    <form method="post" action="{% url 'reports:report_generate' report.pk %}">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="file-check-2"></i> Generate PDF</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {# ---------- Report meta ---------- #}
+  <div class="cp-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    {% include "reports/_status.html" with report=report %}
+    <span class="cp-muted">Reporting year <strong>{{ report.period_year }}</strong></span>
+    <span class="cp-muted">Created {{ report.created_at|date:"Y-m-d H:i" }}
+      {% if report.created_by %} by {{ report.created_by.get_full_name|default:report.created_by.email }}{% endif %}</span>
+    {% if report.is_generated %}<span class="cp-muted">File: {{ report.filename }}</span>{% endif %}
+  </div>
+
+  {# ---------- KPI row ---------- #}
+  <div class="cp-kpi-grid" style="margin-top:20px">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Total emissions</div>
+      <div class="cp-kpi-value">{{ report.metrics.emissions.total_tonnes|floatformat:2 }} <small>tCO2e</small></div>
+      <div class="cp-kpi-sub">{{ report.metrics.emissions.approved_activities }} approved activit{{ report.metrics.emissions.approved_activities|pluralize:"y,ies" }}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Data quality</div>
+      <div class="cp-kpi-value">{{ report.metrics.quality.average }}%</div>
+      <div class="cp-kpi-sub">Evidence on {{ report.metrics.quality.evidence_coverage }}% of activities</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Objectives</div>
+      <div class="cp-kpi-value">{{ report.metrics.objectives.total }}</div>
+      <div class="cp-kpi-sub">{{ report.metrics.objectives.achieved }} achieved · {{ report.metrics.objectives.at_risk }} at risk</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Risk level</div>
+      <div class="cp-kpi-value" style="font-size:1.2rem">
+        {% if report.metrics.risk %}{{ report.metrics.risk.level_label }}{% else %}Not assessed{% endif %}
+      </div>
+      <div class="cp-kpi-sub">
+        {% if report.metrics.risk %}Score {{ report.metrics.risk.score|floatformat:2 }}/100{% else %}No assessment yet{% endif %}
+      </div>
+    </article>
+  </div>
+
+  {# ---------- Executive summary (preview) ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Executive summary</h2>
+    <p class="cp-card-sub">{{ report.summary }}</p>
+  </section>
+
+  {# ---------- Emissions overview ---------- #}
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Emissions by scope</h2>
+      <p class="cp-card-sub">Approved activities only · {{ report.period_year }}</p>
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Emissions by scope for {{ report.period_year }}</caption>
+          <thead><tr><th scope="col">Scope</th><th scope="col" class="cp-num">tCO2e</th><th scope="col" class="cp-num">Share</th></tr></thead>
+          <tbody>
+            {% for scope in report.metrics.emissions.scopes %}
+              <tr>
+                <td>{% include "carbon/_scope.html" with scope=scope.key scope_label=scope.label %}</td>
+                <td class="cp-num">{{ scope.tonnes|floatformat:2 }}</td>
+                <td class="cp-num">{{ scope.percent }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Top categories</h2>
+      <p class="cp-card-sub">Highest emitting categories</p>
+      {% if report.metrics.emissions.top_categories %}
+        <div class="cp-hbars">
+          {% for row in report.metrics.emissions.top_categories %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="layers"></i><p>No approved data for {{ report.period_year }}.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Top departments</h2>
+      {% if report.metrics.emissions.top_departments %}
+        <div class="cp-hbars">
+          {% for row in report.metrics.emissions.top_departments %}
+            <div class="cp-hbar-link" style="cursor:default">
+              <div class="cp-hbar-head"><strong>{{ row.label }}</strong><span>{{ row.tonnes|floatformat:2 }} tCO2e · {{ row.percent }}%</span></div>
+              <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.percent }}%"></span></div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cp-empty"><i data-lucide="building-2"></i><p>No department data yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Data quality notes</h2>
+      <div class="cp-quality-head">
+        <div class="cp-quality-score">{{ report.metrics.quality.average }}%</div>
+        <div class="cp-quality-track"><i style="width: {{ report.metrics.quality.average }}%"></i></div>
+      </div>
+      <ul class="cp-quality-list">
+        <li class="{% if report.metrics.quality.average >= 80 %}ok{% else %}warn{% endif %}">
+          <i data-lucide="{% if report.metrics.quality.average >= 80 %}check-circle-2{% else %}alert-triangle{% endif %}"></i>
+          <span>{% if report.metrics.quality.average >= 80 %}High confidence{% elif report.metrics.quality.average >= 50 %}Medium confidence{% else %}Low confidence{% endif %}</span>
+        </li>
+      </ul>
+      <div class="cp-callout" style="margin-top:16px">
+        <i data-lucide="paperclip"></i>
+        <span>{{ report.metrics.quality.missing_evidence }} of {{ report.metrics.quality.scored }} approved activit{{ report.metrics.quality.scored|pluralize:"y,ies" }} lack supporting evidence.</span>
+      </div>
+    </section>
+  </div>
+
+  {# ---------- Objectives & progress ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Objectives &amp; progress</h2>
+    <p class="cp-card-sub">{{ report.metrics.objectives.total }} tracked · {{ report.metrics.objectives.achieved }} achieved · {{ report.metrics.objectives.missed }} missed · {{ report.metrics.objectives.at_risk }} predicted at risk</p>
+    {% if report.metrics.objectives.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Objectives and progress</caption>
+          <thead>
+            <tr><th scope="col">Objective</th><th scope="col">Scope</th><th scope="col" class="cp-num">Current / target</th><th scope="col">Progress</th><th scope="col">Status</th><th scope="col">Latest prediction</th></tr>
+          </thead>
+          <tbody>
+            {% for item in report.metrics.objectives.items %}
+              <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.scope }}</td>
+                <td class="cp-num">{{ item.current_tonnes|floatformat:2 }} / {{ item.target_tonnes|floatformat:2 }}</td>
+                <td style="min-width:140px">
+                  <div class="cp-hbar-head"><strong>{{ item.progress_percent }}%</strong></div>
+                  <div class="cp-hbar-track"><span class="cp-hbar-fill {% if item.status == 'ACHIEVED' %}is-achieved{% elif item.status == 'MISSED' %}is-missed{% endif %}" style="width: {{ item.progress_percent }}%"></span></div>
+                </td>
+                <td><span class="cp-badge {% if item.status == 'ACHIEVED' %}cp-badge-approved{% elif item.status == 'MISSED' %}cp-badge-rejected{% else %}cp-badge-neutral{% endif %}">{{ item.status_label }}</span></td>
+                <td>
+                  {% if item.prediction %}
+                    {{ item.prediction.probability|floatformat:1 }}%
+                    {% include "risk/_level.html" with level=item.prediction.risk_level label=item.prediction.risk_label %}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="target"></i><p>No objectives recorded for {{ report.period_year }}.</p></div>
+    {% endif %}
+  </section>
+
+  {# ---------- Anomalies & recommendations ---------- #}
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Anomalies</h2>
+      <p class="cp-card-sub">Detected on approved activities (IsolationForest)</p>
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi"><div class="cp-kpi-label">Detected</div><div class="cp-kpi-value">{{ report.metrics.anomalies.total }}</div></article>
+        <article class="cp-kpi"><div class="cp-kpi-label">High</div><div class="cp-kpi-value">{{ report.metrics.anomalies.high }}</div></article>
+        <article class="cp-kpi"><div class="cp-kpi-label">Medium</div><div class="cp-kpi-value">{{ report.metrics.anomalies.medium }}</div></article>
+      </div>
+    </section>
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Recommendations</h2>
+      <p class="cp-card-sub">Open corrective actions</p>
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi"><div class="cp-kpi-label">Open</div><div class="cp-kpi-value">{{ report.metrics.recommendations.open }}</div></article>
+        <article class="cp-kpi"><div class="cp-kpi-label">High priority</div><div class="cp-kpi-value">{{ report.metrics.recommendations.high }}</div></article>
+      </div>
+    </section>
+  </div>
+
+  {# ---------- Risk assessment ---------- #}
+  <section class="cp-card" style="margin-top:20px">
+    <h2 class="cp-card-title cp-mt-0">Risk assessment</h2>
+    {% if report.metrics.risk %}
+      <div class="cp-kpi-grid">
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk score</div>
+          <div class="cp-kpi-value">{{ report.metrics.risk.score|floatformat:2 }} <small>/ 100</small></div>
+          <div class="cp-kpi-sub">Assessed {{ report.metrics.risk.assessed_on }}</div>
+        </article>
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">Risk level</div>
+          <div class="cp-kpi-value">{% include "risk/_level.html" with level=report.metrics.risk.level label=report.metrics.risk.level_label %}</div>
+          <div class="cp-kpi-sub">Rule-based</div>
+        </article>
+      </div>
+      <p class="cp-card-sub" style="margin-top:16px">{{ report.metrics.risk.summary }}</p>
+      {% if report.metrics.risk.drivers %}
+        <ol style="margin:0;padding-left:18px;display:grid;gap:12px">
+          {% for driver in report.metrics.risk.drivers %}
+            <li>
+              <strong>{{ driver.label }}</strong>
+              <span class="cp-badge cp-badge-neutral">+{{ driver.points|floatformat:2 }} / {{ driver.max_points }} pts</span>
+              <p class="cp-muted" style="margin:6px 0 0;font-size:0.82rem">{{ driver.detail }}</p>
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    {% else %}
+      <div class="cp-callout">
+        <i data-lucide="shield-check"></i>
+        <span>No risk assessment has been run yet. The report records “Not assessed”.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    This report is a management document generated from your company's approved data. It is
+    <strong>not a legal CSRD certification</strong> and has not been independently assured.
+  </p>
+{% endblock %}

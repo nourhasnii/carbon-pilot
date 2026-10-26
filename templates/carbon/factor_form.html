@@ -16,7 +16,7 @@
     {% else %}
       <p class="cp-card-sub">Enter the factor and its traceable source. Values are stored as kg CO2e per factor unit. Do not enter an unverified value as an official factor.</p>
     {% endif %}
-    {% if form.non_field_errors %}<div class="cp-nonfield-error">{{ form.non_field_errors|striptags }}</div>{% endif %}
+    {% include "carbon/_form_error_summary.html" %}
     <form method="post" novalidate>
       {% csrf_token %}
       <div class="cp-field-grid">

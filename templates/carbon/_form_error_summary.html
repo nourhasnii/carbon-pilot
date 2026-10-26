@@ -1,0 +1,23 @@
+{% comment %}
+Top-of-form error summary. Rendered only when the server-side validation
+rejected the submission, so a user can see every problem at a glance while the
+same message is repeated under the offending field.
+
+Usage: {% include "carbon/_form_error_summary.html" %}   (uses the `form` in context)
+       {% include "carbon/_form_error_summary.html" with form=version_form %}
+{% endcomment %}
+{% if form.errors %}
+  <div class="cp-form-error-summary" role="alert">
+    <strong>Please correct the highlighted fields.</strong>
+    <ul class="cp-error-list">
+      {% for field in form %}
+        {% for error in field.errors %}
+          <li>{{ field.label }}: {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

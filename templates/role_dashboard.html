@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ dashboard_title }} | CarbonPilot</title>
     <style>
-      :root { color-scheme: light; --ink: #17332e; --muted: #60716c; --line: #dce6e2; --paper: #f3f7f4; --green: #147d62; --blue: #315b78; }
+      :root { color-scheme: light; --ink: #17332e; --muted: #566660; --line: #dce6e2; --paper: #f3f7f4; --green: #147d62; --blue: #315b78; }
       * { box-sizing: border-box; }
       body { margin: 0; background: linear-gradient(135deg, #eaf3ed, #f7f8f4 58%, #e6eff0); color: var(--ink); font: 16px/1.5 "Segoe UI", sans-serif; }
       header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px clamp(20px, 5vw, 72px); background: #fff; border-bottom: 1px solid var(--line); }
@@ -29,7 +29,7 @@
       <div class="account"><span>{{ user.get_full_name|default:user.email }} · {{ user.get_role_display }}</span><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form></div>
     </header>
     <main>
-      {% if messages %}<div class="messages">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+      {% if messages %}<div class="messages" role="status" aria-live="polite">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
       <span class="eyebrow">CarbonPilot workspace</span>
       <h1>{{ dashboard_title }}</h1>
       <p class="intro">Welcome, {{ user.get_full_name|default:user.email }}. Your role is {{ user.get_role_display }}.</p>

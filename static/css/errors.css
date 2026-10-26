@@ -1,0 +1,63 @@
+/* Error pages (403 / 404 / 500) reuse the authenticated workspace design system.
+   Palette, typography, cards and buttons all come from carbon.css — this file
+   only adds the page frame (top bar + centred error card). */
+
+.cp-error-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 26px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--cp-line);
+}
+
+.cp-error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: calc(100vh - 71px);
+  padding: 40px 20px 56px;
+  text-align: center;
+}
+
+.cp-error-card {
+  width: min(100%, 560px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 38px 34px 34px;
+  text-align: center;
+}
+
+.cp-error-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--cp-mint); color: var(--cp-green); }
+.cp-error-mark svg { width: 27px; height: 27px; }
+.cp-error-mark.tone-warning { background: var(--cp-amber-bg); color: var(--cp-amber); }
+.cp-error-mark.tone-info { background: var(--cp-blue-bg); color: var(--cp-blue); }
+.cp-error-mark.tone-danger { background: var(--cp-red-bg); color: var(--cp-red); }
+
+.cp-error-code { margin: 18px 0 0; color: var(--cp-ink); font-family: "Manrope", "DM Sans", sans-serif; font-size: 2.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+
+.cp-error-title { margin: 10px 0 0; font-size: 1.28rem; font-weight: 750; letter-spacing: -0.01em; }
+.cp-error-text { margin: 10px 0 0; max-width: 44ch; color: var(--cp-muted); font-size: 0.92rem; line-height: 1.6; }
+
+.cp-error-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 26px; }
+
+.cp-error-footnote { margin: 0; max-width: 48ch; color: var(--cp-muted); font-size: 0.82rem; }
+
+.cp-error-card .cp-btn:focus-visible,
+.cp-error-header .cp-brand:focus-visible { outline: 3px solid rgba(20, 125, 98, 0.4); outline-offset: 2px; }
+
+@media (max-width: 600px) {
+  .cp-error-header { padding: 12px 16px; }
+  .cp-error-wrap { min-height: calc(100vh - 67px); padding: 28px 14px 40px; }
+  .cp-error-card { padding: 28px 20px 26px; }
+  .cp-error-actions { width: 100%; flex-direction: column; }
+  .cp-error-actions .cp-btn { width: 100%; justify-content: center; }
+}

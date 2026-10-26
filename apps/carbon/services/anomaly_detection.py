@@ -51,6 +51,7 @@ from sklearn.preprocessing import StandardScaler
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.analytics.models import ModelKind, ModelMetrics
 from apps.carbon.models import (
 	ActivityCategory,
 	ActivityStatus,
@@ -80,6 +81,9 @@ TREND_CORRELATION = 0.5  # minimum |r| for an increasing trend to be "supported"
 
 INSUFFICIENT_DATA_MESSAGE = "Insufficient historical data for anomaly detection."
 
+MODEL_NAME = "IsolationForest"
+MODEL_VERSION = "1.0.0"
+
 _FEATURE_CO2E = "co2e_kg"
 _FEATURE_QUANTITY = "quantity"
 
@@ -94,6 +98,7 @@ class DetectionResult:
 	detected: int = 0
 	created: int = 0
 	updated: int = 0
+	activities_analyzed: int = 0
 	groups_analyzed: int = 0
 	groups_skipped: int = 0
 
@@ -270,6 +275,33 @@ def _persist(company, activity, anomaly_type, severity, score, message, actor):
 	return False
 
 
+def model_params():
+	"""Hyper-parameters this service actually uses, for the metrics panel."""
+	return {
+		"contamination": "auto",
+		"min_observations": MIN_GROUP_OBSERVATIONS,
+		"n_estimators": FOREST_ESTIMATORS,
+		"random_state": FOREST_RANDOM_STATE,
+	}
+
+
+def _record_metrics(company, result):
+	"""Store one append-only ``ModelMetrics`` snapshot of this detection run."""
+	ModelMetrics.objects.create(
+		company=company,
+		model_kind=ModelKind.ANOMALY_DETECTION,
+		model_name=MODEL_NAME,
+		model_version=MODEL_VERSION,
+		activities_analyzed=result.activities_analyzed,
+		groups_analyzed=result.groups_analyzed,
+		groups_skipped=result.groups_skipped,
+		anomalies_found=result.detected,
+		params=model_params(),
+		insufficient_data=result.insufficient,
+		note=result.message,
+	)
+
+
 def detect_anomalies(company, *, actor=None):
 	"""Run IsolationForest on one company's approved activities.
 
@@ -288,13 +320,15 @@ def detect_anomalies(company, *, actor=None):
 		groups.setdefault(_group_key(activity), []).append(activity)
 
 	if not groups:
-		return DetectionResult(
+		result = DetectionResult(
 			ok=True,
 			message=INSUFFICIENT_DATA_MESSAGE,
 			insufficient=True,
 		)
+		_record_metrics(company, result)
+		return result
 
-	result = DetectionResult()
+	result = DetectionResult(activities_analyzed=len(activities))
 	for group in groups.values():
 		group.sort(key=lambda item: (item.period_start, item.pk))
 		if len(group) < MIN_GROUP_OBSERVATIONS:
@@ -322,6 +356,7 @@ def detect_anomalies(company, *, actor=None):
 			f"{result.detected} anomal"
 			f"{'y' if result.detected == 1 else 'ies'} detected."
 		)
+	_record_metrics(company, result)
 	return result
 
 

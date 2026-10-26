@@ -1,0 +1,11 @@
+{% comment %}
+Delay-risk badge for one finding. The level always comes from CarbonPilot's
+deterministic rules; when Qwen added an explanation the entry is marked HYBRID
+and carries the AI · QWEN badge.
+{% endcomment %}
+{% if risk %}
+  <span class="cp-badge {% if risk.delay_risk == 'HIGH' %}cp-badge-sev-high{% elif risk.delay_risk == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">
+    <i data-lucide="alarm-clock"></i> Delay risk {{ risk.delay_risk|lower }}
+  </span>
+  {% if risk.method == 'HYBRID' %}<span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · QWEN</span>{% endif %}
+{% endif %}

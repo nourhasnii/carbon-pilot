@@ -69,6 +69,13 @@ class Department(models.Model):
 	name = models.CharField(max_length=255)
 	code = models.CharField(max_length=50, blank=True)
 	description = models.TextField(blank=True)
+	is_active = models.BooleanField(
+		default=True,
+		help_text=(
+			"Inactive departments stay linked to their historical records but are "
+			"no longer offered when assigning new work."
+		),
+	)
 
 	class Meta:
 		ordering = ("name",)

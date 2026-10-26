@@ -105,6 +105,7 @@
         <form method="post" novalidate>
           {% csrf_token %}
           <input type="hidden" name="step" value="2" />
+          {% include "carbon/_form_error_summary.html" %}
           <div class="cp-field-grid">
             <div class="cp-field">
               <label for="{{ form.quantity.id_for_label }}">Quantity</label>

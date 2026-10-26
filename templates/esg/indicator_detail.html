@@ -1,0 +1,254 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ indicator.name }}{% endblock %}
+{% block eyebrow %}ESG indicator{% endblock %}
+{% block heading %}{{ indicator.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'esg:indicator_list' %}"><i data-lucide="arrow-left"></i> Catalog</a>
+  {% if can_manage %}
+    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:indicator_edit' indicator.pk %}"><i data-lucide="pencil"></i> Edit</a>
+    <a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'esg:value_create' indicator.pk %}"><i data-lucide="plus"></i> Record measurement</a>
+    <form method="post" action="{% url 'esg:indicator_set_active' indicator.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="active" value="{% if indicator.is_active %}0{% else %}1{% endif %}">
+      <button class="cp-btn {% if indicator.is_active %}cp-btn-ghost{% else %}cp-btn-outline{% endif %} cp-btn-sm" type="submit">
+        <i data-lucide="{% if indicator.is_active %}archive{% else %}rotate-ccw{% endif %}"></i>
+        {% if indicator.is_active %}Deactivate{% else %}Reactivate{% endif %}
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if not indicator.is_active %}
+    <div class="cp-callout is-warning">
+      <i data-lucide="archive"></i>
+      <span>
+        <strong>This indicator is inactive.</strong> It no longer counts towards your ESG completeness
+        coverage, but its full measurement history is preserved below.
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid" style="margin-top:{% if indicator.is_active %}0{% else %}20px{% endif %}">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Latest measurement</div>
+      <div class="cp-kpi-value" style="font-size:1.5rem">
+        {% if latest and latest.has_value %}{{ latest.display_value }} <small>{{ latest.unit_label }}</small>
+        {% else %}<span class="cp-muted">—</span>{% endif %}
+      </div>
+      <div class="cp-kpi-sub">{% if latest %}Reporting period {{ latest.period_year }}{% else %}No measurement recorded{% endif %}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Verification</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">
+        {% if latest %}{% include "esg/_value_status.html" with value=latest %}{% else %}<span class="cp-badge cp-badge-neutral">No data</span>{% endif %}
+      </div>
+      <div class="cp-kpi-sub">{% if latest.is_missing %}The last period has no value — missing, not zero.{% else %}Latest reported state{% endif %}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Pillar</div>
+      <div class="cp-kpi-value" style="font-size:1.15rem">{{ indicator.pillar_label }}</div>
+      <div class="cp-kpi-sub">{{ indicator.reference }}{% if indicator.is_required %} · Required{% else %} · Optional{% endif %}</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Reporting periods</div>
+      <div class="cp-kpi-value">{{ values|length }}</div>
+      <div class="cp-kpi-sub">Measurement{{ values|length|pluralize }} on record</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Ownership</div>
+      <div class="cp-kpi-value" style="font-size:1.05rem">{% firstof indicator.owner.get_full_name indicator.owner.email "Unassigned" %}</div>
+      <div class="cp-kpi-sub">{{ indicator.department.name|default:"Company-wide" }}</div>
+    </article>
+  </div>
+
+  <div class="cp-grid cp-grid-2-1" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Measurement history</h2>
+          <p class="cp-card-sub cp-mt-0">One row per reporting period. A blank value is a missing measurement, never a zero.</p>
+        </div>
+      </div>
+
+      {% if values %}
+        <div class="cp-table-wrap">
+          <table class="cp-table"><caption class="cp-sr-only">Measurement history</caption>
+            <thead>
+              <tr><th scope="col">Period</th><th scope="col" class="cp-num">Value</th><th scope="col">Status</th><th scope="col">Evidence</th><th scope="col">Reported</th><th scope="col">Verified</th><th scope="col" class="cp-actions-col">Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for value in values %}
+                <tr>
+                  <td>{{ value.period_year }}</td>
+                  <td class="cp-num">
+                    {% if value.has_value %}<strong>{{ value.display_value }}</strong> <span class="cp-muted">{{ value.unit_label }}</span>
+                    {% else %}<span class="cp-muted">Missing</span>{% endif %}
+                  </td>
+                  <td>{% include "esg/_value_status.html" with value=value %}</td>
+                  <td>
+                    {% if value.evidence_reference %}<span title="{{ value.evidence_reference }}">{{ value.evidence_reference|truncatechars:26 }}</span>
+                    {% else %}<span class="cp-muted">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if value.reported_at %}{{ value.reported_at|date:"d M Y" }}
+                    {% else %}<span class="cp-muted">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if value.verified_at %}{{ value.verified_at|date:"d M Y" }}
+                    {% else %}<span class="cp-muted">—</span>{% endif %}
+                  </td>
+                  <td>
+                    <div class="cp-row-actions">
+                      {% if can_manage and not value.is_verified %}
+                        <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:value_edit' value.pk %}"><i data-lucide="pencil"></i> Edit</a>
+                      {% endif %}
+                      {% if can_manage and value.status == 'DRAFT' and value.has_value %}
+                        <form method="post" action="{% url 'esg:value_report' value.pk %}">
+                          {% csrf_token %}
+                          <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="send"></i> Report</button>
+                        </form>
+                      {% endif %}
+                      {% if can_verify and value.status == 'REPORTED' %}
+                        <form method="post" action="{% url 'esg:value_verify' value.pk %}">
+                          {% csrf_token %}
+                          <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="check-check"></i> Verify</button>
+                        </form>
+                      {% endif %}
+                      {% if can_verify and value.is_verified %}
+                        <details class="cp-reject">
+                          <summary class="cp-btn cp-btn-ghost cp-btn-sm"><i data-lucide="undo-2"></i> Return</summary>
+                          <form class="cp-reject-form" method="post" action="{% url 'esg:value_return' value.pk %}">
+                            {% csrf_token %}
+                            <label for="reason-{{ value.pk }}">Reason for returning</label>
+                            <textarea id="reason-{{ value.pk }}" name="reason" rows="2" placeholder="Why this needs correction"></textarea>
+                            <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Return to draft</button>
+                          </form>
+                        </details>
+                      {% endif %}
+                      {% if not can_manage and not can_verify %}
+                        <span class="cp-muted" style="font-size:0.76rem">Read-only</span>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="cp-empty">
+          <i data-lucide="database"></i>
+          <p>No measurement has been recorded for this indicator yet.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'esg:value_create' indicator.pk %}"><i data-lucide="plus"></i> Record the first measurement</a>{% endif %}
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Indicator details</h2>
+      <p class="cp-card-sub cp-mt-0">Ownership, catalog linkage and lifecycle</p>
+      <dl class="cp-dl" style="grid-template-columns:1fr">
+        <div><dt>Reference</dt><dd>{{ indicator.reference }}</dd></div>
+        <div><dt>Pillar</dt><dd>{{ indicator.pillar_label }}</dd></div>
+        <div><dt>Unit</dt><dd>{{ indicator.unit }}</dd></div>
+        <div><dt>Required indicator</dt><dd>{% if indicator.is_required %}Yes — scored by the completeness engine{% else %}No — optional{% endif %}</dd></div>
+        <div><dt>Catalog scope</dt><dd>{{ indicator.catalog_entry.scope_label }}</dd></div>
+        <div><dt>Department</dt><dd>{{ indicator.department.name|default:"Company-wide" }}</dd></div>
+        <div><dt>Active</dt><dd>{% if indicator.is_active %}Yes{% else %}No (archived){% endif %}</dd></div>
+        <div><dt>Created by</dt><dd>{% firstof indicator.created_by.get_full_name indicator.created_by.email "—" %}</dd></div>
+        <div><dt>Created</dt><dd>{{ indicator.created_at|date:"d M Y" }}</dd></div>
+        <div><dt>Last updated</dt><dd>{{ indicator.updated_at|date:"d M Y H:i" }}</dd></div>
+      </dl>
+      {% if indicator.catalog_entry.description %}
+        <p class="cp-muted" style="margin-top:14px;font-size:0.82rem">{{ indicator.catalog_entry.description }}</p>
+      {% endif %}
+      {% if indicator.notes %}
+        <div class="cp-callout" style="display:block;margin-top:14px;white-space:pre-wrap">{{ indicator.notes }}</div>
+      {% endif %}
+    </section>
+  </div>
+
+  {% if can_manage and indicator.is_active %}
+    <section class="cp-card" style="margin-top:20px">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Record a measurement</h2>
+          <p class="cp-card-sub cp-mt-0">Saved as a draft by default. Only a reported or verified measurement counts towards completeness.</p>
+        </div>
+      </div>
+      <form method="post" action="{% url 'esg:value_create' indicator.pk %}">
+        {% csrf_token %}
+        {% if value_form.non_field_errors %}<div class="cp-nonfield-error">{{ value_form.non_field_errors|striptags }}</div>{% endif %}
+        <div class="cp-field-grid">
+          <div class="cp-field">
+            <label for="{{ value_form.period_year.id_for_label }}">Reporting year <span aria-hidden="true">*</span></label>
+            {{ value_form.period_year }}
+            {% if value_form.period_year.errors %}<span class="cp-error">{{ value_form.period_year.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field">
+            <label for="{{ value_form.value.id_for_label }}">Value</label>
+            {{ value_form.value }}
+            <span class="cp-hint">Leave blank if the data is missing — blank is not the same as zero.</span>
+            {% if value_form.value.errors %}<span class="cp-error">{{ value_form.value.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field">
+            <label for="{{ value_form.unit.id_for_label }}">Unit</label>
+            {{ value_form.unit }}
+            {% if value_form.unit.errors %}<span class="cp-error">{{ value_form.unit.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field">
+            <label for="{{ value_form.evidence_reference.id_for_label }}">Evidence reference</label>
+            {{ value_form.evidence_reference }}
+            {% if value_form.evidence_reference.errors %}<span class="cp-error">{{ value_form.evidence_reference.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field cp-span-2">
+            <label for="{{ value_form.note.id_for_label }}">Note</label>
+            {{ value_form.note }}
+            {% if value_form.note.errors %}<span class="cp-error">{{ value_form.note.errors|striptags }}</span>{% endif %}
+          </div>
+          <div class="cp-field cp-span-2">
+            <label>Reporting state</label>
+            {{ value_form.status }}
+            <span class="cp-hint">{{ value_form.status.help_text }}</span>
+          </div>
+        </div>
+        <div class="cp-actions">
+          <span class="cp-spacer"></span>
+          <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> Save measurement</button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Audit trail</h2>
+        <p class="cp-card-sub cp-mt-0">Append-only history of everything that happened to this indicator</p>
+      </div>
+      <span class="cp-muted">{{ history|length }} entr{{ history|length|pluralize:"y,ies" }}</span>
+    </div>
+    {% if history %}
+      <ul class="cp-timeline">
+        {% for entry in history %}
+          <li>
+            <span class="cp-timeline-time">{{ entry.created_at|date:"d M Y H:i" }}</span>
+            <div class="cp-timeline-title">
+              {{ entry.get_action_display }}
+              {% if entry.period_year %}<span class="cp-badge cp-badge-neutral">{{ entry.period_year }}</span>{% endif %}
+            </div>
+            <div class="cp-timeline-body">
+              {% if entry.summary %}{{ entry.summary }} · {% endif %}
+              by {% firstof entry.actor.get_full_name entry.actor.email "system" %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="cp-empty"><i data-lucide="history"></i><p>No history recorded yet.</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -21,7 +21,7 @@
     </div>
   {% endif %}
 
-  {% include "carbon/_filters.html" with reset_url=request.path %}
+  {% include "partials/list_filters.html" with reset_url=request.path %}
 
   <section class="cp-card">
     <div class="cp-section-head">
@@ -31,12 +31,12 @@
 
     {% if pagination.items %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Carbon activities</caption>
           <thead>
             <tr>
-              <th>Activity</th><th>Department</th><th>Scope</th><th>Category</th>
-              <th class="cp-num">Quantity</th><th class="cp-num">CO2e</th><th>Status</th><th>Period</th>
-              <th class="cp-actions-col">Actions</th>
+              <th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Scope</th><th scope="col">Category</th>
+              <th scope="col" class="cp-num">Quantity</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Status</th><th scope="col">Period</th>
+              <th scope="col" class="cp-actions-col">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -83,19 +83,7 @@
         </table>
       </div>
 
-      {% if pagination.pages > 1 %}
-        <nav class="cp-pagination" aria-label="Pagination">
-          <span class="cp-muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
-          <div class="cp-row">
-            {% if pagination.has_previous %}
-              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.previous_page }}"><i data-lucide="arrow-left"></i> Previous</a>
-            {% endif %}
-            {% if pagination.has_next %}
-              <a class="cp-btn cp-btn-outline cp-btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pagination.next_page }}">Next <i data-lucide="arrow-right"></i></a>
-            {% endif %}
-          </div>
-        </nav>
-      {% endif %}
+      {% include "partials/pagination.html" %}
     {% else %}
       <div class="cp-empty">
         <i data-lucide="{% if show_archived %}archive{% else %}inbox{% endif %}"></i>

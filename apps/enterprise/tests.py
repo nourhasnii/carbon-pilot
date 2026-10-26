@@ -1,4 +1,6 @@
 import json
+from datetime import date
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
@@ -7,8 +9,31 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.accounts.services.email_service import build_account_activation_url, send_company_invitation_email
+from apps.carbon.models import (
+	ActivityCategory,
+	ActivityStatus,
+	CarbonActivity,
+	EmissionFactor,
+	Scope,
+	VerificationStatus,
+)
+from apps.objectives.models import (
+	ExpectedOutcome,
+	Objective,
+	ObjectiveStatus,
+	PredictionRun,
+	RiskLevel as ObjectiveRiskLevel,
+)
+from apps.recommendations.models import (
+	RecommendationLog,
+	RecommendationPriority,
+	RecommendationSource,
+)
+from apps.risk.models import RiskAssessment, RiskLevel, RiskMethod
 
+from .forms import DepartmentForm
 from .models import Company, Department
+from .services import company_intelligence as intel
 
 
 class CompanyOwnerTests(TestCase):
@@ -551,3 +576,471 @@ class CompanyOwnerTests(TestCase):
 		self.assertEqual(response.status_code, 302)
 		company.refresh_from_db()
 		self.assertTrue(company.is_active)
+
+
+class CompanyIntelligenceTests(TestCase):
+	"""Company Intelligence reuses existing data only, always tenant-scoped."""
+
+	password = "SecureTestPassword2026!"
+
+	def setUp(self):
+		self.owner = User.objects.create_user(
+			email="intel-owner@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.company = Company.objects.create(
+			owner=self.owner, name="Carbon Works", country="Tunisia"
+		)
+		self.department = Department.objects.create(company=self.company, name="Operations")
+		self.factor = EmissionFactor.objects.create(
+			name="Electricity — Tunisia",
+			category=ActivityCategory.ELECTRICITY,
+			scope=Scope.SCOPE_2,
+			value=Decimal("0.42"),
+			unit="kWh",
+			region="Tunisia",
+			year=2026,
+			source="Demo source",
+			verification_status=VerificationStatus.VERIFIED,
+		)
+
+		# A separate tenant used to prove isolation.
+		self.other_owner = User.objects.create_user(
+			email="other-intel-owner@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.other_company = Company.objects.create(
+			owner=self.other_owner, name="Other Works", country="Tunisia"
+		)
+
+	def make_activity(self, *, company=None, status=ActivityStatus.APPROVED, period_year=2026, **overrides):
+		company = company or self.company
+		payload = {
+			"company": company,
+			"department": self.department if company == self.company else None,
+			"name": "Electricity meter — January",
+			"category": ActivityCategory.ELECTRICITY,
+			"scope": Scope.SCOPE_2,
+			"quantity": Decimal("5000"),
+			"unit": "kWh",
+			"period_start": date(period_year, 1, 1),
+			"period_end": date(period_year, 1, 31),
+			"emission_factor": self.factor,
+			"data_source": "Meter reading",
+			"evidence": "carbon/evidence/company_1/2026/receipt.pdf",
+			"status": status,
+			"created_by": self.owner,
+		}
+		payload.update(overrides)
+		activity = CarbonActivity(**payload)
+		activity.save()
+		return activity
+
+	def make_objective(self, *, company=None, status=ObjectiveStatus.ACTIVE, year=2026, tag="o"):
+		company = company or self.company
+		return Objective.objects.create(
+			company=company,
+			name=f"Objective {tag}",
+			year=year,
+			baseline_tco2e=Decimal("100.00"),
+			target_tco2e=Decimal("80.00"),
+			status=status,
+		)
+
+	def make_prediction(self, objective, *, risk=ObjectiveRiskLevel.LOW, probability="90.00"):
+		return PredictionRun.objects.create(
+			objective=objective,
+			probability_achievement=Decimal(probability),
+			risk_level=risk,
+			expected_outcome=ExpectedOutcome.LIKELY_TO_ACHIEVE,
+			current_progress_percent=Decimal("30.00"),
+		)
+
+	def make_recommendation(self, *, company=None, priority=RecommendationPriority.HIGH, tag="r"):
+		company = company or self.company
+		return RecommendationLog.objects.create(
+			company=company,
+			title=f"Recommendation {tag}",
+			message="Reduce stand-by consumption.",
+			recommended_action="Switch off idle equipment overnight.",
+			priority=priority,
+			source=RecommendationSource.ANOMALY,
+			fingerprint=f"{company.pk}:{tag}",
+		)
+
+	def make_assessment(self, *, company=None, score="42.00", level=RiskLevel.MEDIUM):
+		company = company or self.company
+		return RiskAssessment.objects.create(
+			company=company,
+			score=Decimal(score),
+			level=level,
+			summary="Two drivers contributed to the score.",
+			drivers_json=[
+				{"key": "anomalies", "label": "Open anomalies", "points": 8.0,
+				 "max_points": 30, "detail": "1 open high-severity anomaly."},
+			],
+			period_year=2026,
+			method=RiskMethod.RULE_BASED,
+			created_by=self.owner,
+		)
+
+	# ------------------------------------------------------------------ #
+	# Service: data assembly and tenant isolation
+	# ------------------------------------------------------------------ #
+	def test_snapshot_uses_only_approved_activities(self):
+		self.make_activity(status=ActivityStatus.APPROVED)
+		for status in (
+			ActivityStatus.DRAFT,
+			ActivityStatus.SUBMITTED,
+			ActivityStatus.UNDER_REVIEW,
+			ActivityStatus.REJECTED,
+		):
+			self.make_activity(status=status)
+
+		result = intel.build_intelligence(self.company, period_year=2026)
+		self.assertEqual(result["emissions"]["approved_activities"], 1)
+		self.assertEqual(result["emissions"]["total_tonnes"], 2.1)
+		self.assertEqual(result["company"]["name"], "Carbon Works")
+
+	def test_other_tenant_data_never_leaks(self):
+		self.make_activity()  # own tenant
+		self.make_activity(company=self.other_company)  # other tenant
+		self.make_objective(company=self.other_company, tag="b")
+		self.make_recommendation(company=self.other_company, tag="b")
+		self.make_assessment(company=self.other_company, score="90.00", level=RiskLevel.HIGH)
+
+		result = intel.build_intelligence(self.company, period_year=2026)
+		self.assertEqual(result["emissions"]["approved_activities"], 1)
+		self.assertEqual(result["emissions"]["total_tonnes"], 2.1)
+		self.assertEqual(result["objectives"]["total"], 0)
+		self.assertEqual(result["recommendations"]["open"], 0)
+		self.assertIsNone(result["risk"])
+		self.assertEqual(result["priority_actions"], [])
+		self.assertNotIn("Other Works", result["summary"])
+
+	def test_requires_a_company(self):
+		with self.assertRaises(ValueError):
+			intel.build_intelligence(None, period_year=2026)
+
+	def test_resolve_year_defaults_to_newest_and_respects_request(self):
+		self.make_activity(period_year=2025)
+		self.make_activity(period_year=2026)
+
+		self.assertEqual(intel.available_years(self.company), [2026, 2025])
+		self.assertEqual(intel.resolve_year(self.company, None), 2026)
+		self.assertEqual(intel.resolve_year(self.company, "2025"), 2025)
+		# An unknown / invalid year falls back to the newest available year.
+		self.assertEqual(intel.resolve_year(self.company, "1999"), 2026)
+		self.assertEqual(intel.resolve_year(self.company, "not-a-year"), 2026)
+
+	def test_year_selection_changes_reported_emissions(self):
+		self.make_activity(period_year=2025)
+		self.make_activity(period_year=2026)
+		self.make_activity(period_year=2026)
+
+		result_2026 = intel.build_intelligence(self.company, period_year=2026)
+		result_2025 = intel.build_intelligence(self.company, period_year=2025)
+		self.assertEqual(result_2026["emissions"]["approved_activities"], 2)
+		self.assertEqual(result_2025["emissions"]["approved_activities"], 1)
+
+	def test_objectives_at_risk_filters_missed_and_predicted(self):
+		missed = self.make_objective(status=ObjectiveStatus.MISSED, tag="m")
+		risky = self.make_objective(tag="risk")
+		self.make_prediction(risky, risk=ObjectiveRiskLevel.HIGH, probability="20.00")
+		safe = self.make_objective(tag="safe")
+		self.make_prediction(safe, risk=ObjectiveRiskLevel.LOW, probability="95.00")
+
+		result = intel.build_intelligence(self.company, period_year=2026)
+		objectives = result["objectives"]
+		self.assertEqual(objectives["total"], 3)
+		self.assertEqual(objectives["missed"], 1)
+		names = {item["name"] for item in objectives["items"]}
+		self.assertEqual(names, {missed.name, risky.name})
+		self.assertNotIn(safe.name, names)
+
+	def test_priority_actions_combine_risk_drivers_and_recommendations(self):
+		self.make_assessment(score="42.00", level=RiskLevel.MEDIUM)
+		self.make_recommendation(priority=RecommendationPriority.HIGH, tag="r1")
+		self.make_recommendation(priority=RecommendationPriority.LOW, tag="r2")
+
+		result = intel.build_intelligence(self.company, period_year=2026)
+		kinds = [action["kind"] for action in result["priority_actions"]]
+		self.assertIn("risk_driver", kinds)
+		self.assertIn("recommendation", kinds)
+
+		driver = next(a for a in result["priority_actions"] if a["kind"] == "risk_driver")
+		self.assertEqual(driver["title"], "Open anomalies")
+		self.assertEqual(driver["severity"], intel.SEVERITY_RISK)
+
+		# High priority recommendation is surfaced before the low one.
+		recommendations = [
+			a for a in result["priority_actions"] if a["kind"] == "recommendation"
+		]
+		self.assertEqual(recommendations[0]["priority_label"], "High")
+		self.assertEqual(recommendations[0]["severity"], intel.SEVERITY_HIGH)
+
+	# ------------------------------------------------------------------ #
+	# View: permissions, isolation, rendering
+	# ------------------------------------------------------------------ #
+	def test_requires_login(self):
+		response = self.client.get(reverse("enterprise:company_intelligence"))
+		self.assertEqual(response.status_code, 302)
+		self.assertIn(reverse("accounts:login"), response.url)
+
+	def test_non_owner_cannot_access(self):
+		manager = User.objects.create_user(
+			email="intel-manager@carbonpilot.test",
+			password=self.password,
+			role=User.Role.DEPARTMENT_MANAGER,
+			status=User.Status.ACTIVE,
+			company_membership=self.company,
+		)
+		self.client.force_login(manager)
+		response = self.client.get(reverse("enterprise:company_intelligence"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_owner_without_company_is_redirected_to_company_section(self):
+		owner = User.objects.create_user(
+			email="intel-companyless@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.client.force_login(owner)
+		response = self.client.get(reverse("enterprise:company_intelligence"))
+		self.assertRedirects(
+			response, reverse("accounts:dashboard") + "?section=company"
+		)
+
+	def test_owner_sees_intelligence_page_with_all_sections(self):
+		self.make_activity()
+		self.make_objective(status=ObjectiveStatus.MISSED, tag="m")
+		self.make_recommendation(tag="r1")
+		self.make_assessment(score="42.00", level=RiskLevel.MEDIUM)
+		self.client.force_login(self.owner)
+
+		response = self.client.get(reverse("enterprise:company_intelligence"))
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "enterprise/intelligence.html")
+		self.assertEqual(response.context["company"], self.company)
+		self.assertEqual(response.context["intelligence"]["period_year"], 2026)
+		self.assertContains(response, "Total emissions")
+		self.assertContains(response, "Top emitting departments")
+		self.assertContains(response, "ESG data completeness")
+		self.assertContains(response, "Objectives at risk")
+		self.assertContains(response, "Priority actions")
+		self.assertContains(response, "Carbon Works")
+
+	def test_year_query_param_selects_reported_year(self):
+		self.make_activity(period_year=2025)
+		self.make_activity(period_year=2026)
+		self.client.force_login(self.owner)
+
+		response = self.client.get(
+			reverse("enterprise:company_intelligence"), {"year": "2025"}
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["intelligence"]["period_year"], 2025)
+
+	def test_page_does_not_leak_other_tenant(self):
+		self.make_activity()
+		self.make_activity(company=self.other_company)
+		self.client.force_login(self.owner)
+
+		response = self.client.get(reverse("enterprise:company_intelligence"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["intelligence"]["emissions"]["approved_activities"], 1)
+		self.assertNotContains(response, "Other Works")
+
+
+class DepartmentValidationTests(TestCase):
+	"""Validation rules of the department form (section 6)."""
+
+	password = "SecureTestPassword2026!"
+
+	def setUp(self):
+		self.owner = User.objects.create_user(
+			email="dept-owner@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.company = Company.objects.create(owner=self.owner, name="Dept Works")
+		self.other_owner = User.objects.create_user(
+			email="dept-other@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.other_company = Company.objects.create(
+			owner=self.other_owner, name="Other Dept Works"
+		)
+		self.operations = Department.objects.create(
+			company=self.company, name="Operations", code="OPS"
+		)
+
+	def _form(self, **overrides):
+		payload = {"name": "Finance", "code": "FIN", "description": ""}
+		payload.update(overrides)
+		return DepartmentForm(data=payload, company=self.company)
+
+	def test_valid_department_is_accepted(self):
+		form = self._form()
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_name_is_required(self):
+		form = self._form(name="")
+		self.assertFalse(form.is_valid())
+		self.assertIn("Give the department a name.", form.errors["name"])
+
+	def test_duplicate_name_is_rejected(self):
+		form = self._form(name="Operations")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Your company already has a department with this name.", form.errors["name"]
+		)
+
+	def test_duplicate_code_is_rejected(self):
+		form = self._form(code="OPS")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Another department of your company already uses this code.",
+			form.errors["code"],
+		)
+
+	def test_code_is_optional(self):
+		form = self._form(code="")
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_same_code_allowed_in_another_company(self):
+		Department.objects.create(company=self.other_company, name="Ops", code="OPS")
+		form = self._form()
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_editing_keeps_its_own_name_and_code(self):
+		form = DepartmentForm(
+			data={"name": "Operations", "code": "OPS", "description": "Updated"},
+			company=self.company,
+			instance=self.operations,
+		)
+		self.assertTrue(form.is_valid(), form.errors)
+
+
+class DepartmentDashboardTests(TestCase):
+	"""Detail page, soft deactivate/reactivate and tenant isolation."""
+
+	password = "SecureTestPassword2026!"
+
+	def setUp(self):
+		self.owner = User.objects.create_user(
+			email="dept-dash-owner@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.company = Company.objects.create(owner=self.owner, name="Dash Dept Works")
+		self.operations = Department.objects.create(
+			company=self.company, name="Operations", code="OPS"
+		)
+		self.other_owner = User.objects.create_user(
+			email="dept-dash-other@carbonpilot.test",
+			password=self.password,
+			role=User.Role.COMPANY_OWNER,
+			status=User.Status.ACTIVE,
+		)
+		self.other_company = Company.objects.create(
+			owner=self.other_owner, name="Other Dash Dept Works"
+		)
+		self.foreign = Department.objects.create(
+			company=self.other_company, name="Finance", code="FIN"
+		)
+		self.client.force_login(self.owner)
+
+	def _url(self, query):
+		return f"{reverse('accounts:dashboard')}?{query}"
+
+	def test_detail_page_renders_department(self):
+		response = self.client.get(self._url(f"section=departments&view={self.operations.pk}"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["department_detail"], self.operations)
+		self.assertContains(response, "Operations")
+
+	def test_cross_tenant_detail_is_404(self):
+		response = self.client.get(self._url(f"section=departments&view={self.foreign.pk}"))
+		self.assertEqual(response.status_code, 404)
+
+	def test_owner_can_deactivate_and_reactivate(self):
+		response = self.client.post(
+			self._url("section=departments"),
+			{
+				"action": "deactivate_department",
+				"department_id": self.operations.pk,
+				"confirm_department_status": "yes",
+			},
+		)
+		self.assertRedirects(response, self._url("section=departments"))
+		self.operations.refresh_from_db()
+		self.assertFalse(self.operations.is_active)
+
+		response = self.client.post(
+			self._url("section=departments"),
+			{
+				"action": "activate_department",
+				"department_id": self.operations.pk,
+				"confirm_department_status": "yes",
+			},
+		)
+		self.assertRedirects(response, self._url("section=departments"))
+		self.operations.refresh_from_db()
+		self.assertTrue(self.operations.is_active)
+
+	def test_deactivate_requires_confirmation(self):
+		response = self.client.post(
+			self._url("section=departments"),
+			{"action": "deactivate_department", "department_id": self.operations.pk},
+		)
+		self.assertEqual(response.status_code, 403)
+		self.operations.refresh_from_db()
+		self.assertTrue(self.operations.is_active)
+
+	def test_deactivate_is_blocked_while_members_are_assigned(self):
+		User.objects.create_user(
+			email="dept-member@carbonpilot.test",
+			password=self.password,
+			role=User.Role.DEPARTMENT_MANAGER,
+			status=User.Status.ACTIVE,
+			company_membership=self.company,
+			department="Operations",
+		)
+		response = self.client.post(
+			self._url("section=departments"),
+			{
+				"action": "deactivate_department",
+				"department_id": self.operations.pk,
+				"confirm_department_status": "yes",
+			},
+			follow=True,
+		)
+		self.assertContains(
+			response,
+			"Reassign them to another department before deactivating it.",
+		)
+		self.operations.refresh_from_db()
+		self.assertTrue(self.operations.is_active)
+
+	def test_cannot_deactivate_a_department_of_another_tenant(self):
+		response = self.client.post(
+			self._url("section=departments"),
+			{
+				"action": "deactivate_department",
+				"department_id": self.foreign.pk,
+				"confirm_department_status": "yes",
+			},
+		)
+		self.assertEqual(response.status_code, 404)
+		self.foreign.refresh_from_db()
+		self.assertTrue(self.foreign.is_active)

@@ -1,0 +1,54 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block eyebrow %}ESG indicator{% endblock %}
+{% block heading %}{{ form_title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="cp-btn cp-btn-ghost" href="{% if indicator %}{% url 'esg:indicator_detail' indicator.pk %}{% else %}{% url 'esg:indicator_list' %}{% endif %}"><i data-lucide="arrow-left"></i> Cancel</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "carbon/_form_error_summary.html" %}
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">Indicator</h2>
+      <p class="cp-card-sub cp-mt-0">
+        An indicator tracks one catalog entry for your company. It is unique per catalog entry, so a
+        duplicate cannot be created — the tracked metric is fixed once the indicator exists.
+      </p>
+      <div class="cp-field-grid">
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.catalog_entry.id_for_label }}">Catalog indicator <span aria-hidden="true">*</span></label>
+          {{ form.catalog_entry }}
+          <span class="cp-hint">Shared platform entries and your company's own entries are listed.{% if indicator %} The tracked metric cannot be changed.{% endif %}</span>
+          {% if form.catalog_entry.errors %}<span class="cp-error">{{ form.catalog_entry.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.owner.id_for_label }}">Owner</label>
+          {{ form.owner }}
+          {% if form.owner.errors %}<span class="cp-error">{{ form.owner.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field">
+          <label for="{{ form.department.id_for_label }}">Department</label>
+          {{ form.department }}
+          {% if form.department.errors %}<span class="cp-error">{{ form.department.errors|striptags }}</span>{% endif %}
+        </div>
+        <div class="cp-field cp-span-2">
+          <label for="{{ form.notes.id_for_label }}">Notes</label>
+          {{ form.notes }}
+          <span class="cp-hint">How the metric is collected and who is accountable for it.</span>
+          {% if form.notes.errors %}<span class="cp-error">{{ form.notes.errors|striptags }}</span>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="cp-actions" style="margin-top:20px">
+      <a class="cp-btn cp-btn-outline" href="{% if indicator %}{% url 'esg:indicator_detail' indicator.pk %}{% else %}{% url 'esg:indicator_list' %}{% endif %}">Cancel</a>
+      <span class="cp-spacer"></span>
+      <button class="cp-btn cp-btn-primary" type="submit"><i data-lucide="save"></i> {% if indicator %}Save indicator{% else %}Create indicator{% endif %}</button>
+    </div>
+  </form>
+{% endblock %}

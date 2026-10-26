@@ -1,0 +1,93 @@
+{% comment %}
+AI governance analysis cards. The diagnosis and the narrative are decided by the
+local Qwen model; Django only supplies the company's own facts. Shown on the
+policies list after an analysis has been run.
+{% endcomment %}
+{% if ai_analysis %}
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">AI governance analysis</h2>
+        <p class="cp-card-sub cp-mt-0">
+          Model {{ ai_analysis.model|default:"qwen2.5:7b" }}
+          {% if ai_analysis.generated_at_display %}· {{ ai_analysis.generated_at_display }}{% endif %}
+        </p>
+      </div>
+      <span class="cp-badge cp-badge-approved"><i data-lucide="sparkles"></i> AI · QWEN</span>
+    </div>
+
+    {% if not ai_analysis.ai_available %}
+      <div class="cp-callout is-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>{{ ai_analysis.message }}</span>
+      </div>
+    {% else %}
+      {% if ai_analysis.message %}<p class="cp-muted" style="font-size:0.84rem">{{ ai_analysis.message }}</p>{% endif %}
+
+      <div class="cp-grid cp-grid-2" style="margin-top:12px">
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.95rem">
+            Missing policies
+            <span class="cp-badge cp-badge-neutral">{{ ai_analysis.missing_policies|length }}</span>
+          </h3>
+          {% if ai_analysis.missing_policies %}
+            <div style="display:grid;gap:12px;margin-top:10px">
+              {% for item in ai_analysis.missing_policies %}
+                <article class="cp-callout" style="display:block">
+                  <div class="cp-row" style="align-items:center;gap:8px;flex-wrap:wrap">
+                    <strong>{{ item.suggested_title }}</strong>
+                    <span class="cp-badge {% if item.priority == 'HIGH' %}cp-badge-sev-high{% elif item.priority == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ item.priority }}</span>
+                    <span class="cp-badge cp-badge-neutral">{{ item.category_label }}</span>
+                  </div>
+                  <p style="margin:8px 0 0">{{ item.why }}</p>
+                  {% if item.related_signals %}
+                    <p class="cp-muted" style="margin:6px 0 0;font-size:0.76rem">
+                      Signals: {% for signal in item.related_signals %}{{ signal }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    </p>
+                  {% endif %}
+                  {% if can_manage %}
+                    <div style="margin-top:10px">
+                      <a class="cp-btn cp-btn-outline cp-btn-sm"
+                         href="{% url 'governance:policy_create' %}?title={{ item.suggested_title|urlencode }}&category={{ item.category }}">
+                        <i data-lucide="plus"></i> Create draft policy
+                      </a>
+                    </div>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="cp-empty" style="margin-top:10px">
+              <i data-lucide="check-circle-2"></i>
+              <p>The model found no clearly missing policy from the supplied data.</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <div>
+          <h3 class="cp-card-title" style="font-size:0.95rem">Governance summary</h3>
+          {% if ai_analysis.summary.executive_summary %}
+            <div class="cp-callout" style="display:block;margin-top:10px;white-space:pre-wrap">{{ ai_analysis.summary.executive_summary }}</div>
+            {% if ai_analysis.summary.strengths %}
+              <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Strengths</h4>
+              <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:6px">{% for entry in ai_analysis.summary.strengths %}<li>{{ entry }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if ai_analysis.summary.gaps %}
+              <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Gaps</h4>
+              <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:6px">{% for entry in ai_analysis.summary.gaps %}<li>{{ entry }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if ai_analysis.summary.management_attention %}
+              <h4 class="cp-card-title" style="font-size:0.85rem;margin-top:14px">Management attention</h4>
+              <ul style="margin:8px 0 0 18px;padding:0;display:grid;gap:6px">{% for entry in ai_analysis.summary.management_attention %}<li>{{ entry }}</li>{% endfor %}</ul>
+            {% endif %}
+          {% else %}
+            <div class="cp-empty" style="margin-top:10px">
+              <i data-lucide="file-text"></i>
+              <p>The governance summary could not be retrieved from the model.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}

@@ -1,25 +1,10 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Page introuvable | CarbonPilot</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f7f5; color: #12261c; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-    main { max-width: 32rem; margin: 1rem; padding: 2rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); }
-    h1 { margin-top: 0; font-size: 1.6rem; }
-    .code { font-size: 0.95rem; color: #3d5246; }
-    a { display: inline-block; margin-top: 1rem; padding: 0.7rem 1.2rem; background: #1b5e3b; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 600; }
-    a:focus-visible { outline: 3px solid #0b3d91; outline-offset: 3px; }
-  </style>
-</head>
-<body>
-  <header class="code" hidden>CarbonPilot</header>
-  <main id="main">
-    <p class="code">Erreur 404</p>
-    <h1>Page introuvable</h1>
-    <p>La page demandée n'existe pas ou n'est pas accessible avec votre compte.</p>
-    <a href="/dashboard/">Retour au tableau de bord</a>
-  </main>
-</body>
-</html>
+{% extends "errors/base.html" %}
+
+{# 404 — also used for cross-tenant access, so it must never confirm whether a resource exists. #}
+{% block title %}Page not found{% endblock %}
+{% block tone %}tone-info{% endblock %}
+{% block icon %}compass{% endblock %}
+{% block code %}404{% endblock %}
+{% block heading %}We couldn't find that page{% endblock %}
+{% block message %}The page you're looking for doesn't exist, may have been moved, or isn't available to your workspace.{% endblock %}
+{% block footnote %}Check the address for typos, then head back to your workspace.{% endblock %}

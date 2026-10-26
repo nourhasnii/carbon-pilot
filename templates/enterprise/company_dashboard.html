@@ -86,6 +86,7 @@
           {% if company_users %}
             <div class="table-responsive">
               <table class="table align-middle mb-0">
+                <caption class="visually-hidden">Company users</caption>
                 <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Department</th><th scope="col">Status</th></tr></thead>
                 <tbody>{% for member in company_users %}<tr><td>{{ member.get_full_name|default:member.email }}</td><td>{{ member.email }}</td><td>{{ member.department|default:"-" }}</td><td>{{ member.get_status_display }}</td></tr>{% endfor %}</tbody>
               </table>

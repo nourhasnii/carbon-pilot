@@ -1,0 +1,2 @@
+{% comment %}ESG completeness badge. Expects `status` (value) and optional `label`.{% endcomment %}
+<span class="cp-badge {% if status == 'COMPLETE' %}cp-badge-approved{% elif status == 'PARTIAL' %}cp-badge-demo{% else %}cp-badge-neutral{% endif %}">{{ label|default:status }}</span>

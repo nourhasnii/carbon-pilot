@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import OuterRef, Subquery
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -9,11 +10,13 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.accounts.models import User
 from apps.accounts.permissions import role_required
+from apps.analytics.models import ModelKind, ModelMetrics
 from apps.carbon.views import _sidebar as carbon_sidebar
+from apps.common.listing import paginate
 from apps.enterprise.models import Department
 
-from .forms import ObjectiveForm
-from .models import Objective, ObjectiveStatus, PeriodType
+from .forms import ObjectiveFilterForm, ObjectiveForm
+from .models import Objective, ObjectiveStatus, PeriodType, PredictionRun, RiskLevel
 from .services import (
 	VIEWER_ROLES,
 	can_manage,
@@ -47,6 +50,42 @@ def _scoped_objective_or_404(user, company, pk):
 	return objective
 
 
+def _apply_objective_filters(queryset, form):
+	"""Narrow a company-scoped objective queryset by the shared filter bar.
+
+	Keeps the default behaviour: when no status is chosen the live view hides
+	ARCHIVED objectives. Invalid filter input is ignored safely (the form is
+	invalid, so the default live view is returned unchanged).
+	"""
+	if not form.is_valid():
+		return queryset.exclude(status=ObjectiveStatus.ARCHIVED)
+	data = form.cleaned_data
+	if data.get("q"):
+		queryset = queryset.filter(name__icontains=data["q"].strip())
+	if data.get("status"):
+		queryset = queryset.filter(status=data["status"])
+	else:
+		queryset = queryset.exclude(status=ObjectiveStatus.ARCHIVED)
+	if data.get("department"):
+		queryset = queryset.filter(department=data["department"])
+	if data.get("year"):
+		queryset = queryset.filter(year=int(data["year"]))
+	if data.get("period_type"):
+		queryset = queryset.filter(period_type=data["period_type"])
+	if data.get("at_risk") == "1":
+		# "At risk" reuses the most recent stored prediction: only the latest
+		# PredictionRun per objective counts, and only if it is MEDIUM/HIGH.
+		latest_risk = (
+			PredictionRun.objects.filter(objective=OuterRef("pk"))
+			.order_by("-created_at", "-id")
+			.values("risk_level")[:1]
+		)
+		queryset = queryset.annotate(latest_prediction_risk=Subquery(latest_risk)).filter(
+			latest_prediction_risk__in=(RiskLevel.MEDIUM, RiskLevel.HIGH)
+		)
+	return queryset
+
+
 @login_required
 @role_required(*VIEWER_ROLES)
 def objective_list(request):
@@ -55,33 +94,32 @@ def objective_list(request):
 		return redirect(f"{reverse('accounts:dashboard')}?section=company")
 
 	all_visible = visible_objectives(request.user, company).select_related("department")
-	queryset = all_visible
-	year = request.GET.get("year") or ""
-	status = request.GET.get("status") or ""
-	period_type = request.GET.get("period_type") or ""
-	if year.isdigit():
-		queryset = queryset.filter(year=int(year))
-	if status:
-		queryset = queryset.filter(status=status)
-	else:
-		queryset = queryset.exclude(status=ObjectiveStatus.ARCHIVED)
-	if period_type:
-		queryset = queryset.filter(period_type=period_type)
+	years = sorted({objective.year for objective in all_visible}, reverse=True)
 
-	objectives = list(queryset)
-	for objective in objectives:
+	form = ObjectiveFilterForm(request.GET or None, company=company, years=years)
+	queryset = _apply_objective_filters(all_visible, form)
+	pagination = paginate(request, queryset)
+	for objective in pagination["items"]:
 		# Warm the cache so the template reads one figure per objective.
 		objective.display_current = objective.current_tco2e
 
-	years = sorted({objective.year for objective in all_visible}, reverse=True)
-
 	context = _module_context(request, company, "Objectives")
 	context.update({
-		"objectives": objectives,
+		"objectives": pagination["items"],
+		"pagination": pagination,
+		"filter_form": form,
 		"years": years or [timezone.localdate().year],
 		"status_choices": ObjectiveStatus.choices,
 		"period_choices": PeriodType.choices,
-		"selected": {"year": year, "status": status, "period_type": period_type},
+		"selected": {
+			"year": request.GET.get("year") or "",
+			"status": request.GET.get("status") or "",
+			"period_type": request.GET.get("period_type") or "",
+		},
+		"has_filters": any(
+			request.GET.get(key)
+			for key in ("q", "status", "department", "year", "period_type", "at_risk")
+		),
 		"can_manage": can_manage(request.user, company),
 		"active_count": all_visible.filter(status=ObjectiveStatus.ACTIVE).count(),
 		"achieved_count": all_visible.filter(status=ObjectiveStatus.ACHIEVED).count(),
@@ -114,6 +152,10 @@ def objective_detail(request, pk):
 		"activity_count": activities.count(),
 		"can_manage": can_manage(request.user, company, objective),
 		"prediction": objective_prediction.latest_prediction(objective),
+		"prediction_metrics": ModelMetrics.latest(
+			company, ModelKind.OBJECTIVE_PREDICTION
+		),
+		"training_summary": objective_prediction.training_summary(company),
 		"recommendations": recommendation_summary.for_objective(objective),
 	})
 	return render(request, "objectives/detail.html", context)

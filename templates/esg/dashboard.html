@@ -1,0 +1,280 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}ESG intelligence{% endblock %}
+{% block eyebrow %}ESG intelligence hub{% endblock %}
+{% block heading %}ESG readiness{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_manage %}
+    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:indicator_create' %}"><i data-lucide="plus"></i> New indicator</a>
+  {% endif %}
+  <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:coach' %}"><i data-lucide="sparkles"></i> AI completeness coach</a>
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'esg:assessment_run' %}">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ selected_year }}">
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="gauge"></i> Run assessment</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-callout">
+    <i data-lucide="info"></i>
+    <span>
+      This is an <strong>ESG data-completeness</strong> view: it measures how complete, reported and
+      verified your ESG data set is — <strong>not</strong> your ESG performance. A company can report
+      perfect data on poor performance, and vice versa.
+    </span>
+  </div>
+
+  <form method="get" class="cp-card" style="margin-top:20px">
+    <div class="cp-field-grid">
+      <div class="cp-field">
+        <label for="year">Reporting period</label>
+        <select class="field-input" id="year" name="year">
+          <option value="">Latest period with data</option>
+          {% for y in years %}<option value="{{ y }}" {% if selected_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label aria-hidden="true">&nbsp;</label>
+        <div class="cp-row">
+          <button class="cp-btn cp-btn-outline" type="submit"><i data-lucide="filter"></i> Apply</button>
+          <a class="cp-btn cp-btn-ghost" href="{% url 'esg:dashboard' %}">Reset</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% if result.insufficient_data %}
+    <div class="cp-callout is-warning" style="margin-top:20px">
+      <i data-lucide="alert-triangle"></i>
+      <span>
+        <strong>Not enough data to assess readiness.</strong>
+        {% if result.total_required == 0 %}
+          No required indicators are configured yet — add indicators to your catalog to start scoring completeness.
+        {% else %}
+          None of your required indicators has an eligible reported value for {{ result.period_year }} yet.
+        {% endif %}
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="cp-kpi-grid" style="margin-top:20px">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Completeness score</div>
+      <div class="cp-kpi-value">{{ result.overall_score|floatformat:2 }} <small>/ 100</small></div>
+      <div class="cp-kpi-sub">{{ result.period_year }} reporting period</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Readiness</div>
+      <div class="cp-kpi-value" style="font-size:1.2rem"><span class="cp-badge {{ readiness_badge }}">{{ readiness_label }}</span></div>
+      <div class="cp-kpi-sub">
+        {% if result.readiness == 'READY_FOR_REPORTING' %}Complete, reported and evidenced enough to report
+        {% elif result.readiness == 'NEEDS_REVIEW' %}Partial data — gaps remain before reporting
+        {% else %}Not ready to report yet{% endif %}
+      </div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Required indicators tracked</div>
+      <div class="cp-kpi-value">{{ result.covered }} <small>/ {{ result.total_required }}</small></div>
+      <div class="cp-kpi-sub">{{ counts.total }} indicator{{ counts.total|pluralize }} on record · {{ counts.active }} active</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Reported for {{ result.period_year }}</div>
+      <div class="cp-kpi-value">{{ result.eligible }}</div>
+      <div class="cp-kpi-sub">{{ result.verified }} verified · {{ result.with_evidence }} with evidence</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Open gaps</div>
+      <div class="cp-kpi-value">{{ gaps_total }}</div>
+      <div class="cp-kpi-sub">Data gaps blocking readiness</div>
+    </article>
+  </div>
+
+  <div class="cp-grid cp-grid-2" style="margin-top:20px">
+    <section class="cp-card">
+      <div class="cp-section-head">
+        <div>
+          <h2 class="cp-card-title cp-mt-0">Pillar coverage</h2>
+          <p class="cp-card-sub cp-mt-0">Share of each pillar's required indicators reported for {{ result.period_year }}</p>
+        </div>
+      </div>
+      <div class="cp-hbars">
+        {% for row in pillar_rows %}
+          <div class="cp-hbar-link" style="cursor:default">
+            <div class="cp-hbar-head">
+              <strong>{{ row.label }}</strong>
+              <span class="cp-badge {{ row.badge }}">{{ row.score|floatformat:1 }}%</span>
+            </div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {{ row.score|floatformat:0 }}%"></span></div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+        Pillar coverage is the proportion of that pillar's required indicators with an eligible reported value.
+        It measures data coverage, not environmental or social performance.
+      </p>
+    </section>
+
+    <section class="cp-card">
+      <h2 class="cp-card-title cp-mt-0">How the score is built</h2>
+      <p class="cp-card-sub cp-mt-0">Four components, capped, totalling 100 points</p>
+      <div class="cp-hbars">
+        {% for item in breakdown %}
+          <div class="cp-hbar-link" style="cursor:default">
+            <div class="cp-hbar-head">
+              <strong>{{ item.label }}</strong>
+              <span>{{ item.points|floatformat:2 }} / {{ item.max_points }} pts</span>
+            </div>
+            <div class="cp-hbar-track"><span class="cp-hbar-fill" style="width: {% widthratio item.points item.max_points 100 %}%"></span></div>
+            <p class="cp-muted" style="margin:6px 0 0;font-size:0.78rem">{{ item.detail }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Gaps to close</h2>
+        <p class="cp-card-sub cp-mt-0">{{ gaps_total }} gap{{ gaps_total|pluralize }} across your required indicator catalog</p>
+      </div>
+      <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{% url 'esg:indicator_list' %}"><i data-lucide="list"></i> Indicator catalog</a>
+    </div>
+
+    {% if gap_groups %}
+      <div class="cp-grid cp-grid-2" style="gap:16px">
+        {% for group in gap_groups %}
+          <div>
+            <h3 class="cp-card-title" style="font-size:0.9rem">
+              {{ group.label }} <span class="cp-badge cp-badge-neutral">{{ group.items|length }}</span>
+            </h3>
+            <ul style="margin:8px 0 0 0;padding:0;list-style:none;display:grid;gap:10px">
+              {% for item in group.items %}
+                <li class="cp-callout" style="display:block">
+                  <div class="cp-row" style="gap:8px">
+                    <strong>{{ item.name }}</strong>
+                    <span class="cp-badge cp-badge-neutral">{{ item.code }}</span>
+                    <span class="cp-badge cp-badge-neutral">{{ item.pillar_label }}</span>
+                  </div>
+                  <p class="cp-muted" style="margin:6px 0 0;font-size:0.8rem">{{ item.detail }}</p>
+                  {% if item.indicator_id and can_manage %}
+                    <div style="margin-top:8px">
+                      <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'esg:indicator_detail' item.indicator_id %}"><i data-lucide="arrow-right"></i> Open indicator</a>
+                    </div>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="check-circle-2"></i>
+        <p>No gaps for {{ result.period_year }}. Every required indicator is tracked, reported{% if can_verify %} and verified{% endif %}.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Source-module signals</h2>
+        <p class="cp-card-sub cp-mt-0">Read-only summaries aggregated from your other modules — never recalculated here</p>
+      </div>
+    </div>
+    <div class="cp-kpi-grid">
+      {% for signal in signals %}
+        <article class="cp-kpi">
+          <div class="cp-kpi-label">{{ signal.label }}</div>
+          <div class="cp-kpi-value" style="font-size:1.5rem">
+            {% if signal.available %}{{ signal.value }}{% else %}<span class="cp-muted">—</span>{% endif %}
+          </div>
+          <div class="cp-kpi-sub">{{ signal.detail }}</div>
+          <div class="cp-muted" style="font-size:0.72rem;margin-top:10px">
+            {{ signal.source }} · Period {{ signal.period }}
+          </div>
+          {% if signal.url %}
+            <div style="margin-top:12px"><a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ signal.url }}"><i data-lucide="arrow-up-right"></i> Open</a></div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+    <p class="cp-muted" style="margin-top:14px;font-size:0.78rem">
+      A card showing <strong>—</strong> means the source module has no data on record; it is never silently
+      treated as zero.
+    </p>
+  </section>
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <div>
+        <h2 class="cp-card-title cp-mt-0">Assessment history</h2>
+        <p class="cp-card-sub cp-mt-0">Saved snapshots so you can track how readiness evolves</p>
+      </div>
+      {% if can_run_ai %}
+        <form method="post" action="{% url 'esg:assessment_run' %}">
+          {% csrf_token %}
+          <input type="hidden" name="year" value="{{ selected_year }}">
+          <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit"><i data-lucide="save"></i> Save snapshot</button>
+        </form>
+      {% endif %}
+    </div>
+    {% if history %}
+      <div class="cp-table-wrap">
+        <table class="cp-table"><caption class="cp-sr-only">Assessment history</caption>
+          <thead>
+            <tr><th scope="col">When</th><th scope="col">Period</th><th scope="col" class="cp-num">Score</th><th scope="col" class="cp-num">Δ</th><th scope="col">Readiness</th><th scope="col" class="cp-num">E / S / G</th><th scope="col">Run by</th><th scope="col"></th></tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+              <tr>
+                <td>{{ item.created_at|date:"d M Y H:i" }}</td>
+                <td>{{ item.period_label }}</td>
+                <td class="cp-num">{{ item.overall_score|floatformat:2 }}</td>
+                <td class="cp-num">
+                  {% if item.delta_score is None %}<span class="cp-muted">—</span>
+                  {% elif item.delta_direction == 'up' %}<span class="cp-kpi-sub is-down">▲ {{ item.delta_score|floatformat:2 }}</span>
+                  {% elif item.delta_direction == 'down' %}<span class="cp-kpi-sub is-up">▼ {{ item.delta_score|floatformat:2 }}</span>
+                  {% else %}<span class="cp-muted">0.00</span>{% endif %}
+                </td>
+                <td>
+                  <span class="cp-badge {% if item.is_ready %}cp-badge-approved{% elif item.readiness == 'NEEDS_REVIEW' %}cp-badge-unverified{% else %}cp-badge-rejected{% endif %}">{{ item.get_readiness_display }}</span>
+                </td>
+                <td class="cp-num">{{ item.environmental_score|floatformat:0 }} / {{ item.social_score|floatformat:0 }} / {{ item.governance_score|floatformat:0 }}</td>
+                <td>{% firstof item.created_by.get_full_name item.created_by.email "—" %}</td>
+                <td><a class="cp-cell-link" href="{% url 'esg:assessment_detail' item.pk %}">Details</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="history"></i>
+        <p>No assessment snapshot saved yet.</p>
+        {% if can_run_ai %}
+          <form method="post" action="{% url 'esg:assessment_run' %}">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ selected_year }}">
+            <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit"><i data-lucide="gauge"></i> Run and save assessment</button>
+          </form>
+        {% else %}
+          <p class="cp-muted">A company owner or ESG reporting manager can run and save an assessment.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    <strong>Scoring formula.</strong> Completeness = coverage (max 40) + reporting-period completeness (max 20)
+    + verification (max 25) + evidence coverage (max 15) = 100 points. Readiness is
+    <strong>Ready for reporting</strong> at ≥ 85 with no blocking gap and at least half the evidence in place,
+    <strong>Needs review</strong> at ≥ 50, otherwise <strong>Not ready</strong>. Django computes every figure from
+    your company's own rows; nothing is invented.
+  </p>
+{% endblock %}

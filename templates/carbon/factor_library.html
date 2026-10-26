@@ -91,9 +91,9 @@
     <p class="cp-card-sub">Values are kilograms of CO2e per factor unit. Demo entries are examples, not official values.</p>
     {% if factors %}
       <div class="cp-table-wrap">
-        <table class="cp-table">
+        <table class="cp-table"><caption class="cp-sr-only">Emission factors</caption>
           <thead>
-            <tr><th>Factor</th><th>Category</th><th>Scope</th><th class="cp-num">Value</th><th>Region</th><th>Year</th><th>Status</th><th>Source</th><th>Actions</th></tr>
+            <tr><th scope="col">Factor</th><th scope="col">Category</th><th scope="col">Scope</th><th scope="col" class="cp-num">Value</th><th scope="col">Region</th><th scope="col">Year</th><th scope="col">Status</th><th scope="col">Source</th><th scope="col">Actions</th></tr>
           </thead>
           <tbody>
             {% for factor in factors %}
@@ -133,14 +133,6 @@
         {% if can_manage_factors %}<p><a class="cp-btn cp-btn-outline" href="{% url 'carbon:factor_create' %}"><i data-lucide="plus"></i> Add emission factor</a></p>{% endif %}
       </div>
     {% endif %}
-    {% if page.pages > 1 %}
-      <nav class="cp-actions" aria-label="Factor pages">
-        <span class="cp-muted">Page {{ page.page }} of {{ page.pages }} · {{ page.total }} matching factors</span>
-        <span class="cp-row">
-          {% if page.has_previous %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="?page={{ page.previous_page }}&amp;q={{ selected.q|urlencode }}&amp;category={{ selected.category }}&amp;scope={{ selected.scope }}&amp;region={{ selected.region|urlencode }}&amp;year={{ selected.year }}&amp;status={{ selected.status }}">Previous</a>{% endif %}
-          {% if page.has_next %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="?page={{ page.next_page }}&amp;q={{ selected.q|urlencode }}&amp;category={{ selected.category }}&amp;scope={{ selected.scope }}&amp;region={{ selected.region|urlencode }}&amp;year={{ selected.year }}&amp;status={{ selected.status }}">Next</a>{% endif %}
-        </span>
-      </nav>
-    {% endif %}
+    {% include "partials/pagination.html" with pagination=page %}
   </section>
 {% endblock %}

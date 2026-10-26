@@ -11,7 +11,7 @@
   --cp-mint: #e9f5ef;
   --cp-line: #dce6e2;
   --cp-white: #ffffff;
-  --cp-amber: #b4791a;
+  --cp-amber: #8f5e14;
   --cp-amber-bg: #fdf4e3;
   --cp-red: #b23a3a;
   --cp-red-bg: #fbeaea;
@@ -81,9 +81,9 @@ a { color: var(--cp-green); }
 .cp-nav-item svg { width: 18px; height: 18px; }
 .cp-nav-item:hover { background: var(--cp-mint); }
 .cp-nav-item.is-active { background: var(--cp-green); color: #fff; box-shadow: var(--cp-shadow-soft); }
-.cp-nav-item.is-disabled { color: #9aa9a4; cursor: not-allowed; }
+.cp-nav-item.is-disabled { color: #5f6e69; cursor: not-allowed; }
 .cp-nav-item.is-disabled:hover { background: transparent; }
-.cp-nav-item em { margin-left: auto; font-size: 0.62rem; font-style: normal; text-transform: uppercase; letter-spacing: 0.08em; color: #9aa9a4; }
+.cp-nav-item em { margin-left: auto; font-size: 0.62rem; font-style: normal; text-transform: uppercase; letter-spacing: 0.08em; color: #5f6e69; }
 
 .cp-sidebar-footer { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
 .cp-tenant { font-weight: 700; font-size: 0.86rem; }
@@ -95,6 +95,42 @@ a { color: var(--cp-green); }
 .cp-eyebrow { margin: 0; color: var(--cp-green); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
 .cp-title { margin: 4px 0 0; font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; }
 .cp-topbar-actions { display: flex; gap: 10px; }
+
+/* ---------- Mobile navigation controls ----------
+   The hamburger and the in-drawer close button stay hidden on desktop and are
+   only revealed, below the md breakpoint, when the mobile-nav script is
+   available (`html.cp-js-nav`). */
+.cp-topbar-lead { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cp-menu-toggle,
+.cp-sidebar-close {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--cp-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--cp-ink);
+  cursor: pointer;
+}
+.cp-menu-toggle { width: 44px; height: 44px; }
+.cp-sidebar-close { width: 40px; height: 40px; }
+.cp-menu-toggle svg { width: 20px; height: 20px; }
+.cp-sidebar-close svg { width: 19px; height: 19px; }
+.cp-menu-toggle:hover,
+.cp-sidebar-close:hover { background: var(--cp-mint); }
+.cp-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cp-sidebar-head .cp-brand { flex: 1 1 auto; min-width: 0; }
+.cp-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: rgba(12, 33, 29, 0.46);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
 
 /* ---------- Cards & surfaces ---------- */
 .cp-card {
@@ -177,8 +213,36 @@ a { color: var(--cp-green); }
   background: #fff; color: var(--cp-ink); font-family: inherit; font-size: 0.92rem;
 }
 .field-input:focus { outline: none; border-color: #55a88d; box-shadow: 0 0 0 3px rgba(20, 125, 98, 0.15); }
-.cp-error { color: var(--cp-red); font-size: 0.78rem; }
+.cp-error { display: block; color: var(--cp-red); font-size: 0.78rem; }
 .cp-nonfield-error { margin-top: 14px; padding: 11px 14px; border-radius: 12px; background: var(--cp-red-bg); color: var(--cp-red); font-size: 0.85rem; }
+
+/* ---------- Validation states ---------- */
+/* An invalid field is highlighted with a red border and a red label, so the
+   message below the field is unambiguously tied to the offending input. The
+   explicit `cp-field-invalid` class is server-rendered; the `:has()` rules are
+   a safety net for field groups rendered outside `.cp-field` (e.g. formsets). */
+.field-input.is-invalid,
+.cp-field-invalid .field-input,
+.cp-field:has(> .cp-error) .field-input,
+.cp-table td:has(> .cp-error) .field-input {
+  border-color: var(--cp-red);
+  background: #fffbfb;
+}
+.field-input.is-invalid:focus,
+.cp-field-invalid .field-input:focus,
+.cp-field:has(> .cp-error) .field-input:focus,
+.cp-table td:has(> .cp-error) .field-input:focus {
+  border-color: var(--cp-red);
+  box-shadow: 0 0 0 3px rgba(178, 58, 58, 0.16);
+}
+.cp-field-invalid > label { color: var(--cp-red); }
+.cp-form-error-summary {
+  margin: 0 0 18px; padding: 14px 16px; border-radius: 12px;
+  background: var(--cp-red-bg); border: 1px solid rgba(178, 58, 58, 0.28);
+}
+.cp-form-error-summary strong { display: block; color: var(--cp-red); font-size: 0.88rem; }
+.cp-error-list { margin: 8px 0 0; padding-left: 18px; }
+.cp-error-list li { color: var(--cp-red); font-size: 0.84rem; }
 
 /* ---------- Factor candidates (step 3) ---------- */
 .cp-factor-list { display: flex; flex-direction: column; gap: 12px; }
@@ -260,7 +324,7 @@ a { color: var(--cp-green); }
 
 /* ---------- Empty state ---------- */
 .cp-empty { text-align: center; padding: 34px 20px; color: var(--cp-muted); }
-.cp-empty svg { width: 34px; height: 34px; color: #9aa9a4; margin-bottom: 10px; }
+.cp-empty svg { width: 34px; height: 34px; color: #5f6e69; margin-bottom: 10px; }
 
 /* ---------- Evidence dropzone ---------- */
 .cp-dropzone {
@@ -278,13 +342,88 @@ a { color: var(--cp-green); }
 .cp-mt-0 { margin-top: 0; }
 .cp-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
+/* Skip link — hidden until it receives focus (WCAG 2.4.1 Bypass Blocks) */
+.cp-skip-link {
+  position: absolute; left: 16px; top: -64px; z-index: 200;
+  padding: 10px 16px; border-radius: 10px;
+  color: #fff; background: var(--cp-green-deep);
+  font-weight: 700; text-decoration: none;
+  transition: top .18s ease;
+}
+.cp-skip-link:focus { top: 16px; }
+
+/* Page footer rendered at the end of the workspace main region */
+.cp-page-footer {
+  margin-top: 44px; padding-top: 18px;
+  border-top: 1px solid var(--cp-line);
+  color: var(--cp-muted); font-size: 0.82rem;
+}
+.cp-page-footer p { margin: 0; }
+
 @media (max-width: 900px) {
-  .cp-shell { grid-template-columns: 1fr; }
-  .cp-sidebar { position: static; height: auto; flex-direction: column; }
-  .cp-nav { flex-direction: row; flex-wrap: wrap; }
   .cp-main { padding: 22px 18px 48px; }
   .cp-field-grid { grid-template-columns: 1fr; }
   .cp-step { min-width: 0; }
+}
+
+/* =====================================================================
+   Mobile navigation (below md)
+   The persistent sidebar becomes an off-canvas drawer: a hamburger in the
+   top bar opens it, and the backdrop, Escape or the in-drawer close button
+   shut it. The drawer geometry is scoped to `html.cp-js-nav` so that without
+   JavaScript the sidebar simply stays in the document flow (see the fallback
+   rules below) and the workspace remains usable.
+   ===================================================================== */
+@media (max-width: 767.98px) {
+  .cp-shell { grid-template-columns: minmax(0, 1fr); }
+
+  html.cp-js-nav .cp-menu-toggle { display: inline-flex; }
+  html.cp-js-nav .cp-sidebar-close { display: inline-flex; }
+
+  html.cp-js-nav .cp-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 120;
+    width: min(84vw, 320px);
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    border-right: 1px solid var(--cp-line);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 24px 60px -24px rgba(23, 51, 46, 0.55);
+    visibility: hidden;
+    transform: translateX(-104%);
+    transition: transform 0.24s ease, visibility 0.24s ease;
+  }
+  html.cp-js-nav .cp-sidebar.is-open { visibility: visible; transform: translateX(0); }
+  html.cp-js-nav .cp-sidebar-overlay.is-open { opacity: 1; visibility: visible; }
+  html.cp-js-nav body.cp-nav-open { overflow: hidden; }
+
+  /* No-JS fallback: an inline sidebar rather than an un-openable drawer. */
+  html:not(.cp-js-nav) .cp-sidebar { position: static; width: auto; height: auto; visibility: visible; transform: none; }
+  html:not(.cp-js-nav) .cp-nav { flex-direction: row; flex-wrap: wrap; }
+
+  /* Phone-sized polish (~390px): stack the header, keep tap targets
+     comfortable and stop long titles / KPI values from being clipped. */
+  .cp-topbar { align-items: center; gap: 14px; margin-bottom: 20px; }
+  .cp-topbar-lead { flex: 1 1 auto; }
+  .cp-topbar-actions { flex: none; }
+  .cp-eyebrow,
+  .cp-title { overflow-wrap: anywhere; }
+  .cp-title { font-size: 1.4rem; }
+  .cp-card { padding: 20px 18px; }
+  .cp-kpi { padding: 18px; }
+  .cp-kpi-label { overflow-wrap: anywhere; }
+  .cp-kpi-value { font-size: 1.6rem; }
+  .cp-btn { min-height: 44px; }
+  .cp-tab { display: inline-flex; align-items: center; min-height: 44px; }
+  .cp-nav-item { min-height: 48px; }
+  .cp-notif > summary { width: 44px; height: 44px; }
+  .cp-stepper { flex-direction: column; }
+  .cp-step { width: 100%; }
+  .cp-page-footer { margin-top: 32px; }
 }
 
 /* =====================================================================
@@ -454,7 +593,7 @@ a { color: var(--cp-green); }
 .cp-notif-item.is-unread { background: var(--cp-mint); border-radius: 8px; }
 .cp-notif-title { display: block; font-weight: 700; font-size: 0.84rem; }
 .cp-notif-msg { display: block; margin-top: 2px; color: var(--cp-muted); font-size: 0.78rem; }
-.cp-notif-time { display: block; margin-top: 4px; color: #93a29c; font-size: 0.7rem; }
+.cp-notif-time { display: block; margin-top: 4px; color: #5f6f6a; font-size: 0.7rem; }
 .cp-notif-empty { padding: 18px 8px; color: var(--cp-muted); font-size: 0.84rem; text-align: center; }
 
 /* Inline review actions used in the review queue */
@@ -467,4 +606,41 @@ a { color: var(--cp-green); }
 .cp-reject-form { margin-top: 8px; padding: 12px; width: 260px; border: 1px solid var(--cp-line); border-radius: var(--cp-radius-sm); background: #fbfdfc; text-align: left; }
 .cp-reject-form label { display: block; color: var(--cp-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .cp-reject-form textarea { width: 100%; margin: 6px 0 10px; padding: 8px 10px; border: 1px solid var(--cp-line); border-radius: 10px; font: inherit; font-size: 0.85rem; resize: vertical; }
+
+/* =====================================================================
+   Keyboard focus visibility (WCAG 2.4.7)
+   A single, consistent ring for every focusable control in the workspace.
+   `.field-input` keeps its dedicated border + ring treatment instead.
+   ===================================================================== */
+.cp-carbon :focus-visible { outline: 3px solid #0c5943; outline-offset: 2px; }
+.cp-carbon .field-input:focus-visible { outline: none; }
+.cp-carbon .cp-choice:focus-within,
+.cp-carbon .cp-factor:focus-within { outline: 3px solid #0c5943; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .cp-carbon * { scroll-behavior: auto !important; }
+}
+
+/* =====================================================================
+   AI action loading state
+   Added to an AI trigger button while its (slow) request is in flight:
+   the button is disabled, its label is swapped for a spinner + status text
+   and the form is marked aria-busy. Wiring lives in static/js/ai-actions.js.
+   ===================================================================== */
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+.cp-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.15em;
+  animation: cp-spin 0.7s linear infinite;
+}
+.cp-btn.is-loading,
+.cp-btn.is-loading:disabled { cursor: progress; pointer-events: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .cp-spinner { animation-duration: 1.8s; }
+}
+
 

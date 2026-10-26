@@ -3,23 +3,14 @@ Django settings for CarbonPilot project.
 """
 
 import os
+import sys
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env', override=False)
-
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
-CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', '1').lower() in (
-    '1', 'true', 'yes', 'on',
-)
-CELERY_TASK_EAGER_PROPAGATES = False
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', '')
 
 
 # Production deployments must provide DJANGO_SECRET_KEY and turn debug off.
@@ -53,16 +44,20 @@ INSTALLED_APPS = [
     'apps.enterprise.apps.EnterpriseConfig',
     'apps.carbon.apps.CarbonConfig',
     'apps.objectives.apps.ObjectivesConfig',
-    'apps.investments.apps.InvestmentsConfig',
-    'apps.portfolio_ai.apps.PortfolioAiConfig',
     'apps.engagement.apps.EngagementConfig',
     'apps.analytics.apps.AnalyticsConfig',
     'apps.recommendations.apps.RecommendationsConfig',
+    'apps.risk.apps.RiskConfig',
+    'apps.reports.apps.ReportsConfig',
+    'apps.suppliers.apps.SuppliersConfig',
+    'apps.assistant.apps.AssistantConfig',
+    'apps.governance.apps.GovernanceConfig',
+    'apps.audits.apps.AuditsConfig',
+    'apps.esg.apps.EsgConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -101,8 +96,6 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-if os.environ.get('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.parse(os.environ['DATABASE_URL'], conn_max_age=600)
 
 
 # Password validation
@@ -161,6 +154,52 @@ OLLAMA_NUM_CTX = int(os.environ.get('OLLAMA_NUM_CTX', '4096'))
 OLLAMA_NUM_PREDICT = int(os.environ.get('OLLAMA_NUM_PREDICT', '1024'))
 OLLAMA_KEEP_ALIVE = os.environ.get('OLLAMA_KEEP_ALIVE', '10m')
 
+# Background AI jobs (Celery + Redis)
+# -----------------------------------
+# One long Qwen job — AI recommendation generation — runs in a Celery worker so
+# the browser is never held open for minutes. Redis is both the broker and the
+# result backend locally. Everything here is overridable through the
+# environment; no credentials are involved (Redis runs on the operator's own
+# machine, like Ollama).
+REDIS_URL = os.environ.get('CELERY_REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', REDIS_URL)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+# Let the UI distinguish "queued" from "a worker picked it up".
+CELERY_TASK_TRACK_STARTED = True
+# Reconnect instead of crashing when the worker starts before Redis.
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# A run cannot outlive the Ollama timeout by much; the hard limit kills a
+# genuinely stuck task. Note: on Windows with `--pool=solo` Celery cannot
+# enforce time limits, which is why the job's own staleness check below is the
+# mechanism the UI relies on.
+CELERY_TASK_SOFT_TIME_LIMIT = int(OLLAMA_TIMEOUT) + 120
+CELERY_TASK_TIME_LIMIT = int(OLLAMA_TIMEOUT) + 300
+
+# A job still Pending/Running after this long is reported to the user as timed
+# out (worker died, task lost, machine slept…). Mirrors the hard time limit.
+AI_JOB_TIMEOUT_SECONDS = float(
+    os.environ.get('AI_JOB_TIMEOUT_SECONDS', str(int(OLLAMA_TIMEOUT) + 300))
+)
+
+# A job that is still Pending after this long was never picked up — Redis is
+# reachable but no worker is consuming the queue. Reported as a clear
+# "worker unavailable" failure instead of leaving the UI spinning forever.
+AI_JOB_QUEUE_GRACE_SECONDS = float(
+    os.environ.get('AI_JOB_QUEUE_GRACE_SECONDS', '90')
+)
+
+# The test suite must pass without a running Redis or worker: tasks execute
+# inline. Set CELERY_TASK_ALWAYS_EAGER=true to get the same behaviour manually.
+TESTING = 'test' in sys.argv
+CELERY_TASK_ALWAYS_EAGER = TESTING or (
+    os.environ.get('CELERY_TASK_ALWAYS_EAGER', '').lower() == 'true'
+)
+CELERY_TASK_EAGER_PROPAGATES = True
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -187,36 +226,6 @@ LOGGING = {
 # Static files
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STORAGES = {
-    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
-}
-
-# Render : nom d'hôte public fourni automatiquement, HTTPS terminé par le proxy.
-RENDER_HOST = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_HOST:
-    ALLOWED_HOSTS.append(RENDER_HOST)
-    CSRF_TRUSTED_ORIGINS = [f'https://{RENDER_HOST}']
-
-# Origines de confiance supplémentaires (variable CSRF_TRUSTED_ORIGINS, séparées par des virgules).
-_extra_origins = [
-    origin.strip()
-    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
-    if origin.strip()
-]
-if _extra_origins:
-    CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
-        globals().get('CSRF_TRUSTED_ORIGINS', []) + _extra_origins
-    ))
-
-# Sécurité renforcée en production (DEBUG=False) : HTTPS forcé et HSTS.
-if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = False
 
 # Media files (pour les PDF des rapports ESG)
 MEDIA_URL = 'media/'

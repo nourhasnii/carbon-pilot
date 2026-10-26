@@ -1,0 +1,1 @@
+<span class="cp-badge {% if finding.severity == 'CRITICAL' %}cp-badge-sev-high{% elif finding.severity == 'HIGH' %}cp-badge-sev-high{% elif finding.severity == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ finding.get_severity_display }}</span>

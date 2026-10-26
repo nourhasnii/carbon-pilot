@@ -51,11 +51,18 @@ from decimal import Decimal
 
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+	accuracy_score,
+	f1_score,
+	precision_score,
+	recall_score,
+)
 
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
+from apps.analytics.models import ModelKind, ModelMetrics
 from apps.carbon.models import Scope
 
 from ..models import (
@@ -230,6 +237,111 @@ def _risk_level(probability):
 	return RiskLevel.HIGH
 
 
+def model_params():
+	"""Hyper-parameters this service actually uses, for the metrics panel."""
+	return {
+		"n_estimators": FOREST_ESTIMATORS,
+		"random_state": FOREST_RANDOM_STATE,
+		"class_weight": "balanced",
+		"min_training_objectives": MIN_TRAINING_OBJECTIVES,
+		"min_class_samples": MIN_CLASS_SAMPLES,
+	}
+
+
+def _class_balance(labels):
+	"""Label counts of a training set, e.g. ``{"achieved": 5, "missed": 4}``."""
+	return {
+		"achieved": labels.count(_LABEL_ACHIEVED),
+		"missed": labels.count(_LABEL_MISSED),
+	}
+
+
+def _evaluate(labels, predictions):
+	"""Real scikit-learn metrics for the ACHIEVED class on the training set.
+
+	``zero_division=0`` keeps the numbers well-defined when a class is never
+	predicted, rather than raising or returning ``nan``.
+	"""
+	return {
+		"accuracy": float(accuracy_score(labels, predictions)),
+		"precision": float(
+			precision_score(
+				labels, predictions, pos_label=_LABEL_ACHIEVED, zero_division=0
+			)
+		),
+		"recall": float(
+			recall_score(
+				labels, predictions, pos_label=_LABEL_ACHIEVED, zero_division=0
+			)
+		),
+		"f1": float(
+			f1_score(labels, predictions, pos_label=_LABEL_ACHIEVED, zero_division=0)
+		),
+	}
+
+
+def _percent(value):
+	"""Scale a 0–1 metric to a 0–100 percentage ``Decimal`` for storage.
+
+	Stored as a percentage so it reads the same way as the prediction
+	probability (also 0–100), and the UI can show it without extra filtering.
+	"""
+	return Decimal(str(round(float(value) * 100.0, 4)))
+
+
+def _record_metrics(company, labels, *, metrics=None):
+	"""Store one append-only ``ModelMetrics`` snapshot of a training attempt."""
+	values = {
+		"company": company,
+		"model_kind": ModelKind.OBJECTIVE_PREDICTION,
+		"model_name": MODEL_NAME,
+		"model_version": MODEL_VERSION,
+		"training_size": len(labels),
+		"class_balance": _class_balance(labels),
+		"params": model_params(),
+	}
+	if metrics is None:
+		values.update(insufficient_data=True, note=INSUFFICIENT_DATA_MESSAGE)
+	else:
+		values.update(
+			accuracy=_percent(metrics["accuracy"]),
+			precision=_percent(metrics["precision"]),
+			recall=_percent(metrics["recall"]),
+			f1=_percent(metrics["f1"]),
+			insufficient_data=False,
+			note=(
+				f"Evaluated on the {len(labels)} resolved objectives used for "
+				"training (in-sample)."
+			),
+		)
+	ModelMetrics.objects.create(**values)
+
+
+def training_summary(company):
+	"""Read-only readiness of a company's resolved history, for the UI.
+
+	Reports the live counts an honest "not enough data yet" state needs, without
+	training anything. Reads only the status column, so a page render stays cheap.
+	"""
+	statuses = list(
+		Objective.objects.filter(
+			company=company,
+			status__in=(ObjectiveStatus.ACHIEVED, ObjectiveStatus.MISSED),
+		).values_list("status", flat=True)
+	)
+	achieved = statuses.count(ObjectiveStatus.ACHIEVED)
+	missed = statuses.count(ObjectiveStatus.MISSED)
+	labels = [_LABEL_ACHIEVED] * achieved + [_LABEL_MISSED] * missed
+	return {
+		"resolved": len(statuses),
+		"achieved": achieved,
+		"missed": missed,
+		"min_training": MIN_TRAINING_OBJECTIVES,
+		"min_class": MIN_CLASS_SAMPLES,
+		"ready": _has_enough_data(labels),
+	}
+
+
 def predict_objective(objective, *, as_of=None):
 	"""Train a RandomForestClassifier and predict one objective's outcome.
 
@@ -245,16 +357,24 @@ def predict_objective(objective, *, as_of=None):
 
 	features, labels = _build_training_data(company, exclude_pk=objective.pk)
 	if not _has_enough_data(labels):
+		_record_metrics(company, labels)
 		return PredictionResult(
 			ok=False, message=INSUFFICIENT_DATA_MESSAGE, insufficient=True
 		)
 
+	x_train = np.asarray(features, dtype=float)
+	y_train = np.asarray(labels, dtype=int)
 	model = RandomForestClassifier(
 		n_estimators=FOREST_ESTIMATORS,
 		random_state=FOREST_RANDOM_STATE,
 		class_weight="balanced",
 	)
-	model.fit(np.asarray(features, dtype=float), np.asarray(labels, dtype=int))
+	model.fit(x_train, y_train)
+
+	# Honest evaluation: score the model against the very labels it was fitted
+	# on. These are in-sample metrics — see the note stored on the row.
+	metrics = _evaluate(y_train, model.predict(x_train))
+	_record_metrics(company, labels, metrics=metrics)
 
 	x_current = np.asarray([_feature_vector(objective, as_of=as_of)], dtype=float)
 	predicted_label = int(model.predict(x_current)[0])

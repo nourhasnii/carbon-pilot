@@ -29,6 +29,24 @@
       .role-select { max-width: 150px; min-height: 30px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; }
       .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
       .danger { background: var(--red); }
+      /* Shared list-page design-system classes used by the filter bar and pagination partials. */
+      .cp-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; background: white; border: 1px solid var(--line); padding: 14px 16px; margin-bottom: 20px; }
+      .cp-field { display: flex; flex-direction: column; gap: 4px; }
+      .cp-field label { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+      .field-input { min-height: 36px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; }
+      .cp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .cp-row-tight { gap: 8px; }
+      .cp-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 650; cursor: pointer; text-decoration: none; }
+      .cp-btn-primary { background: var(--green); border-color: var(--green); color: #fff; }
+      .cp-btn-ghost { background: transparent; }
+      .cp-btn-sm { padding: 6px 9px; font-size: 13px; }
+      .cp-muted { color: var(--muted); }
+      .cp-badge { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; }
+      .cp-badge-neutral { background: var(--paper); border: 1px solid var(--line); color: var(--muted); }
+      .cp-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; text-align: center; color: var(--muted); background: white; border: 1px solid var(--line); }
+      .cp-empty i { width: 28px; height: 28px; }
+      .cp-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; background: white; border: 1px solid var(--line); border-top: 0; }
+      .result-count { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
       @media (max-width: 650px) { .topline { align-items: flex-start; flex-direction: column; } }
     </style>
   </head>
@@ -37,8 +55,12 @@
     <main>
       <div class="topline"><div><h1>User management</h1><p>Review account requests and manage access.</p></div><a class="button" href="{% url 'accounts:create_user' %}">Create user</a></div>
       {% if messages %}<div class="messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+      {% include "partials/list_filters.html" with reset_url=request.path %}
+      <p class="result-count">{{ pagination.total }} account{{ pagination.total|pluralize }}</p>
+      {% if users %}
       <div class="table-wrap"><table>
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Company</th><th>Department</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <caption class="sr-only">User accounts</caption>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Company</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Actions</th></tr></thead>
         <tbody>
           {% for account in users %}
           <tr>
@@ -57,9 +79,24 @@
               {% else %}<span>-</span>{% endif %}
             </div></td>
           </tr>
-          {% empty %}<tr><td colspan="8">No user accounts yet.</td></tr>{% endfor %}
+          {% endfor %}
         </tbody>
       </table></div>
+      {% include "partials/pagination.html" %}
+      {% elif has_filters %}
+      <div class="cp-empty">
+        <i data-lucide="filter"></i>
+        <p>No accounts match these filters.</p>
+        <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+      </div>
+      {% else %}
+      <div class="cp-empty">
+        <i data-lucide="users"></i>
+        <p>No user accounts yet.</p>
+      </div>
+      {% endif %}
     </main>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>window.lucide && window.lucide.createIcons();</script>
   </body>
 </html>

@@ -6,15 +6,18 @@ validation, numeric grounding, duplicate prevention, fallback, and permissions.
 """
 
 import json
-from datetime import date
+import re
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.analytics.models import AiJob, JobStatus, JobType
 from apps.carbon.models import (
 	ActivityCategory,
 	ActivityStatus,
@@ -1006,3 +1009,321 @@ class StartActionTests(RecommendationTestCase):
 			reverse("recommendations:recommendation_start_action", args=[foreign.pk])
 		)
 		self.assertEqual(response.status_code, 404)
+
+
+class RecommendationListFilterTests(RecommendationTestCase):
+	"""Shared filter bar + pagination behaviour on the recommendation list."""
+
+	def test_priority_filter_narrows_the_result_set(self):
+		self._recommendation(title="High priority keep", priority=RecommendationPriority.HIGH)
+		self._recommendation(title="Low priority hide", priority=RecommendationPriority.LOW)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:recommendation_list"), {"priority": "HIGH"}
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "High priority keep")
+		self.assertNotContains(response, "Low priority hide")
+
+	def test_department_filter_narrows_the_result_set(self):
+		self._recommendation(title="Operations rec keep", department=self.operations)
+		self._recommendation(title="Finance rec hide", department=self.finance)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:recommendation_list"),
+			{"department": self.operations.pk},
+		)
+		self.assertContains(response, "Operations rec keep")
+		self.assertNotContains(response, "Finance rec hide")
+
+	def test_closed_recommendations_are_hidden_by_default(self):
+		self._recommendation(title="Open rec keep")
+		self._recommendation(title="Done rec hide", status=RecommendationStatus.DONE)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:recommendation_list"))
+		self.assertContains(response, "Open rec keep")
+		self.assertNotContains(response, "Done rec hide")
+
+	def test_default_page_size_is_ten(self):
+		for index in range(15):
+			self._recommendation(title=f"Open recommendation {index:02d}")
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:recommendation_list"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(len(response.context["pagination"]["items"]), 10)
+		self.assertEqual(response.context["pagination"]["total"], 15)
+
+	def test_per_page_twenty_shows_more_rows(self):
+		for index in range(15):
+			self._recommendation(title=f"Open recommendation {index:02d}")
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:recommendation_list"), {"per_page": "20"}
+		)
+		self.assertEqual(len(response.context["pagination"]["items"]), 15)
+
+	def test_next_page_link_preserves_the_active_filter(self):
+		for index in range(15):
+			self._recommendation(
+				title=f"High recommendation {index:02d}",
+				priority=RecommendationPriority.HIGH,
+			)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:recommendation_list"), {"priority": "HIGH"}
+		)
+		self.assertTrue(response.context["pagination"]["has_next"])
+		match = re.search(r'href="([^"]*)"[^>]*rel="next"', response.content.decode())
+		self.assertIsNotNone(match)
+		href = match.group(1)
+		self.assertIn("priority=HIGH", href)
+		self.assertIn("page=2", href)
+
+	def test_empty_result_set_renders_the_empty_state(self):
+		self._recommendation(title="Only recommendation here")
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:recommendation_list"), {"priority": "LOW"}
+		)
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "cp-empty")
+		self.assertContains(response, "No recommendations match these filters.")
+
+	def test_other_company_recommendations_never_appear(self):
+		self._recommendation(title="Visible recommendation here")
+		RecommendationLog.objects.create(
+			company=self.other_company,
+			title="Foreign recommendation here",
+			message="Not yours.",
+			priority=RecommendationPriority.HIGH,
+			source=RecommendationSource.ANOMALY,
+			fingerprint="foreign-list-filter",
+		)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:recommendation_list"))
+		self.assertContains(response, "Visible recommendation here")
+		self.assertNotContains(response, "Foreign recommendation here")
+
+
+# --------------------------------------------------------------------------- #
+# Asynchronous job (Celery + Redis)
+# --------------------------------------------------------------------------- #
+DELAY_PATCH = "apps.recommendations.tasks.run_recommendation_generation.delay"
+
+
+class AsyncJobTests(RecommendationTestCase):
+	"""The long Qwen generation runs as an enqueued job, not inside the request.
+
+	The worker itself is not exercised here (the suite runs without Redis); the
+	broker hand-off is mocked so the enqueue path, the status endpoint, the
+	tenant scoping and the failure handling can be verified deterministically.
+	"""
+
+	def _job(self, **kwargs):
+		defaults = {
+			"company": self.company,
+			"created_by": self.owner,
+			"job_type": JobType.RECOMMENDATION_GENERATION,
+		}
+		defaults.update(kwargs)
+		return AiJob.objects.create(**defaults)
+
+	def test_generate_enqueues_a_job_and_returns_immediately(self):
+		self.client.force_login(self.owner)
+		with mock.patch(DELAY_PATCH) as delay:
+			delay.return_value = mock.Mock(id="celery-task-123")
+			response = self.client.post(
+				reverse("recommendations:recommendation_generate")
+			)
+
+		self.assertEqual(response.status_code, 302)
+		job = AiJob.objects.get(company=self.company)
+		self.assertEqual(job.status, JobStatus.PENDING)
+		self.assertEqual(job.created_by, self.owner)
+		self.assertEqual(job.celery_task_id, "celery-task-123")
+		delay.assert_called_once_with(job.pk)
+		# The heavy work did not happen inside the request.
+		self.assertEqual(RecommendationLog.objects.count(), 0)
+
+	def test_generate_does_not_queue_a_second_job_while_one_is_active(self):
+		existing = self._job()
+		self.client.force_login(self.owner)
+		with mock.patch(DELAY_PATCH) as delay:
+			response = self.client.post(
+				reverse("recommendations:recommendation_generate")
+			)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(AiJob.objects.filter(company=self.company).count(), 1)
+		delay.assert_not_called()
+		existing.refresh_from_db()
+		self.assertEqual(existing.status, JobStatus.PENDING)
+
+	def test_generate_reports_an_unavailable_broker_without_technical_detail(self):
+		broker_error = type("OperationalError", (Exception,), {})
+		self.client.force_login(self.owner)
+		with mock.patch(DELAY_PATCH, side_effect=broker_error("redis is down")):
+			response = self.client.post(
+				reverse("recommendations:recommendation_generate"), follow=True
+			)
+
+		self.assertEqual(response.status_code, 200)
+		job = AiJob.objects.get(company=self.company)
+		self.assertEqual(job.status, JobStatus.FAILED)
+		self.assertEqual(job.error_code, "broker_unavailable")
+		self.assertContains(response, "background job service is")
+		self.assertNotContains(response, "redis is down")
+
+	def test_generate_falls_back_to_a_generic_error_for_other_failures(self):
+		self.client.force_login(self.owner)
+		with mock.patch(DELAY_PATCH, side_effect=RuntimeError("boom")):
+			response = self.client.post(
+				reverse("recommendations:recommendation_generate"), follow=True
+			)
+
+		self.assertEqual(response.status_code, 200)
+		job = AiJob.objects.get(company=self.company)
+		self.assertEqual(job.status, JobStatus.FAILED)
+		self.assertEqual(job.error_code, "enqueue_failed")
+		self.assertNotContains(response, "boom")
+
+	def test_list_shows_the_active_job_banner(self):
+		job = self._job(status=JobStatus.RUNNING)
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:recommendation_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "data-ai-job")
+		self.assertContains(response, f'data-job-id="{job.pk}"')
+
+	def test_list_hides_the_banner_for_a_finished_job(self):
+		job = self._job()
+		job.mark_running()
+		job.mark_done("done")
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:recommendation_list"))
+
+		self.assertNotContains(response, "data-ai-job")
+
+	def test_status_endpoint_reports_the_company_job(self):
+		job = self._job()
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:ai_job_status"), {"job": job.pk}
+		)
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()["job"]
+		self.assertEqual(payload["id"], job.pk)
+		self.assertEqual(payload["status"], JobStatus.PENDING)
+		self.assertTrue(payload["is_active"])
+		self.assertFalse(payload["is_terminal"])
+
+	def test_status_endpoint_returns_null_when_there_is_no_job(self):
+		self.client.force_login(self.owner)
+		response = self.client.get(reverse("recommendations:ai_job_status"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsNone(response.json()["job"])
+
+	def test_status_endpoint_hides_another_tenants_job(self):
+		foreign = AiJob.objects.create(
+			company=self.other_company,
+			created_by=self.other_owner,
+			job_type=JobType.RECOMMENDATION_GENERATION,
+		)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:ai_job_status"), {"job": foreign.pk}
+		)
+
+		# 404 (never 403) so tenants cannot probe for existing ids.
+		self.assertEqual(response.status_code, 404)
+
+	def test_status_endpoint_rejects_a_non_numeric_job_id(self):
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:ai_job_status"), {"job": "abc"}
+		)
+		self.assertEqual(response.status_code, 404)
+
+	def test_status_endpoint_requires_authentication(self):
+		response = self.client.get(reverse("recommendations:ai_job_status"))
+		self.assertEqual(response.status_code, 302)
+
+	def test_status_endpoint_fails_a_job_that_outlived_the_timeout(self):
+		job = self._job(status=JobStatus.RUNNING)
+		AiJob.objects.filter(pk=job.pk).update(
+			created_at=timezone.now() - timedelta(seconds=100_000)
+		)
+		self.client.force_login(self.owner)
+		response = self.client.get(
+			reverse("recommendations:ai_job_status"), {"job": job.pk}
+		)
+
+		payload = response.json()["job"]
+		self.assertEqual(payload["status"], JobStatus.FAILED)
+		self.assertEqual(payload["error_code"], "job_timeout")
+		self.assertTrue(payload["is_terminal"])
+
+	def test_worker_runs_the_job_and_stores_the_outcome(self):
+		"""The task itself: Pending → Running → Done with a stored summary."""
+		from apps.recommendations.tasks import run_recommendation_generation
+
+		anomaly, _ = self._evidence()
+		payload = qwen_text([
+			structured(
+				title="Investigate the spike anomaly",
+				message="Review the flagged activity in Operations and correct or reclassify it.",
+				priority="HIGH",
+				source="ANOMALY",
+				related_anomaly_id=anomaly.pk,
+				evidence_ids=[anomaly.pk],
+			)
+		])
+		job = self._job()
+
+		with mock.patch(QWEN_PATCH, return_value=OllamaResult(ok=True, text=payload)):
+			run_recommendation_generation(job.pk)
+
+		job.refresh_from_db()
+		self.assertEqual(job.status, JobStatus.DONE)
+		self.assertIsNotNone(job.started_at)
+		self.assertIsNotNone(job.finished_at)
+		self.assertEqual(job.result.get("method"), GenerationMethod.QWEN)
+		self.assertEqual(job.result.get("created"), 1)
+		self.assertEqual(
+			RecommendationLog.objects.filter(company=self.company).count(), 1
+		)
+
+	def test_worker_marks_a_job_failed_when_the_engine_raises(self):
+		from apps.recommendations.tasks import run_recommendation_generation
+
+		job = self._job()
+		with mock.patch(
+			"apps.recommendations.tasks.recommendations.run_generation",
+			side_effect=RuntimeError("kaboom"),
+		):
+			run_recommendation_generation(job.pk)
+
+		job.refresh_from_db()
+		self.assertEqual(job.status, JobStatus.FAILED)
+		self.assertEqual(job.error_code, "task_error")
+		self.assertNotIn("kaboom", job.message)
+
+	def test_worker_ignores_a_job_that_is_no_longer_pending(self):
+		from apps.recommendations.tasks import run_recommendation_generation
+
+		job = self._job()
+		job.mark_running()
+		job.mark_done("already finished")
+
+		with mock.patch(
+			"apps.recommendations.tasks.recommendations.run_generation"
+		) as run:
+			run_recommendation_generation(job.pk)
+
+		run.assert_not_called()
+		job.refresh_from_db()
+		self.assertEqual(job.status, JobStatus.DONE)
+

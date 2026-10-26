@@ -11,8 +11,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import Notification, User
+from apps.analytics.models import ModelKind, ModelMetrics
 from apps.enterprise.models import Company, Department
 
+from .forms import ActivityDataForm, ActivityEditForm
 from .models import (
 	ActivityAuditAction,
 	ActivityCategory,
@@ -1703,6 +1705,48 @@ class AnomalyDetectionServiceTests(AnomalyDetectionTestCase):
 		self.assertEqual(result.detected, 0)
 		self.assertFalse(AnomalyLog.objects.exists())
 
+	def test_run_stores_model_metrics(self):
+		self._approved_same_group([1000] * 9 + [50000])
+
+		anomaly_detection.detect_anomalies(self.company, actor=self.owner)
+
+		metrics = ModelMetrics.latest(self.company, ModelKind.ANOMALY_DETECTION)
+		self.assertIsNotNone(metrics)
+		self.assertFalse(metrics.insufficient_data)
+		self.assertEqual(metrics.model_name, anomaly_detection.MODEL_NAME)
+		self.assertEqual(metrics.activities_analyzed, 10)
+		self.assertEqual(metrics.groups_analyzed, 1)
+		self.assertEqual(metrics.groups_skipped, 0)
+		self.assertEqual(metrics.anomalies_found, 1)
+		self.assertEqual(metrics.params["contamination"], "auto")
+		self.assertEqual(
+			metrics.params["min_observations"], anomaly_detection.MIN_GROUP_OBSERVATIONS
+		)
+		self.assertIsNotNone(metrics.created_at)
+
+	def test_insufficient_detection_records_an_honest_snapshot(self):
+		# One group, below the minimum → skipped rather than scored.
+		self._approved_same_group([1000, 1200, 50000])
+
+		result = anomaly_detection.detect_anomalies(self.company, actor=self.owner)
+
+		metrics = ModelMetrics.latest(self.company, ModelKind.ANOMALY_DETECTION)
+		self.assertTrue(result.insufficient)
+		self.assertTrue(metrics.insufficient_data)
+		self.assertEqual(metrics.groups_analyzed, 0)
+		self.assertEqual(metrics.groups_skipped, 1)
+		self.assertEqual(metrics.anomalies_found, 0)
+		self.assertEqual(metrics.note, anomaly_detection.INSUFFICIENT_DATA_MESSAGE)
+
+	def test_model_metrics_never_leak_across_tenants(self):
+		self._approved_same_group([1000] * 9 + [50000])
+
+		anomaly_detection.detect_anomalies(self.company, actor=self.owner)
+
+		self.assertIsNone(
+			ModelMetrics.latest(self.other_company, ModelKind.ANOMALY_DETECTION)
+		)
+
 	def test_isolation_forest_flags_the_clear_outlier(self):
 		activities = self._approved_same_group([1000] * 9 + [50000])
 		outlier = activities[-1]
@@ -1874,6 +1918,28 @@ class AnomalyViewAndPermissionTests(AnomalyDetectionTestCase):
 		self.assertEqual(response.context["counts"]["total"], AnomalyLog.objects.count())
 		self.assertContains(response, reverse("carbon:anomaly_detail", args=[log.pk]))
 
+	def test_list_shows_the_model_metrics_panel(self):
+		self._approved_same_group([1000] * 9 + [50000])
+		anomaly_detection.detect_anomalies(self.company, actor=self.owner)
+		self.client.force_login(self.owner)
+
+		response = self.client.get(reverse("carbon:anomaly_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "AI model metrics")
+		self.assertContains(response, "Groups analysed")
+		self.assertContains(response, "contamination")
+		self.assertIsNotNone(response.context["model_metrics"])
+
+	def test_list_honestly_reports_no_metrics_before_a_run(self):
+		self.client.force_login(self.owner)
+
+		response = self.client.get(reverse("carbon:anomaly_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsNone(response.context["model_metrics"])
+		self.assertContains(response, "No detection run recorded")
+
 	def test_detail_respects_status_permissions(self):
 		self._approved_same_group([1000] * 9 + [50000])
 		anomaly_detection.detect_anomalies(self.company, actor=self.owner)
@@ -1912,3 +1978,152 @@ class AnomalyViewAndPermissionTests(AnomalyDetectionTestCase):
 		response = self.client.get(reverse("carbon:anomaly_detail", args=[log.pk]))
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "What the model observed")
+
+
+class ActivityDataFormValidationTests(CarbonTestCase):
+	"""Server-side validation of wizard step 2 (quantity, unit, dates, dept)."""
+
+	def _form(self, **overrides):
+		payload = {
+			"quantity": "1500",
+			"unit": "kWh",
+			"period_start": "2026-01-01",
+			"period_end": "2026-01-31",
+			"department": str(self.department.pk),
+		}
+		payload.update(overrides)
+		return ActivityDataForm(data=payload, company=self.company, user=self.owner)
+
+	def test_valid_data_is_accepted(self):
+		form = self._form()
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_quantity_is_required(self):
+		form = self._form(quantity="")
+		self.assertFalse(form.is_valid())
+		self.assertIn("Enter the quantity you measured.", form.errors["quantity"])
+
+	def test_quantity_must_be_numeric(self):
+		form = self._form(quantity="many")
+		self.assertFalse(form.is_valid())
+		self.assertIn("Enter a valid number for the quantity.", form.errors["quantity"])
+
+	def test_quantity_cannot_be_negative(self):
+		form = self._form(quantity="-5")
+		self.assertFalse(form.is_valid())
+		self.assertIn("The quantity cannot be negative.", form.errors["quantity"])
+
+	def test_zero_quantity_is_accepted(self):
+		form = self._form(quantity="0")
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_unit_is_required(self):
+		form = self._form(unit="")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Pick the unit the quantity is expressed in.", form.errors["unit"]
+		)
+
+	def test_period_start_is_required(self):
+		form = self._form(period_start="")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Enter the reporting period start date.", form.errors["period_start"]
+		)
+
+	def test_invalid_period_start_format_is_rejected(self):
+		form = self._form(period_start="not-a-date")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Enter a valid date (for example 2026-01-31).", form.errors["period_start"]
+		)
+
+	def test_period_end_before_start_is_rejected(self):
+		form = self._form(period_start="2026-02-01", period_end="2026-01-31")
+		self.assertFalse(form.is_valid())
+		self.assertEqual(
+			form.errors["period_end"], ["End date must be on or after start date."]
+		)
+
+	def test_period_end_is_optional(self):
+		form = self._form(period_end="")
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_foreign_department_is_rejected(self):
+		foreign = Department.objects.create(company=self.other_company, name="Foreign")
+		form = self._form(department=str(foreign.pk))
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"The department must belong to your company.", form.errors["department"]
+		)
+
+
+class ActivityEditFormValidationTests(CarbonTestCase):
+	"""Server-side validation of the draft-correction form."""
+
+	def _form(self, activity, **overrides):
+		payload = {
+			"name": activity.name,
+			"quantity": str(activity.quantity),
+			"unit": activity.unit,
+			"period_start": activity.period_start.isoformat(),
+			"period_end": activity.period_end.isoformat() if activity.period_end else "",
+			"department": str(self.department.pk),
+			"supplier": "",
+			"emission_factor": str(self.electricity_factor.pk),
+			"data_source": "",
+		}
+		payload.update(overrides)
+		return ActivityEditForm(
+			data=payload, instance=activity, company=self.company, user=self.owner
+		)
+
+	def _activity(self):
+		activity = self.make_activity()
+		activity.save()
+		return activity
+
+	def test_valid_correction_is_accepted(self):
+		form = self._form(self._activity())
+		self.assertTrue(form.is_valid(), form.errors)
+
+	def test_quantity_is_required(self):
+		form = self._form(self._activity(), quantity="")
+		self.assertFalse(form.is_valid())
+		self.assertIn("Enter the quantity you measured.", form.errors["quantity"])
+
+	def test_quantity_cannot_be_negative(self):
+		form = self._form(self._activity(), quantity="-1")
+		self.assertFalse(form.is_valid())
+		self.assertIn("The quantity cannot be negative.", form.errors["quantity"])
+
+	def test_unit_is_required(self):
+		form = self._form(self._activity(), unit="")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Pick the unit the quantity is expressed in.", form.errors["unit"]
+		)
+
+	def test_period_start_is_required(self):
+		form = self._form(self._activity(), period_start="")
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"Enter the reporting period start date.", form.errors["period_start"]
+		)
+
+	def test_period_end_before_start_is_rejected(self):
+		form = self._form(
+			self._activity(), period_start="2026-02-01", period_end="2026-01-31"
+		)
+		self.assertFalse(form.is_valid())
+		self.assertEqual(
+			form.errors["period_end"], ["End date must be on or after start date."]
+		)
+
+	def test_foreign_department_is_rejected(self):
+		foreign = Department.objects.create(company=self.other_company, name="Foreign")
+		form = self._form(self._activity(), department=str(foreign.pk))
+		self.assertFalse(form.is_valid())
+		self.assertIn(
+			"The department must belong to your company.", form.errors["department"]
+		)

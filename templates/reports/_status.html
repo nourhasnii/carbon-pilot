@@ -1,0 +1,2 @@
+{% comment %}Report status badge. Expects `report`.{% endcomment %}
+<span class="cp-badge {% if report.status == 'GENERATED' %}cp-badge-approved{% else %}cp-badge-draft{% endif %}">{{ report.get_status_display }}</span>

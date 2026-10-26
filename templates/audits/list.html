@@ -1,0 +1,157 @@
+{% extends "carbon/base.html" %}
+
+{% block title %}Internal audit{% endblock %}
+{% block eyebrow %}Internal control{% endblock %}
+{% block heading %}Internal audit{% endblock %}
+
+{% block topbar_actions %}
+  {% if can_run_ai %}
+    <form method="post" action="{% url 'audits:audit_ai_analysis' %}" data-ai-action data-ai-label="Analyzing…">
+      {% csrf_token %}
+      <button class="cp-btn cp-btn-outline cp-btn-sm" type="submit">
+        <i data-lucide="sparkles"></i> Run AI Audit Analysis
+      </button>
+    </form>
+  {% endif %}
+  {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'audits:audit_create' %}"><i data-lucide="plus"></i> New audit</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="cp-kpi-grid">
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Audits</div>
+      <div class="cp-kpi-value">{{ counts.audits_total }}</div>
+      <div class="cp-kpi-sub">{{ counts.audits_open }} open · {{ counts.audits_completed }} completed</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Open findings</div>
+      <div class="cp-kpi-value">{{ counts.open_findings }}</div>
+      <div class="cp-kpi-sub">Not closed yet</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">Overdue findings</div>
+      <div class="cp-kpi-value">{{ counts.overdue_findings }}</div>
+      <div class="cp-kpi-sub">Escalated · due date passed</div>
+    </article>
+    <article class="cp-kpi">
+      <div class="cp-kpi-label">High &amp; critical</div>
+      <div class="cp-kpi-value">{{ counts.high_critical_findings }}</div>
+      <div class="cp-kpi-sub">{{ counts.critical_findings }} critical · {{ counts.high_findings }} high</div>
+    </article>
+  </div>
+
+  {% include "audits/_ai_analysis.html" %}
+
+  {% if escalations %}
+    <div class="cp-callout is-warning" style="margin-top:20px">
+      <i data-lucide="alert-triangle"></i>
+      <span>
+        <strong>{{ counts.overdue_findings }} escalated finding{{ counts.overdue_findings|pluralize }}</strong>
+        passed their due date and are still open.
+        <span style="display:block;margin-top:6px">
+          {% for finding in escalations %}
+            <a class="cp-cell-link" href="{% url 'audits:finding_detail' finding.pk %}">{{ finding.reference }} · {{ finding.title }}</a>
+            <span class="cp-muted">({{ finding.department.name|default:"company-wide" }}, {{ finding.days_overdue }}d overdue)</span>
+            {% include "audits/_theme_badge.html" with theme=finding.ai_theme %}
+            {% include "audits/_delay_risk.html" with risk=finding.delay_risk %}
+            {% if not forloop.last %}<br>{% endif %}
+          {% endfor %}
+        </span>
+      </span>
+    </div>
+  {% endif %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">Open findings by severity</h2>
+      <span class="cp-muted">{{ counts.closed_findings }} closed on record</span>
+    </div>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <caption class="cp-sr-only">Open findings by severity</caption>
+        <thead><tr><th scope="col">Severity</th><th scope="col">Open findings</th></tr></thead>
+        <tbody>
+          {% for row in severity %}
+            <tr>
+              <td>
+                <span class="cp-badge {% if row.value == 'CRITICAL' or row.value == 'HIGH' %}cp-badge-sev-high{% elif row.value == 'MEDIUM' %}cp-badge-sev-medium{% else %}cp-badge-sev-low{% endif %}">{{ row.label }}</span>
+              </td>
+              <td>{{ row.count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% include "partials/list_filters.html" %}
+
+  <section class="cp-card" style="margin-top:20px">
+    <div class="cp-section-head">
+      <h2 class="cp-card-title cp-mt-0">{{ pagination.total }} audit{{ pagination.total|pluralize }}</h2>
+      <span class="cp-muted">{{ pagination.total }} result{{ pagination.total|pluralize }}</span>
+    </div>
+
+    {% if pagination.items %}
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <caption class="cp-sr-only">Audits</caption>
+          <thead>
+            <tr>
+              <th scope="col">Audit</th><th scope="col">Type</th><th scope="col">Department</th><th scope="col">Findings</th>
+              <th scope="col">Lead auditor</th><th scope="col">Status</th><th scope="col">Period</th><th scope="col" class="cp-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for audit in pagination.items %}
+              <tr>
+                <td>
+                  <a class="cp-cell-link" href="{% url 'audits:audit_detail' audit.pk %}">{{ audit.title }}</a>
+                  <div class="cp-muted" style="font-size:0.76rem">{{ audit.reference }}{% if audit.related_policy %} · {{ audit.related_policy.title }}{% endif %}</div>
+                </td>
+                <td>{{ audit.get_audit_type_display }}</td>
+                <td>{{ audit.department.name|default:"—" }}</td>
+                <td>
+                  {{ audit.finding_total }}
+                  {% if audit.open_finding_total %}<span class="cp-badge cp-badge-draft">{{ audit.open_finding_total }} open</span>{% endif %}
+                </td>
+                <td>{% firstof audit.lead_auditor.get_full_name audit.lead_auditor.email "—" %}</td>
+                <td>{% include "audits/_audit_status.html" with audit=audit %}</td>
+                <td>
+                  {{ audit.start_date|date:"d M Y" }}
+                  <div class="cp-muted" style="font-size:0.76rem">{% if audit.end_date %}→ {{ audit.end_date|date:"d M Y" }}{% else %}—{% endif %}</div>
+                </td>
+                <td>
+                  <div class="cp-row cp-row-tight">
+                    <a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'audits:audit_detail' audit.pk %}"><i data-lucide="eye"></i> View</a>
+                    {% if can_manage %}<a class="cp-btn cp-btn-outline cp-btn-sm" href="{% url 'audits:audit_edit' audit.pk %}" title="Edit audit"><i data-lucide="pencil"></i> Edit</a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% include "partials/pagination.html" %}
+    {% else %}
+      <div class="cp-empty">
+        <i data-lucide="{% if has_filters %}filter{% else %}clipboard-check{% endif %}"></i>
+        {% if has_filters %}
+          <p>No audits match these filters.</p>
+          <a class="cp-btn cp-btn-ghost cp-btn-sm" href="{{ request.path }}"><i data-lucide="rotate-ccw"></i> Reset filters</a>
+        {% else %}
+          <p>No audits yet.</p>
+          {% if can_manage %}<a class="cp-btn cp-btn-primary cp-btn-sm" href="{% url 'audits:audit_create' %}"><i data-lucide="plus"></i> Create an audit</a>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <p class="cp-muted" style="margin-top:16px;font-size:0.8rem">
+    An audit moves <strong>Planned &rarr; In progress &rarr; Completed</strong>; each finding moves
+    <strong>Open &rarr; In progress &rarr; Closed</strong> and every remediation action moves
+    <strong>Planned &rarr; In progress &rarr; Done</strong>. A finding still open after its due date is
+    flagged <strong>escalated</strong>.
+  </p>
+{% endblock %}

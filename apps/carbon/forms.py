@@ -108,27 +108,42 @@ class ActivityDataForm(forms.Form):
 		max_digits=18,
 		decimal_places=4,
 		min_value=0,
+		error_messages={
+			"required": "Enter the quantity you measured.",
+			"invalid": "Enter a valid number for the quantity.",
+			"min_value": "The quantity cannot be negative.",
+		},
 		widget=forms.NumberInput(attrs={"class": "field-input", "step": "0.0001", "min": "0"}),
 	)
 	unit = forms.CharField(
 		max_length=32,
+		error_messages={"required": "Pick the unit the quantity is expressed in."},
 		widget=forms.TextInput(attrs={"class": "field-input", "list": "unit-options"}),
 	)
 	period_start = forms.DateField(
-		widget=forms.DateInput(attrs={"class": "field-input", "type": "date"})
+		error_messages={
+			"required": "Enter the reporting period start date.",
+			"invalid": "Enter a valid date (for example 2026-01-31).",
+		},
+		widget=forms.DateInput(attrs={"class": "field-input", "type": "date"}),
 	)
 	period_end = forms.DateField(
 		required=False,
+		error_messages={"invalid": "Enter a valid date (for example 2026-01-31)."},
 		widget=forms.DateInput(attrs={"class": "field-input", "type": "date"}),
 	)
 	department = forms.ModelChoiceField(
 		queryset=Department.objects.none(),
 		required=False,
+		error_messages={
+			"invalid_choice": "The department must belong to your company."
+		},
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 
 	def __init__(self, *args, company=None, user=None, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.company = company
 		queryset = Department.objects.none()
 		if company is not None:
 			queryset = Department.objects.filter(company=company).order_by("name")
@@ -143,7 +158,11 @@ class ActivityDataForm(forms.Form):
 		start = cleaned_data.get("period_start")
 		end = cleaned_data.get("period_end")
 		if start and end and end < start:
-			self.add_error("period_end", "The reporting period end cannot be before its start.")
+			self.add_error("period_end", "End date must be on or after start date.")
+		department = cleaned_data.get("department")
+		if department is not None and self.company is not None:
+			if department.company_id != self.company.pk:
+				self.add_error("department", "The department must belong to your company.")
 		return cleaned_data
 
 
@@ -201,24 +220,37 @@ class ActivityReviewForm(forms.Form):
 class ActivityFilterForm(forms.Form):
 	"""Shared filter bar for the activity list and footprint pages."""
 
-	year = forms.ChoiceField(required=False, widget=forms.Select(attrs={"class": "field-input"}))
+	q = forms.CharField(
+		required=False,
+		label="Search",
+		widget=forms.TextInput(
+			attrs={"class": "field-input", "placeholder": "Search activity name…"}
+		),
+	)
+	year = forms.ChoiceField(
+		required=False, label="Year", widget=forms.Select(attrs={"class": "field-input"})
+	)
 	scope = forms.ChoiceField(
 		required=False,
+		label="Scope",
 		choices=[("", "All scopes"), *Scope.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	category = forms.ChoiceField(
 		required=False,
+		label="Category",
 		choices=[("", "All categories"), *ActivityCategory.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	department = forms.ModelChoiceField(
 		queryset=Department.objects.none(),
 		required=False,
+		label="Department",
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	status = forms.ChoiceField(
 		required=False,
+		label="Status",
 		choices=[("", "All statuses"), *ActivityStatus.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
@@ -242,25 +274,31 @@ class AnomalyFilterForm(forms.Form):
 
 	severity = forms.ChoiceField(
 		required=False,
+		label="Severity",
 		choices=[("", "All severities"), *AnomalySeverity.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	status = forms.ChoiceField(
 		required=False,
+		label="Status",
 		choices=[("", "All statuses"), *AnomalyStatus.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	category = forms.ChoiceField(
 		required=False,
+		label="Category",
 		choices=[("", "All categories"), *ActivityCategory.choices],
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	department = forms.ModelChoiceField(
 		queryset=Department.objects.none(),
 		required=False,
+		label="Department",
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
-	year = forms.ChoiceField(required=False, widget=forms.Select(attrs={"class": "field-input"}))
+	year = forms.ChoiceField(
+		required=False, label="Period", widget=forms.Select(attrs={"class": "field-input"})
+	)
 
 	def __init__(self, *args, company=None, years=None, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -285,18 +323,39 @@ class ActivityEditForm(forms.Form):
 	)
 	quantity = forms.DecimalField(
 		max_digits=18, decimal_places=4, min_value=0,
+		error_messages={
+			"required": "Enter the quantity you measured.",
+			"invalid": "Enter a valid number for the quantity.",
+			"min_value": "The quantity cannot be negative.",
+		},
 		widget=forms.NumberInput(attrs={"class": "field-input", "step": "0.0001", "min": "0"}),
 	)
 	unit = forms.CharField(
 		max_length=32,
+		error_messages={"required": "Pick the unit the quantity is expressed in."},
 		widget=forms.TextInput(attrs={"class": "field-input", "list": "unit-options"}),
 	)
-	period_start = forms.DateField(widget=forms.DateInput(attrs={"class": "field-input", "type": "date"}))
+	period_start = forms.DateField(
+		error_messages={
+			"required": "Enter the reporting period start date.",
+			"invalid": "Enter a valid date (for example 2026-01-31).",
+		},
+		widget=forms.DateInput(attrs={"class": "field-input", "type": "date"}),
+	)
 	period_end = forms.DateField(
-		required=False, widget=forms.DateInput(attrs={"class": "field-input", "type": "date"})
+		required=False,
+		error_messages={"invalid": "Enter a valid date (for example 2026-01-31)."},
+		widget=forms.DateInput(attrs={"class": "field-input", "type": "date"}),
 	)
 	department = forms.ModelChoiceField(
 		queryset=Department.objects.none(), required=False,
+		error_messages={
+			"invalid_choice": "The department must belong to your company."
+		},
+		widget=forms.Select(attrs={"class": "field-input"}),
+	)
+	supplier = forms.ModelChoiceField(
+		queryset=None, required=False,
 		widget=forms.Select(attrs={"class": "field-input"}),
 	)
 	emission_factor = forms.ModelChoiceField(
@@ -313,13 +372,23 @@ class ActivityEditForm(forms.Form):
 	def __init__(self, *args, instance=None, company=None, user=None, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.instance = instance
+		self.company = company
+		# Imported lazily so the carbon app never imports suppliers at load time.
+		from apps.suppliers.models import Supplier
+
 		queryset = Department.objects.none()
+		suppliers = Supplier.objects.none()
 		if company is not None:
 			queryset = Department.objects.filter(company=company).order_by("name")
+			suppliers = Supplier.objects.filter(
+				company=company, is_active=True
+			).order_by("name")
 		if user is not None and user.role == User.Role.DEPARTMENT_MANAGER and user.department:
 			queryset = queryset.filter(name=user.department)
 		self.fields["department"].queryset = queryset
 		self.fields["department"].empty_label = "No department"
+		self.fields["supplier"].queryset = suppliers
+		self.fields["supplier"].empty_label = "No supplier"
 		candidates = (
 			recommendation_candidates(category=instance.category, scope=instance.scope, company=company)
 			if instance is not None
@@ -348,5 +417,9 @@ class ActivityEditForm(forms.Form):
 		start = cleaned.get("period_start")
 		end = cleaned.get("period_end")
 		if start and end and end < start:
-			self.add_error("period_end", "The reporting period end cannot be before its start.")
+			self.add_error("period_end", "End date must be on or after start date.")
+		department = cleaned.get("department")
+		if department is not None and self.company is not None:
+			if department.company_id != self.company.pk:
+				self.add_error("department", "The department must belong to your company.")
 		return cleaned

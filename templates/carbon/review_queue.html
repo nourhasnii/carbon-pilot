@@ -29,8 +29,9 @@
     {% if submitted %}
       <div class="cp-table-wrap">
         <table class="cp-table">
+          <caption class="cp-sr-only">Submitted carbon activities awaiting first review</caption>
           <thead>
-            <tr><th>Activity</th><th>Department</th><th>Submitted by</th><th class="cp-num">CO2e</th><th>Scope</th><th class="cp-num">Actions</th></tr>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Submitted by</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Scope</th><th scope="col" class="cp-num">Actions</th></tr>
           </thead>
           <tbody>
             {% for activity in submitted %}
@@ -78,8 +79,9 @@
     {% if under_review %}
       <div class="cp-table-wrap">
         <table class="cp-table">
+          <caption class="cp-sr-only">Carbon activities under review</caption>
           <thead>
-            <tr><th>Activity</th><th>Department</th><th>Reviewer</th><th class="cp-num">CO2e</th><th>Scope</th><th class="cp-num">Actions</th></tr>
+            <tr><th scope="col">Activity</th><th scope="col">Department</th><th scope="col">Reviewer</th><th scope="col" class="cp-num">CO2e</th><th scope="col">Scope</th><th scope="col" class="cp-num">Actions</th></tr>
           </thead>
           <tbody>
             {% for activity in under_review %}

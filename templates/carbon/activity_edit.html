@@ -20,7 +20,7 @@
 
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      {% if form.non_field_errors %}<div class="cp-nonfield-error">{{ form.non_field_errors }}</div>{% endif %}
+      {% include "carbon/_form_error_summary.html" %}
 
       <div class="cp-field-grid">
         <div class="cp-field cp-span-2">

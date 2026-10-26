@@ -1,0 +1,2 @@
+{% comment %}Risk level badge. Expects `level` (value) and `label`.{% endcomment %}
+<span class="cp-badge cp-badge-sev-{% if level == 'HIGH' %}high{% elif level == 'MEDIUM' %}medium{% else %}low{% endif %}">{{ label }}</span>
